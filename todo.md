@@ -17,3 +17,5 @@
 
 ## Updates
 - [x] Update spots: Remove Montauk, add Lido Beach
+- [x] Add wind direction and tide phase to forecast schema
+- [x] Update dashboard cards to display wind and tide info

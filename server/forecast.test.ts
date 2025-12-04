@@ -52,6 +52,9 @@ describe("generateForecast", () => {
     expect(result.confidenceBand).toBe("Low");
     expect(result.usabilityIntermediate).toBe(0);
     expect(result.usabilityAdvanced).toBe(0);
+    expect(result.windSpeedMph).toBeNull();
+    expect(result.windType).toBeNull();
+    expect(result.tidePhase).toBeNull();
   });
 
   it("generates a positive forecast with good conditions", () => {
@@ -67,6 +70,12 @@ describe("generateForecast", () => {
     expect(result.confidenceBand).toBe("High");
     expect(result.usabilityIntermediate).toBeGreaterThan(0);
     expect(result.usabilityAdvanced).toBeGreaterThan(0);
+    // Wind should be offshore (direction 0 = north)
+    expect(result.windType).toBe("offshore");
+    expect(result.windSpeedMph).toBeGreaterThan(0);
+    // Tide should be rising
+    expect(result.tidePhase).toBe("rising");
+    expect(result.tideHeightFt).toBeGreaterThan(0);
   });
 
   it("calculates wave height correctly from cm to tenths of feet", () => {

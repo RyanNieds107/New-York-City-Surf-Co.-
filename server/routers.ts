@@ -128,6 +128,11 @@ export const appRouter = router({
         confidenceBand: forecastResult.confidenceBand,
         usabilityIntermediate: forecastResult.usabilityIntermediate,
         usabilityAdvanced: forecastResult.usabilityAdvanced,
+        windSpeedMph: forecastResult.windSpeedMph,
+        windDirectionDeg: forecastResult.windDirectionDeg,
+        windType: forecastResult.windType,
+        tideHeightFt: forecastResult.tideHeightFt,
+        tidePhase: forecastResult.tidePhase,
       });
 
       return {
@@ -184,6 +189,11 @@ export const appRouter = router({
             confidenceBand: forecastResult.confidenceBand,
             usabilityIntermediate: forecastResult.usabilityIntermediate,
             usabilityAdvanced: forecastResult.usabilityAdvanced,
+            windSpeedMph: forecastResult.windSpeedMph,
+            windDirectionDeg: forecastResult.windDirectionDeg,
+            windType: forecastResult.windType,
+            tideHeightFt: forecastResult.tideHeightFt,
+            tidePhase: forecastResult.tidePhase,
           });
 
           results.push({ spotId: spot.id, success: true });

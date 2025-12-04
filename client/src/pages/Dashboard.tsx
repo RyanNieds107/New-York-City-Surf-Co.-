@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RefreshCw, Waves, Wind, Clock, Users, ArrowRight } from "lucide-react";
+import { RefreshCw, Waves, Wind, Clock, ArrowRight, Navigation, Droplets } from "lucide-react";
 import { Link } from "wouter";
 import { toast } from "sonner";
 
@@ -55,6 +55,89 @@ export default function Dashboard() {
       minute: "2-digit",
       hour12: true,
     });
+  };
+
+  const getWindTypeColor = (windType: string | null) => {
+    switch (windType) {
+      case "offshore":
+        return "text-green-400";
+      case "cross":
+        return "text-yellow-400";
+      case "onshore":
+        return "text-red-400";
+      default:
+        return "text-slate-400";
+    }
+  };
+
+  const getWindTypeLabel = (windType: string | null) => {
+    switch (windType) {
+      case "offshore":
+        return "Offshore";
+      case "cross":
+        return "Cross";
+      case "onshore":
+        return "Onshore";
+      default:
+        return "N/A";
+    }
+  };
+
+  const getTidePhaseIcon = (phase: string | null) => {
+    switch (phase) {
+      case "rising":
+        return "↑";
+      case "falling":
+        return "↓";
+      case "high":
+        return "⬆";
+      case "low":
+        return "⬇";
+      default:
+        return "–";
+    }
+  };
+
+  const getTidePhaseColor = (phase: string | null) => {
+    switch (phase) {
+      case "rising":
+        return "text-cyan-400";
+      case "falling":
+        return "text-orange-400";
+      case "high":
+        return "text-blue-400";
+      case "low":
+        return "text-amber-400";
+      default:
+        return "text-slate-400";
+    }
+  };
+
+  const getTidePhaseLabel = (phase: string | null) => {
+    switch (phase) {
+      case "rising":
+        return "Rising";
+      case "falling":
+        return "Falling";
+      case "high":
+        return "High";
+      case "low":
+        return "Low";
+      default:
+        return "N/A";
+    }
+  };
+
+  const getWindDirectionArrow = (degrees: number | null) => {
+    if (degrees === null) return null;
+    // Wind direction is where wind comes FROM, so arrow points opposite
+    const rotation = (degrees + 180) % 360;
+    return (
+      <Navigation
+        className="h-4 w-4"
+        style={{ transform: `rotate(${rotation}deg)` }}
+      />
+    );
   };
 
   return (
@@ -170,7 +253,7 @@ export default function Dashboard() {
                     </CardHeader>
                     <CardContent>
                       {forecast ? (
-                        <div className="space-y-4">
+                        <div className="space-y-3">
                           {/* Score Circle */}
                           <div className="flex items-center gap-4">
                             <div
@@ -194,6 +277,40 @@ export default function Dashboard() {
                             <span className="text-white font-medium">
                               {formatWaveHeight(forecast.waveHeightTenthsFt)}
                             </span>
+                          </div>
+
+                          {/* Wind & Tide Row */}
+                          <div className="grid grid-cols-2 gap-3 py-2 px-3 bg-slate-700/30 rounded-lg">
+                            {/* Wind */}
+                            <div className="flex items-center gap-2">
+                              <div className={`flex items-center gap-1 ${getWindTypeColor(forecast.windType)}`}>
+                                <Wind className="h-4 w-4" />
+                                {forecast.windDirectionDeg !== null && getWindDirectionArrow(forecast.windDirectionDeg)}
+                              </div>
+                              <div className="text-xs">
+                                <p className={`font-medium ${getWindTypeColor(forecast.windType)}`}>
+                                  {getWindTypeLabel(forecast.windType)}
+                                </p>
+                                <p className="text-slate-500">
+                                  {forecast.windSpeedMph !== null ? `${forecast.windSpeedMph} mph` : "N/A"}
+                                </p>
+                              </div>
+                            </div>
+                            {/* Tide */}
+                            <div className="flex items-center gap-2">
+                              <div className={`flex items-center gap-1 ${getTidePhaseColor(forecast.tidePhase)}`}>
+                                <Droplets className="h-4 w-4" />
+                                <span className="text-sm font-bold">{getTidePhaseIcon(forecast.tidePhase)}</span>
+                              </div>
+                              <div className="text-xs">
+                                <p className={`font-medium ${getTidePhaseColor(forecast.tidePhase)}`}>
+                                  {getTidePhaseLabel(forecast.tidePhase)}
+                                </p>
+                                <p className="text-slate-500">
+                                  {forecast.tideHeightFt !== null ? `${(forecast.tideHeightFt / 10).toFixed(1)} ft` : "N/A"}
+                                </p>
+                              </div>
+                            </div>
                           </div>
 
                           {/* Usability Scores */}

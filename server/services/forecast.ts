@@ -12,6 +12,13 @@ export interface ForecastResult {
   confidenceBand: "Low" | "Medium" | "High";
   usabilityIntermediate: number; // 0-100
   usabilityAdvanced: number; // 0-100
+  // Wind data
+  windSpeedMph: number | null;
+  windDirectionDeg: number | null;
+  windType: "offshore" | "onshore" | "cross" | null;
+  // Tide data
+  tideHeightFt: number | null; // in tenths of feet
+  tidePhase: "rising" | "falling" | "high" | "low" | null;
 }
 
 interface ForecastInput {
@@ -35,6 +42,11 @@ export function generateForecast(input: ForecastInput): ForecastResult {
       confidenceBand: "Low",
       usabilityIntermediate: 0,
       usabilityAdvanced: 0,
+      windSpeedMph: null,
+      windDirectionDeg: null,
+      windType: null,
+      tideHeightFt: null,
+      tidePhase: null,
     };
   }
 
@@ -73,13 +85,45 @@ export function generateForecast(input: ForecastInput): ForecastResult {
     avgCrowdLevel
   );
 
+  // Calculate wind data
+  const windSpeedMph = buoyReading.windSpeedCmps
+    ? Math.round((buoyReading.windSpeedCmps / 100) * 2.237) // m/s to mph
+    : null;
+  const windDirectionDeg = buoyReading.windDirectionDeg ?? null;
+  const windType = calculateWindType(buoyReading.windDirectionDeg);
+
+  // Calculate tide data
+  const tideHeightFt = tideInfo ? Math.round(tideInfo.currentHeightFt * 10) : null;
+  const tidePhase = tideInfo?.tidePhase ?? null;
+
   return {
     probabilityScore,
     waveHeightTenthsFt,
     confidenceBand,
     usabilityIntermediate,
     usabilityAdvanced,
+    windSpeedMph,
+    windDirectionDeg,
+    windType,
+    tideHeightFt,
+    tidePhase,
   };
+}
+
+/**
+ * Determines wind type based on direction for Long Island.
+ * North (315-45) = offshore, South (135-225) = onshore, else = cross
+ */
+function calculateWindType(windDir: number | null): "offshore" | "onshore" | "cross" | null {
+  if (windDir === null) return null;
+  
+  if (windDir >= 315 || windDir <= 45) {
+    return "offshore";
+  } else if (windDir >= 135 && windDir <= 225) {
+    return "onshore";
+  } else {
+    return "cross";
+  }
 }
 
 /**

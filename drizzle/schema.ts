@@ -68,6 +68,13 @@ export const forecasts = mysqlTable("forecasts", {
   confidenceBand: varchar("confidenceBand", { length: 16 }).notNull(), // Low, Medium, High
   usabilityIntermediate: int("usabilityIntermediate").notNull(), // 0-100
   usabilityAdvanced: int("usabilityAdvanced").notNull(), // 0-100
+  // Wind data
+  windSpeedMph: int("windSpeedMph"), // wind speed in mph
+  windDirectionDeg: int("windDirectionDeg"), // wind direction in degrees
+  windType: varchar("windType", { length: 16 }), // offshore, onshore, cross
+  // Tide data
+  tideHeightFt: int("tideHeightFt"), // current tide height in tenths of feet
+  tidePhase: varchar("tidePhase", { length: 16 }), // rising, falling, high, low
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 

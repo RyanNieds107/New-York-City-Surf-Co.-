@@ -15,6 +15,13 @@
       "when": 1764864696899,
       "tag": "0001_watery_cobalt_man",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1764865478930,
+      "tag": "0002_broken_lilith",
+      "breakpoints": true
     }
   ]
 }
