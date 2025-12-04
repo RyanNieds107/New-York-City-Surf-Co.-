@@ -55,14 +55,14 @@ const LONG_ISLAND_SPOTS = [
     idealSwellDirMax: 180,
   },
   {
-    name: "Montauk",
-    latitude: "41.0534",
-    longitude: "-71.8895",
-    buoyId: "44017", // Montauk Point buoy
-    tideStationId: "8510560", // Montauk, NY
-    bathymetryFactor: 7,
-    idealSwellDirMin: 80,
-    idealSwellDirMax: 170,
+    name: "Lido Beach",
+    latitude: "40.5892",
+    longitude: "-73.6256",
+    buoyId: "44025", // Ambrose Light buoy
+    tideStationId: "8516945", // Kings Point, NY
+    bathymetryFactor: 5,
+    idealSwellDirMin: 130,
+    idealSwellDirMax: 200,
   },
 ];
 

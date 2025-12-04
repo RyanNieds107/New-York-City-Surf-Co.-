@@ -1,0 +1,30 @@
+{
+  "query": "SELECT id, name FROM surf_spots ORDER BY name;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user eFszfGWq6sWLWeR.root --database BQ3uQCwY3oUShxQkzfbXhE --execute SELECT id, name FROM surf_spots ORDER BY name;",
+  "rows": [
+    {
+      "id": "4",
+      "name": "Ditch Plains"
+    },
+    {
+      "id": "3",
+      "name": "Gilgo Beach"
+    },
+    {
+      "id": "6",
+      "name": "Lido Beach"
+    },
+    {
+      "id": "1",
+      "name": "Long Beach"
+    },
+    {
+      "id": "2",
+      "name": "Rockaway Beach"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\n4\tDitch Plains\n3\tGilgo Beach\n6\tLido Beach\n1\tLong Beach\n2\tRockaway Beach\n",
+  "stderr": "",
+  "execution_time_ms": 1740
+}

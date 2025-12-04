@@ -1,0 +1,9 @@
+{
+  "query": "INSERT INTO surf_spots (name, latitude, longitude, buoyId, tideStationId, bathymetryFactor, idealSwellDirMin, idealSwellDirMax, createdAt) VALUES ('Lido Beach', '40.5892', '-73.6256', '44025', '8516945', 5, 130, 200, NOW());",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user eFszfGWq6sWLWeR.root --database BQ3uQCwY3oUShxQkzfbXhE --execute INSERT INTO surf_spots (name, latitude, longitude, buoyId, tideStationId, bathymetryFactor, idealSwellDirMin, idealSwellDirMax, createdAt) VALUES ('Lido Beach', '40.5892', '-73.6256', '44025', '8516945', 5, 130, 200, NOW());",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1604
+}

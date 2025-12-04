@@ -14,3 +14,6 @@
 - [x] Frontend: Spot detail view with forecast
 - [x] Frontend: Crowd report submission form
 - [x] Vitest tests for core backend procedures
+
+## Updates
+- [x] Update spots: Remove Montauk, add Lido Beach
