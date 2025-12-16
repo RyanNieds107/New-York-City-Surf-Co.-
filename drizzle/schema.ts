@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { decimal, int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -80,6 +80,35 @@ export const forecasts = mysqlTable("forecasts", {
 
 export type Forecast = typeof forecasts.$inferSelect;
 export type InsertForecast = typeof forecasts.$inferInsert;
+
+// Forecast Points Table (NOMADS time-series forecast data)
+export const forecastPoints = mysqlTable("forecast_points", {
+  id: int("id").autoincrement().primaryKey(),
+  spotId: int("spotId").notNull(),
+  forecastTimestamp: timestamp("forecastTimestamp").notNull(), // when this forecast is for
+  modelRunTime: timestamp("modelRunTime").notNull(), // when WW3 model ran (00z, 06z, 12z, 18z)
+  hoursOut: int("hoursOut").notNull(), // hours from model run time
+  // Primary swell (backward compatibility - stored as integer tenths of feet)
+  waveHeightFt: int("waveHeightFt"), // feet in tenths (from WW3/Open-Meteo)
+  wavePeriodSec: int("wavePeriodSec"), // seconds
+  waveDirectionDeg: int("waveDirectionDeg"), // degrees
+  // Secondary swell (NEW - stored as decimal feet)
+  secondarySwellHeightFt: decimal("secondarySwellHeightFt", { precision: 4, scale: 1 }),
+  secondarySwellPeriodS: int("secondarySwellPeriodS"), // seconds
+  secondarySwellDirectionDeg: int("secondarySwellDirectionDeg"), // degrees
+  // Wind waves (NEW - stored as decimal feet)
+  windWaveHeightFt: decimal("windWaveHeightFt", { precision: 4, scale: 1 }),
+  windWavePeriodS: int("windWavePeriodS"), // seconds
+  windWaveDirectionDeg: int("windWaveDirectionDeg"), // degrees
+  // Wind data
+  windSpeedKts: int("windSpeedKts"), // knots
+  windDirectionDeg: int("windDirectionDeg"), // degrees
+  source: mysqlEnum("source", ["ww3", "gfs", "hrrr", "openmeteo"]).default("ww3").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ForecastPoint = typeof forecastPoints.$inferSelect;
+export type InsertForecastPoint = typeof forecastPoints.$inferInsert;
 
 // Crowd Reports Table (user-submitted data)
 export const crowdReports = mysqlTable("crowd_reports", {

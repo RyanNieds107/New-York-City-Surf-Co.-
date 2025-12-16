@@ -1,0 +1,1 @@
+ALTER TABLE `forecast_points` MODIFY COLUMN `source` enum('ww3','gfs','hrrr','openmeteo') NOT NULL DEFAULT 'ww3';

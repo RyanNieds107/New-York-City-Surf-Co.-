@@ -8,6 +8,17 @@ import App from "./App";
 import { getLoginUrl } from "./const";
 import "./index.css";
 
+// Conditionally load analytics script only if endpoint is configured
+if (import.meta.env.VITE_ANALYTICS_ENDPOINT) {
+  const script = document.createElement("script");
+  script.defer = true;
+  script.src = `${import.meta.env.VITE_ANALYTICS_ENDPOINT}/umami`;
+  if (import.meta.env.VITE_ANALYTICS_WEBSITE_ID) {
+    script.setAttribute("data-website-id", import.meta.env.VITE_ANALYTICS_WEBSITE_ID);
+  }
+  document.body.appendChild(script);
+}
+
 const queryClient = new QueryClient();
 
 const redirectToLoginIfUnauthorized = (error: unknown) => {

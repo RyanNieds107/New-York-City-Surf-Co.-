@@ -1,8 +1,10 @@
 /**
  * Seed script for Long Island surf spots.
  * Run with: node scripts/seed-spots.mjs
+ * Or: pnpm exec node scripts/seed-spots.mjs
  */
 
+import "dotenv/config";
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 
@@ -33,26 +35,6 @@ const LONG_ISLAND_SPOTS = [
     bathymetryFactor: 5,
     idealSwellDirMin: 130,
     idealSwellDirMax: 210,
-  },
-  {
-    name: "Gilgo Beach",
-    latitude: "40.6226",
-    longitude: "-73.3926",
-    buoyId: "44025", // Ambrose Light buoy
-    tideStationId: "8516945", // Kings Point, NY
-    bathymetryFactor: 5,
-    idealSwellDirMin: 140,
-    idealSwellDirMax: 200,
-  },
-  {
-    name: "Ditch Plains",
-    latitude: "41.0276",
-    longitude: "-71.9276",
-    buoyId: "44017", // Montauk Point buoy
-    tideStationId: "8510560", // Montauk, NY
-    bathymetryFactor: 8,
-    idealSwellDirMin: 90,
-    idealSwellDirMax: 180,
   },
   {
     name: "Lido Beach",

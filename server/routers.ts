@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { TRPCError } from "@trpc/server";
 import {
   getAllSpots,
   getSpotById,
@@ -15,10 +16,18 @@ import {
   getRecentCrowdReports,
   getAverageCrowdLevel,
   insertCrowdReport,
+  getForecastTimeline,
 } from "./db";
 import { fetchLatestBuoyReading } from "./services/ndbc";
 import { getCurrentTideInfo } from "./services/tides";
-import { generateForecast } from "./services/forecast";
+import { generateForecast, generateForecastTimeline } from "./services/forecast";
+import { makeRequest, type DistanceMatrixResult, type TravelMode } from "./_core/map";
+import { getSpotProfile, SPOT_PROFILES } from "./utils/spotProfiles";
+import { getDominantSwell, calculateBreakingWaveHeight, formatWaveHeight, getPeriodMultiplier } from "./utils/waveHeight";
+import { generateForecastOutput } from "./utils/forecastOutput";
+import { forecastPoints } from "../drizzle/schema";
+import { eq, desc } from "drizzle-orm";
+import { getDb } from "./db";
 
 export const appRouter = router({
   system: systemRouter,
@@ -67,7 +76,14 @@ export const appRouter = router({
     getForSpot: publicProcedure.input(z.object({ spotId: z.number() })).query(async ({ input }) => {
       const forecast = await getLatestForecastForSpot(input.spotId);
       const spot = await getSpotById(input.spotId);
-      return { forecast, spot };
+      
+      // Get latest buoy reading for period and direction data
+      let buoyReading = null;
+      if (spot) {
+        buoyReading = await getLatestBuoyReading(spot.buoyId);
+      }
+      
+      return { forecast, spot, buoyReading };
     }),
 
     // Get all latest forecasts (one per spot)
@@ -205,6 +221,130 @@ export const appRouter = router({
 
       return { results };
     }),
+
+    // Get forecast timeline (multi-day forecast with quality scores)
+    getTimeline: publicProcedure
+      .input(
+        z.object({
+          spotId: z.number(),
+          hours: z.number().min(1).max(180).default(72),
+        })
+      )
+      .query(async ({ input }) => {
+        const spot = await getSpotById(input.spotId);
+        if (!spot) {
+          throw new Error("Spot not found");
+        }
+
+        // Check if data is stale or missing
+        const { isForecastDataStale } = await import("./db");
+        const isStale = await isForecastDataStale(input.spotId, 6); // 6 hours stale threshold
+        let forecastPoints = await getForecastTimeline(input.spotId, input.hours);
+
+        // If data is stale or missing, fetch fresh data from Open-Meteo
+        if (isStale || forecastPoints.length === 0) {
+          console.log(`[Forecasts Router] Data for spot ${input.spotId} is stale or missing, fetching from Open-Meteo...`);
+          const { fetchOpenMeteoForecastForSpot, convertToDbFormat } = await import("./services/openMeteo");
+          const { insertForecastPoints, deleteForecastPointsBySpotAndModelRun } = await import("./db");
+
+          try {
+            const fetchedPoints = await fetchOpenMeteoForecastForSpot(spot, { maxHoursOut: input.hours });
+            console.log('Converting', fetchedPoints.length, 'points to database format...');
+            const dbPoints = fetchedPoints.map((point) => convertToDbFormat(point, spot.id));
+            if (dbPoints.length > 0) {
+              console.log('Converted sample:', {
+                secondarySwellHeightFt: dbPoints[0].secondarySwellHeightFt,
+                windWaveHeightFt: dbPoints[0].windWaveHeightFt,
+              });
+            }
+
+            // Delete old forecast points (older than 1 hour) to avoid duplicates
+            const cutoffTime = new Date(Date.now() - 60 * 60 * 1000);
+            await deleteForecastPointsBySpotAndModelRun(spot.id, cutoffTime);
+
+            // Store in database
+            await insertForecastPoints(dbPoints);
+
+            // Re-fetch from database after insert
+            forecastPoints = await getForecastTimeline(input.spotId, input.hours);
+          } catch (error: any) {
+            const status = error.response?.status;
+            const statusMessage = status ? ` (${status})` : '';
+            throw new TRPCError({
+              code: status === 400 ? "BAD_REQUEST" : status === 404 ? "NOT_FOUND" : status >= 500 ? "INTERNAL_SERVER_ERROR" : "INTERNAL_SERVER_ERROR",
+              message: `Open-Meteo API request failed${statusMessage}`,
+            });
+          }
+        }
+
+        // Get average crowd level
+        const avgCrowdLevel = await getAverageCrowdLevel(spot.id);
+
+        // Generate timeline with quality scores
+        const timeline = await generateForecastTimeline({
+          forecastPoints,
+          spot,
+          tideStationId: spot.tideStationId,
+          avgCrowdLevel,
+        });
+
+        // 📡 STEP 5: API Sending to Frontend
+        if (timeline.length > 0) {
+          const firstTimeline = timeline[0];
+          console.log('📡 STEP 5: API Sending to Frontend');
+          console.log('Timeline length:', timeline.length);
+          console.log('Timeline sample:', {
+            secondarySwellHeightFt: firstTimeline.secondarySwellHeightFt,
+            secondarySwellPeriodS: firstTimeline.secondarySwellPeriodS,
+            secondarySwellDirectionDeg: firstTimeline.secondarySwellDirectionDeg,
+            windWaveHeightFt: firstTimeline.windWaveHeightFt,
+            windWavePeriodS: firstTimeline.windWavePeriodS,
+            windWaveDirectionDeg: firstTimeline.windWaveDirectionDeg,
+          });
+        }
+
+        return { timeline, spot };
+      }),
+
+    // Refresh forecast timeline (fetch from Open-Meteo and store)
+    refreshTimeline: publicProcedure
+      .input(z.object({ spotId: z.number() }))
+      .mutation(async ({ input }) => {
+        const spot = await getSpotById(input.spotId);
+        if (!spot) {
+          throw new Error("Spot not found");
+        }
+
+        // Import Open-Meteo functions
+        const { fetchOpenMeteoForecastForSpot, convertToDbFormat } = await import("./services/openMeteo");
+        const { insertForecastPoints, deleteForecastPointsBySpotAndModelRun } = await import("./db");
+
+        // Fetch forecast from Open-Meteo (7 days = 168 hours)
+        const forecastPoints = await fetchOpenMeteoForecastForSpot(spot, { maxHoursOut: 168 });
+
+        // Convert to database format
+        console.log('Converting', forecastPoints.length, 'points to database format...');
+        const dbPoints = forecastPoints.map((point) => convertToDbFormat(point, spot.id));
+        if (dbPoints.length > 0) {
+          console.log('Converted sample:', {
+            secondarySwellHeightFt: dbPoints[0].secondarySwellHeightFt,
+            windWaveHeightFt: dbPoints[0].windWaveHeightFt,
+          });
+        }
+
+        // Delete old forecast points for this spot/model run to avoid duplicates
+        // Since Open-Meteo uses current time as model run time, we'll delete points older than 1 hour
+        const cutoffTime = new Date(Date.now() - 60 * 60 * 1000); // 1 hour ago
+        await deleteForecastPointsBySpotAndModelRun(spot.id, cutoffTime);
+
+        // Store in database
+        await insertForecastPoints(dbPoints);
+
+        return {
+          success: true,
+          pointsStored: dbPoints.length,
+        };
+      }),
   }),
 
   // ==================== CROWD REPORTS ROUTER ====================
@@ -232,6 +372,53 @@ export const appRouter = router({
           crowdLevel: input.crowdLevel,
         });
         return { success: true };
+      }),
+  }),
+
+  // ==================== DISTANCE ROUTER ====================
+  distance: router({
+    getDistance: publicProcedure
+      .input(
+        z.object({
+          origin: z.string(),
+          destination: z.string(),
+          mode: z.enum(["driving", "transit"]).default("driving"),
+        })
+      )
+      .query(async ({ input }) => {
+        try {
+          const result = await makeRequest<DistanceMatrixResult>(
+            "/maps/api/distancematrix/json",
+            {
+              origins: input.origin,
+              destinations: input.destination,
+              mode: input.mode,
+              units: "imperial",
+            }
+          );
+
+          if (result.status !== "OK") {
+            throw new Error(`Distance Matrix API error: ${result.status}`);
+          }
+
+          const element = result.rows[0]?.elements[0];
+          if (!element || element.status !== "OK") {
+            throw new Error(`No route found: ${element?.status || "UNKNOWN"}`);
+          }
+
+          return {
+            distance: element.distance.text,
+            distanceValue: element.distance.value, // in meters
+            duration: element.duration.text,
+            durationValue: element.duration.value, // in seconds
+            status: element.status,
+          };
+        } catch (error) {
+          console.error("Distance calculation error:", error);
+          throw new Error(
+            error instanceof Error ? error.message : "Failed to calculate distance"
+          );
+        }
       }),
   }),
 });

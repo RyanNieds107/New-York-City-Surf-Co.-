@@ -22,6 +22,27 @@
       "when": 1764865478930,
       "tag": "0002_broken_lilith",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1765487149222,
+      "tag": "0003_nebulous_annihilus",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1765824605980,
+      "tag": "0004_slimy_retro_girl",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1765833926851,
+      "tag": "0005_nervous_sauron",
+      "breakpoints": true
     }
   ]
 }

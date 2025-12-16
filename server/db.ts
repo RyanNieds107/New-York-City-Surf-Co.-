@@ -1,4 +1,4 @@
-import { eq, desc, and, gte, sql } from "drizzle-orm";
+import { eq, desc, and, gte, lte } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser,
@@ -6,6 +6,7 @@ import {
   surfSpots,
   buoyReadings,
   forecasts,
+  forecastPoints,
   crowdReports,
   type SurfSpot,
   type InsertSurfSpot,
@@ -13,6 +14,8 @@ import {
   type InsertBuoyReading,
   type Forecast,
   type InsertForecast,
+  type ForecastPoint,
+  type InsertForecastPoint,
   type CrowdReport,
   type InsertCrowdReport,
 } from "../drizzle/schema";
@@ -109,7 +112,20 @@ export async function getUserByOpenId(openId: string) {
 export async function getAllSpots(): Promise<SurfSpot[]> {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(surfSpots);
+  
+  // Get all spots, then deduplicate by name (keep the most recent one)
+  const allSpots = await db.select().from(surfSpots).orderBy(desc(surfSpots.createdAt));
+  
+  // Create a Map to store unique spots by name (most recent wins)
+  const uniqueSpotsMap = new Map<string, SurfSpot>();
+  for (const spot of allSpots) {
+    if (!uniqueSpotsMap.has(spot.name)) {
+      uniqueSpotsMap.set(spot.name, spot);
+    }
+  }
+  
+  // Return as array, sorted by name for consistency
+  return Array.from(uniqueSpotsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function getSpotById(id: number): Promise<SurfSpot | undefined> {
@@ -184,6 +200,12 @@ export async function insertForecast(forecast: InsertForecast): Promise<void> {
   await db.insert(forecasts).values(forecast);
 }
 
+export async function deleteForecastsBySpotId(spotId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(forecasts).where(eq(forecasts.spotId, spotId));
+}
+
 // ==================== CROWD REPORTS ====================
 
 export async function getRecentCrowdReports(spotId: number, hoursBack: number = 4): Promise<CrowdReport[]> {
@@ -208,4 +230,134 @@ export async function insertCrowdReport(report: InsertCrowdReport): Promise<void
   const db = await getDb();
   if (!db) return;
   await db.insert(crowdReports).values(report);
+}
+
+// ==================== FORECAST POINTS ====================
+
+export async function insertForecastPoint(forecastPoint: InsertForecastPoint): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(forecastPoints).values(forecastPoint);
+}
+
+export async function insertForecastPoints(forecastPointsArray: InsertForecastPoint[]): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  if (forecastPointsArray.length === 0) return;
+  
+  // 💾 STEP 3: Inserting to Database
+  if (forecastPointsArray.length > 0) {
+    const firstPoint = forecastPointsArray[0];
+    console.log('💾 STEP 3: Inserting to Database');
+    console.log('Total points to insert:', forecastPointsArray.length);
+    console.log('ForecastPoint object sample:', JSON.stringify({
+      secondarySwellHeightFt: firstPoint.secondarySwellHeightFt,
+      secondarySwellPeriodS: firstPoint.secondarySwellPeriodS,
+      secondarySwellDirectionDeg: firstPoint.secondarySwellDirectionDeg,
+      windWaveHeightFt: firstPoint.windWaveHeightFt,
+      windWavePeriodS: firstPoint.windWavePeriodS,
+      windWaveDirectionDeg: firstPoint.windWaveDirectionDeg,
+    }, null, 2));
+  }
+  
+  await db.insert(forecastPoints).values(forecastPointsArray);
+  console.log('✅ Successfully inserted', forecastPointsArray.length, 'forecast points');
+}
+
+export async function getForecastTimeline(
+  spotId: number,
+  maxHoursOut: number = 180
+): Promise<ForecastPoint[]> {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const result = await db
+    .select()
+    .from(forecastPoints)
+    .where(
+      and(
+        eq(forecastPoints.spotId, spotId),
+        lte(forecastPoints.hoursOut, maxHoursOut)
+      )
+    )
+    .orderBy(forecastPoints.forecastTimestamp);
+  
+  // 📖 STEP 4: Reading from Database
+  if (result.length > 0) {
+    const sample = result[0];
+    console.log('📖 STEP 4: Reading from Database');
+    console.log('Total points retrieved:', result.length);
+    console.log('Database has secondary swell?', !!sample.secondarySwellHeightFt);
+    console.log('Database has wind waves?', !!sample.windWaveHeightFt);
+    console.log('Database sample:', {
+      secondarySwellHeightFt: sample.secondarySwellHeightFt,
+      secondarySwellPeriodS: sample.secondarySwellPeriodS,
+      secondarySwellDirectionDeg: sample.secondarySwellDirectionDeg,
+      windWaveHeightFt: sample.windWaveHeightFt,
+      windWavePeriodS: sample.windWavePeriodS,
+      windWaveDirectionDeg: sample.windWaveDirectionDeg,
+    });
+  } else {
+    console.log('📖 STEP 4: Reading from Database - No data found');
+  }
+  
+  return result;
+}
+
+export async function getLatestModelRunTime(spotId?: number): Promise<Date | null> {
+  const db = await getDb();
+  if (!db) return null;
+  
+  let query = db
+    .select({ modelRunTime: forecastPoints.modelRunTime })
+    .from(forecastPoints)
+    .orderBy(desc(forecastPoints.modelRunTime))
+    .limit(1);
+  
+  if (spotId !== undefined) {
+    query = query.where(eq(forecastPoints.spotId, spotId)) as typeof query;
+  }
+  
+  const result = await query;
+  return result.length > 0 ? result[0].modelRunTime : null;
+}
+
+export async function isForecastDataStale(
+  spotId: number,
+  maxAgeHours: number = 6
+): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return true;
+  
+  const cutoff = new Date(Date.now() - maxAgeHours * 60 * 60 * 1000);
+  
+  const result = await db
+    .select()
+    .from(forecastPoints)
+    .where(
+      and(
+        eq(forecastPoints.spotId, spotId),
+        gte(forecastPoints.modelRunTime, cutoff)
+      )
+    )
+    .limit(1);
+  
+  return result.length === 0;
+}
+
+export async function deleteForecastPointsBySpotAndModelRun(
+  spotId: number,
+  modelRunTime: Date
+): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  
+  await db
+    .delete(forecastPoints)
+    .where(
+      and(
+        eq(forecastPoints.spotId, spotId),
+        eq(forecastPoints.modelRunTime, modelRunTime)
+      )
+    );
 }
