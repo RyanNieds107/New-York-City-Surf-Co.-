@@ -9,7 +9,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { ArrowRight, Waves, ChevronRight, MapPin, Clock, Car, Train, ChevronDown } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Footer } from "@/components/Footer";
 
@@ -135,17 +135,14 @@ export default function LandingPage() {
   const [travelMode, setTravelMode] = useState<"driving" | "transit">("driving");
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  const [videoError, setVideoError] = useState(false);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [expandedSpot, setExpandedSpot] = useState<number | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
   const spotsQuery = trpc.spots.list.useQuery();
   const forecastsQuery = trpc.forecasts.listAll.useQuery();
 
-  // Carousel slides: images and video
+  // Carousel slides: images
   const slides = [
     { type: "image", src: "/Lido-beach.jpg" },
-    { type: "video", src: "/2:1:25.mov" },
     { type: "image", src: "/4365.webp" },
     { type: "image", src: "/Long Beach.webp" },
     { type: "image", src: "/Lido Winter.webp" },
@@ -157,42 +154,11 @@ export default function LandingPage() {
     if (isPaused) return;
     
     const interval = setInterval(() => {
-      setCurrentSlide((prev) => {
-        // Skip video slide if it has errored
-        if (videoError && prev === 0) {
-          return 2; // Skip from slide 0 to slide 2
-        }
-        if (videoError && prev >= 2) {
-          return (prev + 1) % slides.length === 1 ? 2 : (prev + 1) % slides.length;
-        }
-        return (prev + 1) % slides.length;
-      });
+      setCurrentSlide((prev) => (prev + 1) % slides.length);
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [isPaused, videoError, slides.length]);
-
-  // Handle video playback when slide changes
-  useEffect(() => {
-    if (videoRef.current) {
-      if (currentSlide === 1 && !videoError) {
-        videoRef.current.play().catch(() => {
-          handleVideoError();
-        });
-      } else {
-        videoRef.current.pause();
-      }
-    }
-  }, [currentSlide, videoError]);
-
-  // Handle video errors - skip video slide
-  const handleVideoError = () => {
-    setVideoError(true);
-    // If we're on the video slide when it fails, skip to next slide
-    if (currentSlide === 1) {
-      setCurrentSlide(2);
-    }
-  };
+  }, [isPaused, slides.length]);
 
   // Handle manual slide navigation
   const goToSlide = (index: number) => {
@@ -290,34 +256,7 @@ export default function LandingPage() {
             }}
           />
 
-          {/* Video Slide - Slide 1 */}
-          {!videoError && (
-            <video
-              ref={videoRef}
-              className={cn(
-                "absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out",
-                currentSlide === 1 ? "opacity-100" : "opacity-0"
-              )}
-              autoPlay
-              loop
-              muted
-              playsInline
-              onError={handleVideoError}
-              onLoadedData={() => {
-                // Ensure video plays when it becomes active
-                if (currentSlide === 1 && videoRef.current) {
-                  videoRef.current.play().catch(() => {
-                    handleVideoError();
-                  });
-                }
-              }}
-            >
-              <source src="/2:1:25.mov" type="video/quicktime" />
-              <source src="/2:1:25.mp4" type="video/mp4" />
-            </video>
-          )}
-
-          {/* 4365.webp Image - Slide 2 */}
+          {/* 4365.webp Image - Slide 1 */}
           <div 
             className={cn(
               "absolute inset-0 bg-cover bg-center bg-no-repeat transition-opacity duration-1000 ease-in-out",
@@ -360,16 +299,6 @@ export default function LandingPage() {
               backgroundImage: "url('/NorEaster_October_CoryRansom-56.jpg')"
             }}
           />
-
-          {/* Fallback to first image if video fails */}
-          {videoError && currentSlide === 1 && (
-            <div 
-              className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-              style={{
-                backgroundImage: "url('/Lido-beach.jpg')"
-              }}
-            />
-          )}
         </div>
 
         {/* Dark gradient overlay for text readability */}
