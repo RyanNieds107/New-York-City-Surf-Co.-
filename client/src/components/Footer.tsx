@@ -1,117 +1,191 @@
 import { Link } from "wouter";
-import { Waves, Instagram, Twitter } from "lucide-react";
+import { Instagram, Facebook, Compass, Share2, FileText } from "lucide-react";
+import { Logo } from "./Logo";
 
 export function Footer() {
   return (
-    <footer className="bg-gray-50 border-t-2 border-black mt-auto">
-      <div className="container py-12">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-8">
-          {/* Company Info */}
+    <footer className="bg-white border-t-2 border-black mt-auto">
+      {/* Main Footer Content */}
+      <div className="container py-6">
+        <div className="flex flex-col md:flex-row justify-between items-start gap-8">
+
+          {/* Brand Column */}
           <div>
-            <div className="flex items-center gap-2 mb-3">
-              <Waves className="h-6 w-6 text-black" />
-              <h3 className="text-xl font-bold text-black" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                New York City Surf Co.
-              </h3>
+            <div className="flex flex-col gap-4">
+              <Logo
+                logoSize="h-14"
+                textSize="text-lg"
+                textColor="text-black"
+                showLink={false}
+              />
+              <p
+                className="text-sm text-slate-600"
+                style={{ 
+                  fontFamily: "'Inter', 'Roboto', sans-serif",
+                  margin: 0
+                }}
+              >
+                Hyper-local surf forecasting for NYC surfers.
+              </p>
             </div>
-            <p className="text-sm text-gray-700 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-              Hyper-local surf forecasting for NYC surfers
-            </p>
           </div>
 
-          {/* Quick Links */}
-          <div>
-            <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-4" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-              Quick Links
-            </h4>
-            <ul className="space-y-3">
-              <li>
-                <Link 
-                  href="/dashboard"
-                  className="text-sm text-black hover:text-gray-700 transition-colors" 
-                  style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
+          {/* Right-aligned columns */}
+          <div className="flex flex-col md:flex-row gap-8 md:gap-12">
+            {/* Quick Links */}
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-6 h-6 bg-black flex items-center justify-center">
+                  <Compass className="w-3 h-3 text-white" />
+                </div>
+                <span
+                  className="text-[10px] font-medium tracking-widest text-gray-500 uppercase"
+                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
                 >
-                  Dashboard
-                </Link>
-              </li>
-              <li>
-                <Link 
-                  href="/about"
-                  className="text-sm text-black hover:text-gray-700 transition-colors" 
-                  style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
-                >
-                  About
-                </Link>
-              </li>
-              <li>
-                <Link 
-                  href="/contact"
-                  className="text-sm text-black hover:text-gray-700 transition-colors" 
-                  style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
-                >
-                  Contact
-                </Link>
-              </li>
-            </ul>
-          </div>
+                  Navigate
+                </span>
+              </div>
+              <ul className="space-y-2">
+                <li>
+                  <Link
+                    href="/Our Mission"
+                    className="text-sm text-black hover:bg-black hover:text-white px-2 py-1 -ml-2 transition-colors inline-block font-medium"
+                    style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
+                  >
+                    Our Mission
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/about"
+                    className="text-sm text-black hover:bg-black hover:text-white px-2 py-1 -ml-2 transition-colors inline-block font-medium"
+                    style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
+                  >
+                    About
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/sign-in"
+                    className="text-sm text-black hover:bg-black hover:text-white px-2 py-1 -ml-2 transition-colors inline-block font-medium"
+                    style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
+                  >
+                    Sign In
+                  </Link>
+                </li>
+              </ul>
+            </div>
 
-          {/* Social & Legal */}
-          <div>
-            <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-4" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-              Social & Legal
-            </h4>
-            <ul className="space-y-3">
-              <li>
-                <a 
-                  href="https://instagram.com" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-sm text-black hover:text-gray-700 transition-colors"
-                  style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
+            {/* Social */}
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-6 h-6 bg-black flex items-center justify-center">
+                  <Share2 className="w-3 h-3 text-white" />
+                </div>
+                <span
+                  className="text-[10px] font-medium tracking-widest text-gray-500 uppercase"
+                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
                 >
-                  <Instagram className="h-4 w-4" />
-                  Instagram
-                </a>
-              </li>
-              <li>
-                <a 
-                  href="https://twitter.com" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-sm text-black hover:text-gray-700 transition-colors"
-                  style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
+                  Connect
+                </span>
+              </div>
+              <ul className="space-y-2">
+                <li>
+                  <a
+                    href="https://instagram.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-sm text-black hover:bg-black hover:text-white px-2 py-1 -ml-2 transition-colors font-medium"
+                    style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
+                  >
+                    <Instagram className="h-4 w-4" />
+                    Instagram
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://facebook.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-sm text-black hover:bg-black hover:text-white px-2 py-1 -ml-2 transition-colors font-medium"
+                    style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
+                  >
+                    <Facebook className="h-4 w-4" />
+                    Facebook
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://tiktok.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-sm text-black hover:bg-black hover:text-white px-2 py-1 -ml-2 transition-colors font-medium"
+                    style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
+                  >
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+                    </svg>
+                    TikTok
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            {/* Legal */}
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-6 h-6 bg-black flex items-center justify-center">
+                  <FileText className="w-3 h-3 text-white" />
+                </div>
+                <span
+                  className="text-[10px] font-medium tracking-widest text-gray-500 uppercase"
+                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
                 >
-                  <Twitter className="h-4 w-4" />
-                  Twitter/X
-                </a>
-              </li>
-              <li>
-                <Link 
-                  href="/terms"
-                  className="text-sm text-black hover:text-gray-700 transition-colors" 
-                  style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
-                >
-                  Terms
-                </Link>
-              </li>
-              <li>
-                <Link 
-                  href="/privacy"
-                  className="text-sm text-black hover:text-gray-700 transition-colors" 
-                  style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
-                >
-                  Privacy
-                </Link>
-              </li>
-            </ul>
+                  Legal
+                </span>
+              </div>
+              <ul className="space-y-2">
+                <li>
+                  <Link
+                    href="/terms"
+                    className="text-sm text-black hover:bg-black hover:text-white px-2 py-1 -ml-2 transition-colors inline-block font-medium"
+                    style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
+                  >
+                    Terms
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/privacy"
+                    className="text-sm text-black hover:bg-black hover:text-white px-2 py-1 -ml-2 transition-colors inline-block font-medium"
+                    style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
+                  >
+                    Privacy
+                  </Link>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
+      </div>
 
-        {/* Copyright */}
-        <div className="pt-8 border-t border-gray-300">
-          <p className="text-xs text-gray-600" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-            © 2025 New York City Surf Co.
-          </p>
+      {/* Copyright Bar */}
+      <div className="bg-white">
+        <div className="container py-6">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-2">
+            <p
+              className="text-[10px] tracking-widest text-gray-600 uppercase"
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              © 2025 New York City Surf Co.
+            </p>
+            <p
+              className="text-[10px] tracking-widest text-gray-600 uppercase"
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              Made in NYC
+            </p>
+          </div>
         </div>
       </div>
     </footer>

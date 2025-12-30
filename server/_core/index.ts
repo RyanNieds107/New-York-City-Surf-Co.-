@@ -7,10 +7,10 @@ import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
-import { getAllSpots, getLatestBuoyReading, insertBuoyReading, getAverageCrowdLevel, insertForecast } from "../db";
-import { fetchLatestBuoyReading } from "../services/ndbc";
+import { getAllSpots, getAverageCrowdLevel, insertForecast } from "../db";
 import { getCurrentTideInfo } from "../services/tides";
 import { generateForecast } from "../services/forecast";
+import { getCurrentConditionsFromOpenMeteo } from "../services/openMeteo";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -43,33 +43,19 @@ async function refreshAllForecasts(): Promise<void> {
 
     for (const spot of spots) {
       try {
-        // Fetch fresh buoy data
-        const ndbcReading = await fetchLatestBuoyReading(spot.buoyId);
-        if (ndbcReading) {
-          await insertBuoyReading({
-            buoyId: ndbcReading.buoyId,
-            timestamp: ndbcReading.timestamp,
-            waveHeightCm: ndbcReading.waveHeightCm,
-            dominantPeriodDs: ndbcReading.dominantPeriodDs,
-            swellDirectionDeg: ndbcReading.swellDirectionDeg,
-            windSpeedCmps: ndbcReading.windSpeedCmps,
-            windDirectionDeg: ndbcReading.windDirectionDeg,
-          });
-        }
+        // Fetch current conditions from Open-Meteo
+        const openMeteoPoint = await getCurrentConditionsFromOpenMeteo(spot);
 
-        // Get tide info
+        // Get tide info (NOAA Tides & Currents API)
         const tideInfo = await getCurrentTideInfo(spot.tideStationId);
 
         // Get average crowd level
         const avgCrowdLevel = await getAverageCrowdLevel(spot.id);
 
-        // Get the latest buoy reading from DB
-        const buoyReading = await getLatestBuoyReading(spot.buoyId);
-
         // Generate forecast
         const forecastResult = generateForecast({
           spot,
-          buoyReading: buoyReading || null,
+          openMeteoPoint: openMeteoPoint || null,
           tideInfo,
           avgCrowdLevel,
         });
@@ -79,6 +65,7 @@ async function refreshAllForecasts(): Promise<void> {
           spotId: spot.id,
           forecastTime: new Date(),
           probabilityScore: forecastResult.probabilityScore,
+          qualityScore: forecastResult.qualityScore,
           waveHeightTenthsFt: forecastResult.waveHeightTenthsFt,
           confidenceBand: forecastResult.confidenceBand,
           usabilityIntermediate: forecastResult.usabilityIntermediate,
@@ -108,14 +95,20 @@ async function refreshAllForecasts(): Promise<void> {
  * Sets up automatic forecast refresh on a schedule.
  */
 function setupAutomaticRefresh(): void {
-  // Get refresh interval from environment variable (default: 3 hours)
-  const intervalHours = parseInt(process.env.FORECAST_REFRESH_INTERVAL_HOURS || "3", 10);
-  const intervalMs = intervalHours * 60 * 60 * 1000;
+  // Get refresh interval from environment variable (default: 30 minutes)
+  // Supports FORECAST_REFRESH_INTERVAL_MINUTES or legacy FORECAST_REFRESH_INTERVAL_HOURS
+  const intervalMinutes = process.env.FORECAST_REFRESH_INTERVAL_MINUTES
+    ? parseInt(process.env.FORECAST_REFRESH_INTERVAL_MINUTES, 10)
+    : process.env.FORECAST_REFRESH_INTERVAL_HOURS
+      ? parseInt(process.env.FORECAST_REFRESH_INTERVAL_HOURS, 10) * 60
+      : 30; // Default: 30 minutes
 
-  console.log(`[Forecast Refresh] Automatic refresh enabled - will run every ${intervalHours} hour(s)`);
+  const intervalMs = intervalMinutes * 60 * 1000;
 
-  // Run immediately on startup (optional - you can remove this if you don't want it)
-  // refreshAllForecasts().catch(console.error);
+  console.log(`[Forecast Refresh] Automatic refresh enabled - will run every ${intervalMinutes} minute(s)`);
+
+  // Run immediately on startup
+  refreshAllForecasts().catch(console.error);
 
   // Set up interval to run periodically
   setInterval(() => {

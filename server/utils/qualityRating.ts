@@ -7,58 +7,46 @@
 
 import type { SpotProfile } from './spotProfiles';
 import type { ForecastPoint } from '../../drizzle/schema';
+import { calculateBreakingWaveHeight } from './waveHeight';
 
 export interface QualityBreakdown {
-  swell_quality: number; // 0-40 points
-  direction: number; // 0-20 points
-  tide: number; // 0-20 points
-  wind: number; // -40 to +20 points
+  swell_quality: number; // 0-60 points
+  direction: number; // -20 to 0 points (penalty-only model)
+  tide: number; // -20 to 20 points
+  wind: number; // -60 to +20 points (harsh penalties for onshore winds)
 }
 
 export interface QualityScoreResult {
   score: number; // 0-100 (after clamps)
-  rating: string; // "Flat", "Don't Bother", "Worth a Look", etc.
+  rating: string; // "Don't Bother", "Worth a Look", "Go Surf", "Firing", "All-Time"
   breakdown: QualityBreakdown;
   reason: string; // Human-readable explanation
 }
 
 /**
- * Calculate wave energy from swell height and period
+ * Score swell quality based on predicted breaking wave height
  * 
- * Energy formula: swell_height_ft * period_s^1.5
+ * Maps breaking height to 0-60 points using buckets (boosted to compensate for penalty-only direction):
+ * - < 1.0ft: 5 points (flat)
+ * - 1.0-1.9ft: 20 points (small but rideable)
+ * - 2.0-2.9ft: 35 points (fun size)
+ * - 3.0-4.9ft: 50 points (good size)
+ * - >= 5.0ft: 60 points (pumping)
  * 
- * @param swellHeightFt - Swell height in decimal feet
- * @param periodS - Swell period in seconds
- * @returns Energy value
+ * @param breakingHeightFt - Predicted breaking wave height in feet
+ * @returns Score from 0-60
  */
-export function calculateEnergy(swellHeightFt: number, periodS: number): number {
-  return swellHeightFt * Math.pow(periodS, 1.5);
-}
-
-/**
- * Score swell quality based on energy
- * 
- * Maps energy to 0-40 points using buckets:
- * - < 10: 5 points (tiny/weak)
- * - 10-20: 15 points (small but rideable)
- * - 20-35: 25 points (decent size)
- * - 35-60: 32 points (good size)
- * - >= 60: 40 points (pumping)
- * 
- * @param energy - Wave energy value
- * @returns Score from 0-40
- */
-export function scoreSwellQuality(energy: number): number {
-  if (energy < 10) {
-    return 5; // tiny/weak
-  } else if (energy < 20) {
-    return 15; // small but rideable
-  } else if (energy < 35) {
-    return 25; // decent size
-  } else if (energy < 60) {
-    return 32; // good size
+function scoreSwellQualityByBreakingHeight(breakingHeightFt: number): number {
+  if (breakingHeightFt < 1.0) {
+    return 5; // flat
+  } else if (breakingHeightFt < 2.0) {
+    return 20; // small but rideable
+  } else if (breakingHeightFt < 3.0) {
+    return 35; // fun size
+  } else if (breakingHeightFt < 5.0) {
+    return 50; // good size
   } else {
-    return 40; // pumping
+    return 60; // pumping
   }
 }
 
@@ -79,103 +67,418 @@ export function calculateAngularDistance(deg1: number, deg2: number): number {
 }
 
 /**
- * Score swell direction fit
+ * Calculate direction score using penalty-only "Waterfall" model
  * 
- * Returns 0-20 points based on how well swell direction matches spot's ideal direction.
- * - Within tolerance: 20 points
- * - 1.5x tolerance: 12 points
- * - 2x tolerance: 6 points
- * - Beyond 2x tolerance: 2 points
- * - null direction: 10 points (neutral)
+ * Returns -20 to 0 points (penalty-only system):
+ * - Start with 0 (no penalty)
+ * - Hard blocks (deal breakers) return maximum penalties
+ * - Tolerance check applies standard drift penalty if outside tolerance
+ * 
+ * Logic:
+ * 1. Check hard blocks first (deal breakers):
+ *    - West Block (247.5° to 292.5°): Return -20 (Max Penalty)
+ *    - East Wrap (< 105°): Return -15 (Major Penalty)
+ * 2. Check tolerance (only if not blocked):
+ *    - If distance <= tolerance: Return 0 (No Penalty)
+ *    - If distance > tolerance: Return -10 (Standard Drift Penalty)
+ * 3. Null direction: Return 0 (neutral, no penalty)
  * 
  * @param swellDirectionDeg - Swell direction in degrees (0-360) or null
  * @param profile - Spot profile with target and tolerance
- * @returns Score from 0-20
+ * @returns Score from -20 to 0 (penalty-only)
  */
 export function scoreDirection(
   swellDirectionDeg: number | null,
   profile: SpotProfile
 ): number {
+  // Start with 0 (no penalty)
+  // Null direction = neutral, no penalty
   if (swellDirectionDeg === null) {
-    return 10; // neutral when no direction data
+    return 0; // neutral when no direction data
   }
 
+  // CHECK HARD BLOCKS FIRST (The "Deal Breakers")
+  
+  // West Block (247.5° to 292.5°): Blocked by landmass, no real surf
+  const isWestSwell = swellDirectionDeg >= 247.5 && swellDirectionDeg <= 292.5;
+  if (isWestSwell) {
+    return -20; // Max Penalty - West swells don't produce real surf
+  }
+
+  // East Wrap (< 105°): Heavy wrap-around, lose power, often walled/inconsistent
+  if (swellDirectionDeg < 105) {
+    return -15; // Major Penalty - East wraps lose significant power
+  }
+
+  // CHECK TOLERANCE (Only if not blocked)
   const target = profile.swell_target_deg;
   const tolerance = profile.swell_tolerance_deg;
   const distance = calculateAngularDistance(swellDirectionDeg, target);
 
-  let baseScore: number;
   if (distance <= tolerance) {
-    baseScore = 20; // within tolerance
-  } else if (distance <= tolerance * 1.5) {
-    baseScore = 14; // 1.5x tolerance
-  } else if (distance <= tolerance * 2) {
-    baseScore = 8; // 2x tolerance
-  } else if (distance <= tolerance * 2.5) {
-    baseScore = 4; // 2.5x tolerance
+    return 0; // No Penalty - within ideal tolerance
   } else {
-    baseScore = 2; // beyond 2.5x tolerance
+    return -10; // Standard Drift Penalty - outside tolerance
+  }
   }
 
-  // West swells (W, WSW, WNW: ~247.5-292.5°) produce minimal surf at Western Long Island
-  // These directions are blocked by landmass and don't generate real surf
-  const isWestSwell = swellDirectionDeg >= 247.5 && swellDirectionDeg <= 292.5;
-  if (isWestSwell) {
-    return 2; // Minimal score - West swells don't produce real surf
+/**
+ * Calculate Tide Push multiplier for overall quality score
+ * 
+ * A "Tide Push" occurs when the tide is rising AND the current tide height is between 0 ft and 3 ft.
+ * If a Tide Push is active AND breakingHeightFt >= 3.0 ft, apply a multiplier to the score.
+ * 
+ * - Standard Push: For swells between 3.0 ft and 5.0 ft, apply a 1.15x multiplier
+ * - Heavy Push: For swells strictly greater than 5.0 ft, apply a 1.25x multiplier
+ *   (the incoming tide adds significantly more power to larger swells)
+ * 
+ * @param tidePhase - Tide phase: 'rising', 'falling', 'high', 'low', or null
+ * @param tideFt - Tide height in feet
+ * @param breakingHeightFt - Predicted breaking wave height in feet
+ * @returns Multiplier (1.0, 1.15, or 1.25)
+ */
+export function calculateTidePushMultiplier(
+  tidePhase: string | null,
+  tideFt: number,
+  breakingHeightFt: number
+): number {
+  // Check if Tide Push is active: tide is rising AND tide height is between 0-3ft
+  const isTidePush = tidePhase === 'rising' && tideFt > 0 && tideFt <= 3.0;
+
+  // If Tide Push is active AND breaking height is sufficient
+  if (isTidePush && breakingHeightFt >= 3.0) {
+    if (breakingHeightFt > 5.0) {
+      return 1.25; // Heavy Push (swells >5ft get more power from incoming tide)
+    } else {
+      return 1.15; // Standard Push (swells 3.0-5.0ft)
+    }
   }
 
-  // East swells (90-110°) get modest penalty due to inconsistency
-  // Not because they're bad quality, but because they're less reliable
-  // and tend to underperform predictions
-  const isEastSwell = swellDirectionDeg >= 90 && swellDirectionDeg <= 110;
-  if (isEastSwell) {
-    baseScore = Math.max(2, baseScore - 4); // Reduce by 4 points (modest penalty)
-  }
-
-  return baseScore;
+  // No Tide Push multiplier
+  return 1.0;
 }
 
 /**
- * Score tide quality
- * 
- * Returns 0-20 points based on tide position:
- * - In optimal range: 20 points
- * - Slightly outside (±0.5ft): 12 points
- * - Poor tide: 4 points
- * 
+ * Score tide quality for Western Long Island beaches
+ *
+ * Uses breakingHeightFt-aware scoring with spot-specific logic:
+ * - Tide > 5.0ft, Any: -20 (Shorebreak - Universal penalty)
+ * - Tide 4.0-5.0ft, ≥4.0ft: 10 (Marginal - Too high even for big swells)
+ * - Tide 4.0-5.0ft, <4.0ft: 4 (Mushy - Too deep for small waves)
+ * - Tide 3.5-4.0ft: Spot-specific
+ *   - Lido/Long Beach: <3.0ft waves get -10 penalty, ≥4.0ft get +15
+ *   - Rockaway: ≥4.0ft get +15, <4.0ft get +4
+ * - Tide 2.5-3.5ft, ≥4.0ft: 20 (Optimal - Perfect for big swells)
+ * - Tide 2.5-3.5ft, <4.0ft: 15 (Good - Acceptable for small waves)
+ * - Tide ≤2.5ft, ≥4.0ft: 15 (Good - Acceptable for big swells)
+ * - Tide ≤2.5ft, <4.0ft: 20 (Optimal - Perfect for small/medium waves)
+ *
  * @param tideFt - Tide height in feet
- * @param profile - Spot profile with optimal tide range
- * @returns Score from 0-20
+ * @param breakingHeightFt - Predicted breaking wave height in feet
+ * @param spotName - Optional spot name for spot-specific logic
+ * @returns Score from -20 to 20
  */
-export function scoreTide(tideFt: number, profile: SpotProfile): number {
-  const { tide_best_min_ft, tide_best_max_ft } = profile;
-
-  if (tideFt >= tide_best_min_ft && tideFt <= tide_best_max_ft) {
-    return 20; // in optimal range
-  } else if (
-    (tideFt >= tide_best_min_ft - 0.5 && tideFt < tide_best_min_ft) ||
-    (tideFt > tide_best_max_ft && tideFt <= tide_best_max_ft + 0.5)
-  ) {
-    return 12; // slightly outside
-  } else {
-    return 4; // poor tide
+export function scoreTide(tideFt: number, breakingHeightFt: number, spotName?: string): number {
+  // Universal shore-break penalty: too deep, waves break on shore
+  if (tideFt > 5.0) {
+    return -20; // Shorebreak (Universal penalty)
   }
+
+  // Tide 4.0-5.0ft: Generally too high
+  if (tideFt > 4.0) {
+    if (breakingHeightFt >= 4.0) {
+      return 10; // Marginal (Too high even for big swells)
+    } else {
+      return 4; // Mushy (Too deep for small waves)
+    }
+  }
+
+  // Tide 3.5-4.0ft: SPOT-SPECIFIC logic
+  if (tideFt > 3.5) {
+    // Lido Beach & Long Beach: Penalize small waves at high tide
+    if (spotName === "Lido Beach" || spotName === "Long Beach") {
+      if (breakingHeightFt < 3.0) {
+        return -10; // Negative penalty for small waves at high tide
+      } else if (breakingHeightFt >= 4.0) {
+        return 15; // Acceptable (Upper range for big swells)
+      } else {
+        return 4; // Mushy (3-4ft range)
+      }
+    }
+    // Rockaway Beach: Keep original logic
+    else {
+      if (breakingHeightFt >= 4.0) {
+        return 15; // Acceptable (Upper range for big swells)
+      } else {
+        return 4; // Mushy (Too deep for small waves)
+      }
+    }
+  }
+
+  // Tide 2.5-3.5ft: Optimal for BIG swells (≥4ft), good for small swells
+  if (tideFt > 2.5) {
+    if (breakingHeightFt >= 4.0) {
+      return 20; // Optimal (Perfect for big swells)
+    } else {
+      return 15; // Good (Acceptable for small waves)
+    }
+  }
+
+  // Tide ≤2.5ft: Optimal for SMALL swells (<4ft), good for big swells
+  if (breakingHeightFt >= 4.0) {
+    return 15; // Good (Acceptable for big swells)
+  } else {
+    return 20; // Optimal (Perfect for small/medium waves)
+  }
+}
+
+// ============================================================================
+// LIDO BEACH SPECIFIC WIND SCORING
+// ============================================================================
+
+/**
+ * Check if wind direction is Premium Offshore (330-30°): NNW, N, NNE
+ * Handles 360° wrap-around
+ */
+function isPremiumOffshore(windDir: number): boolean {
+  const normalized = ((windDir % 360) + 360) % 360;
+  return normalized >= 330 || normalized <= 30;
+}
+
+/**
+ * Check if wind direction is Good Offshore (310-50°): NW, NE
+ * Excludes premium offshore range
+ */
+function isGoodOffshore(windDir: number): boolean {
+  const normalized = ((windDir % 360) + 360) % 360;
+  // Good offshore is 310-330 (NW) or 30-50 (NE), excluding premium range
+  return (normalized >= 310 && normalized < 330) || (normalized > 30 && normalized <= 50);
+}
+
+/**
+ * Check if wind direction is any offshore (310-50°)
+ * Includes both premium and good offshore
+ */
+function isAnyOffshore(windDir: number): boolean {
+  const normalized = ((windDir % 360) + 360) % 360;
+  return normalized >= 310 || normalized <= 50;
+}
+
+/**
+ * Check if wind direction is Side-Offshore (290-70°): WNW, ENE
+ * Excludes premium and good offshore ranges
+ */
+function isSideOffshore(windDir: number): boolean {
+  const normalized = ((windDir % 360) + 360) % 360;
+  // Side-offshore is 290-310 (WNW) or 50-70 (ENE)
+  return (normalized >= 290 && normalized < 310) || (normalized > 50 && normalized <= 70);
+}
+
+/**
+ * Check if wind direction is Cross-Shore (270-110°): W, E
+ * Excludes side-offshore ranges
+ */
+function isCrossShore(windDir: number): boolean {
+  const normalized = ((windDir % 360) + 360) % 360;
+  // Cross-shore is 270-290 (W) or 70-110 (E)
+  return (normalized >= 270 && normalized < 290) || (normalized > 70 && normalized <= 110);
+}
+
+/**
+ * Lido Beach-specific wind scoring with 5 tiers
+ *
+ * Recognizes premium offshore winds (NNW-N-NNE) that groom small waves into surfable conditions.
+ *
+ * TIER 1 - Premium Offshore (330-30°): NNW, N, NNE
+ *   ≤12kts: +25 points
+ *   ≤18kts: +20 points
+ *   ≤25kts: +15 points
+ *   >25kts: +5 points
+ *
+ * TIER 2 - Good Offshore (310-50°): NW, NE
+ *   ≤12kts: +20 points
+ *   ≤18kts: +15 points
+ *   >18kts: +10 points
+ *
+ * TIER 3 - Side-Offshore (290-70°): WNW, ENE
+ *   ≤12kts: +10 points
+ *   ≤18kts: +5 points
+ *   >18kts: 0 points
+ *
+ * TIER 4 - Cross-Shore (270-110°): W, E
+ *   ≤10kts: -5 points
+ *   ≤18kts: -12 points
+ *   >18kts: -20 points
+ *
+ * TIER 5 - Onshore (110-250°): ESE through SSW
+ *   ≤6kts: -10 points
+ *   ≤10kts: -45 points
+ *   >10kts: -60 points
+ *
+ * @param windSpeedKt - Wind speed in knots
+ * @param windDirectionDeg - Wind direction in degrees (0-360)
+ * @returns Score from -60 to +25
+ */
+function getWindQualityForLido(windSpeedKt: number, windDirectionDeg: number): number {
+  const normalized = ((windDirectionDeg % 360) + 360) % 360;
+
+  console.log('🔍 [getWindQualityForLido] Lido-specific wind scoring:', {
+    windSpeedKt: windSpeedKt.toFixed(1),
+    windDirectionDeg,
+    normalized: normalized.toFixed(1),
+  });
+
+  // TIER 1 - Premium Offshore (330-30°): NNW, N, NNE
+  if (isPremiumOffshore(normalized)) {
+    let score: number;
+    if (windSpeedKt <= 12) {
+      score = 25;
+    } else if (windSpeedKt <= 18) {
+      score = 20;
+    } else if (windSpeedKt <= 25) {
+      score = 15;
+    } else {
+      score = 5;
+    }
+    console.log('🔍 [getWindQualityForLido] TIER 1 Premium Offshore:', score);
+    return score;
+  }
+
+  // TIER 2 - Good Offshore (310-50°): NW, NE (excluding premium)
+  if (isGoodOffshore(normalized)) {
+    let score: number;
+    if (windSpeedKt <= 12) {
+      score = 20;
+    } else if (windSpeedKt <= 18) {
+      score = 15;
+    } else {
+      score = 10;
+    }
+    console.log('🔍 [getWindQualityForLido] TIER 2 Good Offshore:', score);
+    return score;
+  }
+
+  // TIER 3 - Side-Offshore (290-70°): WNW, ENE
+  if (isSideOffshore(normalized)) {
+    let score: number;
+    if (windSpeedKt <= 12) {
+      score = 10;
+    } else if (windSpeedKt <= 18) {
+      score = 5;
+    } else {
+      score = 0;
+    }
+    console.log('🔍 [getWindQualityForLido] TIER 3 Side-Offshore:', score);
+    return score;
+  }
+
+  // TIER 4 - Cross-Shore (270-110°): W, E
+  if (isCrossShore(normalized)) {
+    let score: number;
+    if (windSpeedKt <= 10) {
+      score = -5;
+    } else if (windSpeedKt <= 18) {
+      score = -12;
+    } else {
+      score = -20;
+    }
+    console.log('🔍 [getWindQualityForLido] TIER 4 Cross-Shore:', score);
+    return score;
+  }
+
+  // TIER 5 - Onshore (110-250°): ESE through SSW (everything else)
+  let score: number;
+  if (windSpeedKt <= 6) {
+    score = -10;
+  } else if (windSpeedKt <= 10) {
+    score = -45;
+  } else {
+    score = -60;
+  }
+  console.log('🔍 [getWindQualityForLido] TIER 5 Onshore:', score);
+  return score;
+}
+
+/**
+ * Calculate offshore small wave bonus for Lido Beach
+ *
+ * Applies bonus when:
+ * - Breaking height < 2.5ft (small waves)
+ * - Wind is offshore
+ * - Period >= 8s (quality swell)
+ *
+ * Bonus values:
+ * - Premium offshore (330-30°) + period ≥ 8s: +15 points
+ * - Good offshore (310-50°) + period ≥ 8s: +10 points
+ * - Any other offshore + period ≥ 8s: +5 points
+ *
+ * @param breakingHeightFt - Predicted breaking wave height in feet
+ * @param windDirectionDeg - Wind direction in degrees (0-360)
+ * @param windSpeedKt - Wind speed in knots
+ * @param periodS - Swell period in seconds
+ * @returns Bonus points (0 to +15)
+ */
+function getOffshoreSmallWaveBonus(
+  breakingHeightFt: number,
+  windDirectionDeg: number | null,
+  windSpeedKt: number | null,
+  periodS: number
+): number {
+  // Only applies when breaking height < 2.5ft
+  if (breakingHeightFt >= 2.5) {
+    return 0;
+  }
+
+  // Need valid wind data
+  if (windDirectionDeg === null || windSpeedKt === null) {
+    return 0;
+  }
+
+  // Period must be >= 8s for quality swell
+  if (periodS < 8) {
+    return 0;
+  }
+
+  const normalized = ((windDirectionDeg % 360) + 360) % 360;
+
+  // Premium offshore (330-30°) + period ≥ 8s: +15 points
+  if (isPremiumOffshore(normalized)) {
+    console.log('🔍 [getOffshoreSmallWaveBonus] Premium offshore small wave bonus: +15');
+    return 15;
+  }
+
+  // Good offshore (310-50°) + period ≥ 8s: +10 points
+  if (isGoodOffshore(normalized)) {
+    console.log('🔍 [getOffshoreSmallWaveBonus] Good offshore small wave bonus: +10');
+    return 10;
+  }
+
+  // Any other offshore (side-offshore) + period ≥ 8s: +5 points
+  if (isSideOffshore(normalized)) {
+    console.log('🔍 [getOffshoreSmallWaveBonus] Side-offshore small wave bonus: +5');
+    return 5;
+  }
+
+  return 0;
 }
 
 /**
  * Score wind quality for Long Island south shore beaches
- * 
+ *
  * Long Island south shore beaches (Lido, Long Beach, Rockaway) face approximately 180° (South).
- * 
+ *
  * Wind classifications:
  * - Offshore (good): Winds from N, NW, NE (315-45°) = +10 to +20 points
- * - Cross-shore/Sideshore (marginal): Winds from E or W (60-120°, 240-300°) = -5 to -15 points
- * - Onshore (bad): Winds from S, SE, SW (120-240°) = -20 to -40 points
- * 
+ * - Cross-shore/Sideshore (marginal): Winds from E or W (60-120°, 240-300°) = -5 to -20 points
+ * - Onshore (bad): Winds from S, SE, SW (135-225°) = -10 to -60 points
+ *   - ≤6kts: -10 (light, tolerable)
+ *   - >6kts (>7mph): -45 (harsh penalty)
+ *   - >10kts (>12mph): -60 (blown out, ensures Poor rating)
+ *
  * @param windSpeedKt - Wind speed in knots or null
  * @param windDirectionDeg - Wind direction in degrees (0-360) or null
  * @param profile - Spot profile (not used for wind, but kept for interface consistency)
- * @returns Score from -40 to +20
+ * @returns Score from -60 to +20
  */
 export function scoreWind(
   windSpeedKt: number | null,
@@ -183,7 +486,13 @@ export function scoreWind(
   profile: SpotProfile
 ): number {
   if (windSpeedKt === null || windDirectionDeg === null) {
+    console.log('🔍 [scoreWind] Missing wind data:', { windSpeedKt, windDirectionDeg });
     return 0; // neutral when no wind data
+  }
+
+  // Use Lido-specific wind scoring for Lido Beach
+  if (profile.name === "Lido Beach") {
+    return getWindQualityForLido(windSpeedKt, windDirectionDeg);
   }
 
   // Long Island south shore faces ~180° (south)
@@ -200,6 +509,15 @@ export function scoreWind(
   const isOffshore = normalized >= 315 || normalized <= 45;
   const isOnshore = normalized >= 135 && normalized <= 225;
   
+  console.log('🔍 [scoreWind] Wind calculation:', {
+    windSpeedKt: windSpeedKt.toFixed(1),
+    windDirectionDeg,
+    normalized: normalized.toFixed(1),
+    isOffshore,
+    isOnshore,
+    isCross: !isOffshore && !isOnshore,
+  });
+  
   if (isOffshore) {
     // Offshore winds = GOOD
     // Lighter is better (5-12kt ideal), strong offshore can be difficult
@@ -211,14 +529,14 @@ export function scoreWind(
       return 10; // Strong offshore (harder to paddle)
     }
   } else if (isOnshore) {
-    // Onshore winds = BAD
-    // Stronger is worse
-    if (windSpeedKt <= 8) {
+    // Onshore winds = BAD (SW winds are especially destructive to wave quality)
+    // Harsher thresholds: >6kts starts significant penalties, >10kts is blown out
+    if (windSpeedKt <= 6) {
       return -10; // Light onshore (tolerable)
-    } else if (windSpeedKt <= 15) {
-      return -25; // Moderate onshore (choppy)
+    } else if (windSpeedKt <= 10) {
+      return -45; // Moderate onshore - harsh penalty (>7mph)
     } else {
-      return -40; // Strong onshore (blown out)
+      return -60; // Strong onshore (>12mph) - blown out, ensures Poor rating
     }
   } else {
     // Cross-shore/sideshore = MARGINAL
@@ -240,16 +558,14 @@ export function scoreWind(
  * @returns Rating string
  */
 export function scoreToRating(score: number): string {
-  if (score <= 20) {
-    return 'Flat';
-  } else if (score <= 40) {
+  if (score <= 39) {
     return "Don't Bother";
-  } else if (score <= 60) {
+  } else if (score <= 59) {
     return 'Worth a Look';
   } else if (score <= 75) {
-    return 'Actually Fun';
+    return 'Go Surf';
   } else if (score <= 90) {
-    return 'Clear the Calendar';
+    return 'Firing';
   } else {
     return 'All-Time';
   }
@@ -257,16 +573,18 @@ export function scoreToRating(score: number): string {
 
 /**
  * Generate human-readable reason for quality score
- * 
+ *
  * @param breakdown - Score breakdown
- * @param swellHeightFt - Swell height
+ * @param breakingHeightFt - Predicted breaking wave height
  * @param periodS - Swell period
+ * @param tideFt - Tide height in feet
  * @returns Human-readable reason string
  */
 function generateReason(
   breakdown: QualityBreakdown,
-  swellHeightFt: number,
-  periodS: number
+  breakingHeightFt: number,
+  periodS: number,
+  tideFt: number
 ): string {
   const reasons: string[] = [];
 
@@ -275,32 +593,44 @@ function generateReason(
     reasons.push('junk period');
   }
 
-  // Size check
-  if (swellHeightFt < 2 && periodS < 6) {
+  // Size check (based on breaking height at the beach)
+  if (breakingHeightFt < 2 && periodS < 6) {
     reasons.push('too small and weak');
   }
 
-  // Swell quality
-  if (breakdown.swell_quality >= 32) {
+  // Swell quality (now 0-60 range)
+  if (breakdown.swell_quality >= 50) {
     reasons.push('good swell');
   } else if (breakdown.swell_quality <= 5) {
     reasons.push('weak swell');
   }
 
-  // Direction
-  if (breakdown.direction >= 18) {
+  // Direction (now penalty-only: -20 to 0)
+  if (breakdown.direction === 0) {
     reasons.push('ideal direction');
-  } else if (breakdown.direction <= 6) {
+  } else if (breakdown.direction <= -15) {
+    reasons.push('blocked direction');
+  } else if (breakdown.direction < 0) {
     reasons.push('poor direction');
   }
 
-  // Tide
-  if (breakdown.tide >= 18) {
+  // Tide - context-aware messaging (updated to match new logic with 4.0ft threshold)
+  if (tideFt > 5.0) {
+    reasons.push('shore-break');
+  } else if (tideFt > 4.0) {
+    if (breakingHeightFt >= 4.0) {
+      reasons.push('holdable tide');
+    } else {
+      reasons.push('mushy tide');
+    }
+  } else if (tideFt > 3.0) {
+    if (breakingHeightFt >= 4.0) {
+      reasons.push('optimal tide');
+    } else {
+      reasons.push('mushy tide');
+    }
+  } else if (breakdown.tide >= 18) {
     reasons.push('optimal tide');
-  } else if (breakdown.tide <= 4) {
-    reasons.push('poor tide');
-  } else {
-    reasons.push('tide OK');
   }
 
   // Wind
@@ -320,20 +650,22 @@ function generateReason(
 /**
  * Calculate quality score from forecast point
  * 
- * Combines all scoring components, applies mandatory clamps, and returns
- * complete quality assessment.
+ * Combines all scoring components, applies Tide Push multiplier if conditions are met,
+ * applies mandatory clamps, and returns complete quality assessment.
  * 
  * @param forecastPoint - Forecast point data
  * @param spotId - Spot identifier (name or key)
  * @param tideFt - Tide height in feet
  * @param profile - Spot profile (to avoid circular dependency)
+ * @param tidePhase - Tide phase: 'rising', 'falling', 'high', 'low', or null
  * @returns Quality score result with breakdown and reason
  */
 export function calculateQualityScoreWithProfile(
   forecastPoint: ForecastPoint,
   spotId: string,
   tideFt: number,
-  profile: SpotProfile
+  profile: SpotProfile,
+  tidePhase?: string | null
 ): QualityScoreResult {
 
   // Convert waveHeightFt from integer*10 to decimal feet
@@ -342,11 +674,34 @@ export function calculateQualityScoreWithProfile(
     : 0;
   const periodS = forecastPoint.wavePeriodSec ?? 0;
 
+  // Calculate breaking wave height: H × (T/10) × spotMultiplier × directionalPenalty
+  // SELECTION uses H² × T energy, but DISPLAY uses period-based shoaling physics
+  // This ensures quality score clamping is based on actual predicted surf size
+  // Note: Tide is accounted for separately in the quality score, not in wave height
+  const breakingHeightFt = calculateBreakingWaveHeight(
+    swellHeightFt,
+    periodS,
+    profile,
+    forecastPoint.waveDirectionDeg,
+    tidePhase ?? null
+  );
+
+  console.log('🔍 [Quality Score Debug] Breaking Height Calculation:', {
+    inputSwellHeightFt: swellHeightFt.toFixed(2),
+    periodS,
+    spotName: profile.name,
+    swellDirectionDeg: forecastPoint.waveDirectionDeg,
+    calculatedBreakingHeightFt: breakingHeightFt.toFixed(2),
+  });
+
   // Calculate component scores
-  const energy = calculateEnergy(swellHeightFt, periodS);
-  const swellQuality = scoreSwellQuality(energy);
+  // Swell Quality: 0-60 points (boosted to compensate for penalty-only direction)
+  const swellQuality = scoreSwellQualityByBreakingHeight(breakingHeightFt);
+  // Direction: -20 to 0 points (penalty-only model)
   const direction = scoreDirection(forecastPoint.waveDirectionDeg, profile);
-  const tide = scoreTide(tideFt, profile);
+  // Tide: -20 to 20 points (spot-specific logic for Lido/Long Beach)
+  const tide = scoreTide(tideFt, breakingHeightFt, profile.name);
+  // Wind: -60 to +20 points
   const wind = scoreWind(
     forecastPoint.windSpeedKts ?? null,
     forecastPoint.windDirectionDeg ?? null,
@@ -354,18 +709,177 @@ export function calculateQualityScoreWithProfile(
   );
 
   // Calculate raw score (sum of components)
+  // FinalScore = SwellQuality (0-60) + DirectionScore (-20 to 0) + TideScore + WindScore
   let rawScore = swellQuality + direction + tide + wind;
 
-  // Apply mandatory clamps
-  if (periodS < 5) {
-    rawScore = Math.min(rawScore, 20); // cap at 20 for junk period
+  // Add offshore small wave bonus for Lido Beach only
+  let offshoreBonus = 0;
+  if (profile.name === "Lido Beach") {
+    offshoreBonus = getOffshoreSmallWaveBonus(
+      breakingHeightFt,
+      forecastPoint.windDirectionDeg ?? null,
+      forecastPoint.windSpeedKts ?? null,
+      periodS
+    );
+    if (offshoreBonus > 0) {
+      rawScore += offshoreBonus;
+      console.log('🔍 [Quality Score Debug] Lido offshore small wave bonus applied:', offshoreBonus);
+    }
   }
-  if (swellHeightFt < 2 && periodS < 6) {
-    rawScore = Math.min(rawScore, 15); // cap at 15 for too small and weak
+
+  // DEBUG: Log component scores for troubleshooting
+  console.log('🔍 [Quality Score Debug] Component Breakdown:', {
+    breakingHeightFt: breakingHeightFt.toFixed(2),
+    swellQuality,
+    direction,
+    tide,
+    wind,
+    offshoreBonus,
+    windSpeedKts: forecastPoint.windSpeedKts,
+    windDirectionDeg: forecastPoint.windDirectionDeg,
+    tideFt: tideFt.toFixed(2),
+    tidePhase: tidePhase ?? null,
+    rawSum: rawScore,
+  });
+
+  // Apply Tide Push multiplier if conditions are met
+  // Tide Push: rising tide between 0-3ft with breaking height >= 3.0ft
+  const tidePushMultiplier = calculateTidePushMultiplier(tidePhase ?? null, tideFt, breakingHeightFt);
+  if (tidePushMultiplier > 1.0) {
+    rawScore = rawScore * tidePushMultiplier;
+    console.log('🔍 [Quality Score Debug] Tide Push applied:', tidePushMultiplier, '→ rawScore:', rawScore);
+  }
+
+  // ============================================================================
+  // SECONDARY SWELL QUALITY BONUS
+  // When there's organized groundswell (period >= 8s) underneath wind chop,
+  // conditions have more potential. The secondary swell provides better wave shape
+  // even if it's smaller than the dominant wind waves.
+  // ============================================================================
+  const secondaryHeightFt = forecastPoint.secondarySwellHeightFt !== null
+    ? (typeof forecastPoint.secondarySwellHeightFt === 'string'
+       ? parseFloat(forecastPoint.secondarySwellHeightFt)
+       : forecastPoint.secondarySwellHeightFt)
+    : null;
+  const secondaryPeriodS = forecastPoint.secondarySwellPeriodS ?? null;
+  const secondaryDirectionDeg = forecastPoint.secondarySwellDirectionDeg ?? null;
+
+  // Check if dominant swell is short-period wind slop (< 7s) and secondary is organized (>= 8s)
+  const isDominantWindSlop = periodS < 7;
+  const hasOrganizedSecondary = secondaryHeightFt !== null &&
+                                 secondaryHeightFt >= 0.5 &&
+                                 secondaryPeriodS !== null &&
+                                 secondaryPeriodS >= 8;
+
+  if (isDominantWindSlop && hasOrganizedSecondary) {
+    // Secondary swell provides better wave quality even if smaller
+    // Bonus scales with secondary period (longer = more organized)
+    let secondaryBonus = 0;
+
+    // Check direction - SE to S swells (110-200°) are ideal for Long Island
+    const isGoodSecondaryDirection = secondaryDirectionDeg !== null &&
+                                     secondaryDirectionDeg >= 110 &&
+                                     secondaryDirectionDeg <= 200;
+
+    if (secondaryPeriodS! >= 10) {
+      // 10s+ period = true groundswell, significant quality improvement
+      secondaryBonus = isGoodSecondaryDirection ? 15 : 8;
+    } else if (secondaryPeriodS! >= 8) {
+      // 8-10s period = organized swell, moderate quality improvement
+      secondaryBonus = isGoodSecondaryDirection ? 10 : 5;
+    }
+
+    if (secondaryBonus > 0) {
+      rawScore += secondaryBonus;
+      console.log('🌊 [Quality Score Debug] Secondary swell bonus applied:', {
+        secondaryHeightFt,
+        secondaryPeriodS,
+        secondaryDirectionDeg,
+        isGoodSecondaryDirection,
+        bonus: secondaryBonus,
+        newRawScore: rawScore,
+      });
+    }
+  }
+
+  // ============================================================================
+  // WIND SLOP PENALTY
+  // When dominant swell period is very short (< 5s) and height is significant,
+  // this is pure wind chop - apply additional penalty
+  // ============================================================================
+  if (periodS < 5 && swellHeightFt >= 2) {
+    const windSlopPenalty = -10;
+    rawScore += windSlopPenalty;
+    console.log('💨 [Quality Score Debug] Wind slop penalty applied:', {
+      dominantPeriodS: periodS,
+      dominantHeightFt: swellHeightFt,
+      penalty: windSlopPenalty,
+      newRawScore: rawScore,
+    });
+  }
+
+  // Consolidated size/period clamp with Lido/Long Beach-specific logic for small waves with offshore winds
+  if ((profile.name === "Lido Beach" || profile.name === "Long Beach") && breakingHeightFt < 2) {
+    // Lido Beach & Long Beach: Offshore winds can make small waves more surfable
+    const windDir = forecastPoint.windDirectionDeg;
+    const beforeClamp = rawScore;
+
+    if (windDir !== null && breakingHeightFt >= 1.0 && periodS >= 8) {
+      // Check for premium or good offshore conditions
+      if (isPremiumOffshore(windDir)) {
+        // Premium offshore (330-30°) + period ≥ 8s + height ≥ 1.0ft: cap at 60 ("Worth a Look")
+        rawScore = Math.min(rawScore, 60);
+        if (beforeClamp !== rawScore) {
+          console.log('🔍 [Quality Score Debug] Premium offshore small wave clamp:', beforeClamp, '→', rawScore);
+        }
+      } else if (isGoodOffshore(windDir)) {
+        // Good offshore (310-50°) + period ≥ 8s + height ≥ 1.0ft: cap at 50
+        rawScore = Math.min(rawScore, 50);
+        if (beforeClamp !== rawScore) {
+          console.log('🔍 [Quality Score Debug] Good offshore small wave clamp:', beforeClamp, '→', rawScore);
+        }
+      } else {
+        // Other conditions: strict cap at 30
+        rawScore = Math.min(rawScore, 30);
+        if (beforeClamp !== rawScore) {
+          console.log('🔍 [Quality Score Debug] Small wave clamp (no offshore):', beforeClamp, '→', rawScore);
+        }
+      }
+    } else {
+      // No offshore benefit: strict cap at 30
+      rawScore = Math.min(rawScore, 30);
+      if (beforeClamp !== rawScore) {
+        console.log('🔍 [Quality Score Debug] Small wave clamp (conditions not met):', beforeClamp, '→', rawScore);
+      }
+    }
+  } else if (breakingHeightFt < 2 || periodS < 6) {
+    // Other spots OR period < 6s: standard clamp at 30 ("Don't Bother" territory)
+    const beforeClamp = rawScore;
+    rawScore = Math.min(rawScore, 30);
+    if (beforeClamp !== rawScore) {
+      console.log('🔍 [Quality Score Debug] Size/period clamp applied:', beforeClamp, '→', rawScore);
+    }
+  }
+
+  // Hard clamp for onshore winds: SW winds >7mph (~6kts) cap score at 40 ("Don't Bother")
+  // This ensures Rockaway, Lido, and Long Beach never show "Go Surf" during significant SW wind events
+  const windDir = forecastPoint.windDirectionDeg;
+  const windSpeed = forecastPoint.windSpeedKts;
+  if (windDir !== null && windSpeed !== null) {
+    const normalizedWindDir = ((windDir % 360) + 360) % 360;
+    const isOnshoreWind = normalizedWindDir >= 135 && normalizedWindDir <= 225;
+    if (isOnshoreWind && windSpeed > 6) {
+      const beforeClamp = rawScore;
+      rawScore = Math.min(rawScore, 40); // Hard cap: can't exceed "Don't Bother" with onshore >7mph
+      if (beforeClamp !== rawScore) {
+        console.log('🔍 [Quality Score Debug] Onshore wind clamp applied:', beforeClamp, '→', rawScore);
+      }
+    }
   }
 
   // Clamp final score to 0-100
   const score = Math.max(0, Math.min(100, Math.round(rawScore)));
+  console.log('🔍 [Quality Score Debug] Final score:', score, '(rawScore:', rawScore.toFixed(2), ')');
 
   const breakdown: QualityBreakdown = {
     swell_quality: swellQuality,
@@ -375,7 +889,7 @@ export function calculateQualityScoreWithProfile(
   };
 
   const rating = scoreToRating(score);
-  const reason = generateReason(breakdown, swellHeightFt, periodS);
+  const reason = generateReason(breakdown, breakingHeightFt, periodS, tideFt);
 
   return {
     score,
@@ -391,12 +905,14 @@ export function calculateQualityScoreWithProfile(
  * @param forecastPoint - Forecast point data
  * @param spotId - Spot identifier (name or key)
  * @param tideFt - Tide height in feet
+ * @param tidePhase - Tide phase: 'rising', 'falling', 'high', 'low', or null
  * @returns Quality score result with breakdown and reason
  */
 export async function calculateQualityScore(
   forecastPoint: ForecastPoint,
   spotId: string,
-  tideFt: number
+  tideFt: number,
+  tidePhase?: string | null
 ): Promise<QualityScoreResult> {
   // Dynamic import to avoid circular dependency issues
   // Note: This function is provided for convenience, but calculateQualityScoreWithProfile
@@ -408,6 +924,6 @@ export async function calculateQualityScore(
     throw new Error(`No profile found for spot: ${spotId}`);
   }
   
-  return calculateQualityScoreWithProfile(forecastPoint, spotId, tideFt, profile);
+  return calculateQualityScoreWithProfile(forecastPoint, spotId, tideFt, profile, tidePhase ?? null);
 }
 

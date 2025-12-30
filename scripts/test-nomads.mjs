@@ -77,13 +77,13 @@ async function testNomadsJson() {
   // Test 3: Try to fetch actual forecast data (Lido Beach coordinates)
   console.log("Test 3: Attempting to fetch WW3 forecast data...");
   console.log("  Location: Lido Beach (40.588°N, 73.626°W)");
-  console.log("  Forecast hours: 0-72 (24 data points)");
+  console.log("  Forecast hours: 0-120 (40 data points)");
   console.log();
   
   const lat = 40.588;
   const lon = -73.626;
   const modelRunTime = getLatestWw3ModelRunTime();
-  const maxHoursOut = 72;
+  const maxHoursOut = 120;
 
   try {
     console.log("  Fetching from JSON endpoint...");

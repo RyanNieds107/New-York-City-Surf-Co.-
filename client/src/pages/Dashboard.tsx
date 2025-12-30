@@ -8,18 +8,54 @@ import { toast } from "sonner";
 import { SpotCard } from "@/components/SpotCard";
 import { PhotoSpotCard } from "@/components/PhotoSpotCard";
 import { Footer } from "@/components/Footer";
-import { useEffect } from "react";
+import { YearInReview2025 } from "@/components/YearInReview2025";
+import { Logo } from "@/components/Logo";
+import { useEffect, useState } from "react";
 
 export default function Dashboard() {
   // Scroll to top when component mounts
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
+
+  // Geolocation state for distance feature
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Request geolocation on mount
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+      },
+      () => {
+        // Permission denied or error - leave userLocation as null
+      }
+    );
+  }, []);
+
+  // Auto-refresh interval: 30 minutes
+  const refetchInterval = 30 * 60 * 1000;
+
   const spotsQuery = trpc.spots.list.useQuery(undefined, {
     refetchOnMount: true,
     staleTime: 0, // Always consider data stale to ensure fresh fetches
+    refetchInterval,
   });
-  const forecastsQuery = trpc.forecasts.listAll.useQuery();
+  const forecastsQuery = trpc.forecasts.getCurrentConditionsForAll.useQuery(undefined, {
+    refetchInterval,
+  });
+
+  // Distance query - only runs when user location is available
+  const distanceQuery = trpc.distance.getDistanceToSpots.useQuery(
+    { origin: userLocation ? `${userLocation.lat},${userLocation.lng}` : "", mode: "driving" },
+    { enabled: !!userLocation }
+  );
+
   const refreshAllMutation = trpc.forecasts.refreshAll.useMutation({
     onSuccess: () => {
       toast.success("All forecasts refreshed!");
@@ -33,16 +69,11 @@ export default function Dashboard() {
 
   const isLoading = spotsQuery.isLoading || forecastsQuery.isLoading;
 
-  // Create a map of spotId -> forecast for easy lookup
+  // Create a map of spotId -> current conditions for easy lookup
   const forecastMap = new Map(
-    (forecastsQuery.data || []).map((f) => [f.spotId, f])
+    (forecastsQuery.data || []).map((item) => [item.spotId, item.currentConditions])
   );
 
-  const getScoreColor = (score: number) => {
-    if (score >= 70) return "bg-green-500";
-    if (score >= 40) return "bg-yellow-500";
-    return "bg-red-500";
-  };
 
   const getConfidenceBadge = (band: string) => {
     switch (band) {
@@ -53,11 +84,6 @@ export default function Dashboard() {
       default:
         return <Badge variant="outline" className="border-red-500 text-red-500">Low Confidence</Badge>;
     }
-  };
-
-  const formatWaveHeight = (tenthsFt: number) => {
-    const feet = tenthsFt / 10;
-    return `${feet.toFixed(1)} ft`;
   };
 
   const formatTimestamp = (date: Date) => {
@@ -168,10 +194,9 @@ export default function Dashboard() {
     return `${windType} · ${windSpeed}`;
   };
 
-  const formatPeriodSummary = (): string => {
-    // Period data is not currently in forecast, return placeholder
-    // TODO: Add period to forecast response or fetch separately
-    return "N/A";
+  const formatPeriodSummary = (forecast: { wavePeriodSec: number | null } | null | undefined): string => {
+    if (!forecast || forecast.wavePeriodSec === null) return "N/A";
+    return `${forecast.wavePeriodSec}s`;
   };
 
   const formatLastUpdated = (date: Date): string => {
@@ -198,9 +223,6 @@ export default function Dashboard() {
   };
 
   const [, setLocation] = useLocation();
-
-  // Auto-refresh interval (from env or default 3 hours)
-  const refreshIntervalHours = 3;
 
   // Map spot names for display (handles legacy database names)
   const getDisplayName = (spotName: string): string => {
@@ -280,18 +302,14 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
-      <header className="bg-white sticky top-0 z-10">
-        <div className="container py-3">
+      <header className="bg-white sticky top-0 z-10 border-b border-black">
+        <div className="container mx-auto px-4 py-1">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Waves className="h-6 w-6 text-black" />
-              <div>
-                <Link href="/">
-                  <h1 className="text-2xl font-bold text-black hover:text-black/80 cursor-pointer transition-colors" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                    New York City Surf Co.
-                  </h1>
-                </Link>
-              </div>
+            <div className="flex items-center gap-1">
+              <Logo 
+                logoSize="h-12"
+                showLink={true}
+              />
             </div>
             <div className="flex items-center gap-2 text-xs text-black">
               {refreshAllMutation.isPending && (
@@ -308,57 +326,10 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-        <div className="border-b border-black"></div>
       </header>
 
       {/* Main Content */}
-      <main className="container py-12">
-        {/* Stats Overview - KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-          <div className="border-t border-b border-black py-4">
-            <div className="flex justify-center">
-              <div className="text-left">
-                <p className="text-xs uppercase tracking-wider text-gray-600 mb-1" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                  Spots Tracked
-                </p>
-                <p className="text-3xl font-bold text-black" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.02em' }}>
-                  {spotsQuery.data?.length || 0}
-                </p>
-              </div>
-            </div>
-                </div>
-          <div className="border-t border-b border-black py-4">
-            <div className="flex justify-center">
-              <div className="text-left">
-                <p className="text-xs uppercase tracking-wider text-gray-600 mb-1" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                  Best Conditions
-                </p>
-                <p className="text-3xl font-bold text-black" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.02em' }}>
-                    {forecastsQuery.data?.length
-                      ? forecastsQuery.data.reduce((best, f) =>
-                          f.probabilityScore > best.probabilityScore ? f : best
-                      ).spot?.name || "—"
-                    : "—"}
-                  </p>
-                </div>
-              </div>
-                </div>
-          <div className="border-t border-b border-black py-4">
-            <div className="flex justify-center">
-              <div className="text-left">
-                <p className="text-xs uppercase tracking-wider text-gray-600 mb-1" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                  Last Update
-                </p>
-                <p className="text-3xl font-bold text-black" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.02em' }}>
-                    {forecastsQuery.data?.[0]?.createdAt
-                      ? formatTimestamp(forecastsQuery.data[0].createdAt)
-                    : "—"}
-                  </p>
-                </div>
-              </div>
-          </div>
-        </div>
-
+      <main className="container py-8">
         {isLoading ? (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
@@ -381,6 +352,17 @@ export default function Dashboard() {
           </>
         ) : (
           <>
+            {/* Spots Header */}
+            <div className="mb-8">
+              <div className="bg-gray-50 border-2 border-black">
+                <div className="py-4 px-6">
+                  <h2 className="text-4xl md:text-5xl font-black text-black uppercase tracking-tight text-center" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.02em' }}>
+                    Spots Tracked
+                  </h2>
+                </div>
+              </div>
+            </div>
+
             {/* Top 3 Spots - Photo Cards */}
             {topThreeSpots.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
@@ -388,6 +370,7 @@ export default function Dashboard() {
                   const displayName = getDisplayName(spot.name);
                   const imagePath = getSpotImagePath(spot.name);
                   const region = getSpotRegion(spot.name);
+                  const spotDistance = distanceQuery.data?.[displayName] ?? null;
 
                   return (
                     <PhotoSpotCard
@@ -396,6 +379,9 @@ export default function Dashboard() {
                       region={region}
                       imageSrc={imagePath}
                       onClick={() => setLocation(`/spot/${spot.id}`)}
+                      distance={spotDistance}
+                      isLoadingDistance={!!userLocation && distanceQuery.isLoading}
+                      travelMode="driving"
                     />
                   );
                 })}
@@ -410,6 +396,7 @@ export default function Dashboard() {
                   const displayName = getDisplayName(spot.name);
                   const imagePath = getSpotImagePath(spot.name);
                   const region = getSpotRegion(spot.name);
+                  const spotDistance = distanceQuery.data?.[displayName] ?? null;
 
               return (
                     <div key={spot.id} className="relative">
@@ -419,6 +406,9 @@ export default function Dashboard() {
                           region={region}
                           imageSrc={imagePath}
                           onClick={isComingSoon ? undefined : () => setLocation(`/spot/${spot.id}`)}
+                          distance={spotDistance}
+                          isLoadingDistance={!!userLocation && distanceQuery.isLoading}
+                          travelMode="driving"
                         />
                       </div>
                       {isComingSoon && (
@@ -442,6 +432,9 @@ export default function Dashboard() {
               </div>
             )}
 
+            {/* 2025 Year in Review Section */}
+            {/* <YearInReview2025 /> */}
+
             {/* Surf Analysis Card */}
             <Card 
               id="surf-analysis-card" 
@@ -451,6 +444,12 @@ export default function Dashboard() {
             >
               {/* Header Section */}
               <div className="bg-gray-50 px-8 md:px-12 py-10 md:py-12 border-b-2 border-black">
+                {/* GUIDE Badge */}
+                <div className="mb-6">
+                  <span className="inline-block px-4 py-2 bg-black text-white text-xs font-bold uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", letterSpacing: '2px' }}>
+                    GUIDE
+                  </span>
+                </div>
                 <h2 className="text-2xl md:text-3xl lg:text-4xl font-black text-black mb-4 leading-tight tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                   When Western Long Island Surf Actually Works
                 </h2>

@@ -46,9 +46,9 @@ async function testOpenMeteo() {
   console.log();
 
   // Fetch forecast from Open-Meteo
-  console.log("Step 3: Fetching 72-hour forecast from Open-Meteo...");
+  console.log("Step 3: Fetching 120-hour forecast from Open-Meteo...");
   try {
-    const forecastPoints = await fetchOpenMeteoForecastForSpot(spot, { maxHoursOut: 72 });
+    const forecastPoints = await fetchOpenMeteoForecastForSpot(spot, { maxHoursOut: 120 });
     
     console.log(`✓ Successfully fetched ${forecastPoints.length} forecast points`);
     console.log();

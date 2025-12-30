@@ -1,4 +1,4 @@
-import { eq, desc, and, gte, lte } from "drizzle-orm";
+import { eq, desc, and, gte, lte, lt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser,
@@ -245,23 +245,39 @@ export async function insertForecastPoints(forecastPointsArray: InsertForecastPo
   if (!db) return;
   if (forecastPointsArray.length === 0) return;
   
-  // 💾 STEP 3: Inserting to Database
-  if (forecastPointsArray.length > 0) {
-    const firstPoint = forecastPointsArray[0];
-    console.log('💾 STEP 3: Inserting to Database');
-    console.log('Total points to insert:', forecastPointsArray.length);
-    console.log('ForecastPoint object sample:', JSON.stringify({
-      secondarySwellHeightFt: firstPoint.secondarySwellHeightFt,
-      secondarySwellPeriodS: firstPoint.secondarySwellPeriodS,
-      secondarySwellDirectionDeg: firstPoint.secondarySwellDirectionDeg,
-      windWaveHeightFt: firstPoint.windWaveHeightFt,
-      windWavePeriodS: firstPoint.windWavePeriodS,
-      windWaveDirectionDeg: firstPoint.windWaveDirectionDeg,
-    }, null, 2));
+  // Extract spotId from first point to clean up old data
+  const spotId = forecastPointsArray[0].spotId;
+  
+  // 🧹 MANDATORY CLEANUP: Always delete old forecast points before inserting new ones
+  // This prevents accumulation of stale data (914+ points) that breaks timeline grouping
+  console.log(`🧹 [Auto-Cleanup] Deleting ALL existing forecast points for spot ${spotId}...`);
+  const deleteResult = await db
+    .delete(forecastPoints)
+    .where(eq(forecastPoints.spotId, spotId));
+  
+  const deletedCount = deleteResult.rowsAffected || 0;
+  if (deletedCount > 0) {
+    console.log(`✅ [Auto-Cleanup] Removed ${deletedCount} old forecast points for spot ${spotId}`);
+  } else {
+    console.log(`ℹ️ [Auto-Cleanup] No existing forecast points found for spot ${spotId}`);
   }
+  
+  // 💾 STEP 3: Inserting Fresh Data to Database
+  const firstPoint = forecastPointsArray[0];
+  console.log('💾 STEP 3: Inserting to Database');
+  console.log('Total points to insert:', forecastPointsArray.length);
+  console.log('ForecastPoint object sample:', JSON.stringify({
+    secondarySwellHeightFt: firstPoint.secondarySwellHeightFt,
+    secondarySwellPeriodS: firstPoint.secondarySwellPeriodS,
+    secondarySwellDirectionDeg: firstPoint.secondarySwellDirectionDeg,
+    windWaveHeightFt: firstPoint.windWaveHeightFt,
+    windWavePeriodS: firstPoint.windWavePeriodS,
+    windWaveDirectionDeg: firstPoint.windWaveDirectionDeg,
+  }, null, 2));
   
   await db.insert(forecastPoints).values(forecastPointsArray);
   console.log('✅ Successfully inserted', forecastPointsArray.length, 'forecast points');
+  console.log(`📊 Net result: ${deletedCount} deleted → ${forecastPointsArray.length} inserted (spot ${spotId})`);
 }
 
 export async function getForecastTimeline(
@@ -360,4 +376,44 @@ export async function deleteForecastPointsBySpotAndModelRun(
         eq(forecastPoints.modelRunTime, modelRunTime)
       )
     );
+}
+
+/**
+ * Delete all forecast points for a spot older than the specified cutoff time
+ * This is useful for cleaning up old forecasts during data refresh
+ */
+export async function deleteForecastPointsBySpotOlderThan(
+  spotId: number,
+  cutoffTime: Date
+): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  
+  const result = await db
+    .delete(forecastPoints)
+    .where(
+      and(
+        eq(forecastPoints.spotId, spotId),
+        lt(forecastPoints.modelRunTime, cutoffTime)
+      )
+    );
+  
+  return result.rowsAffected || 0;
+}
+
+/**
+ * Delete ALL forecast points for a spot
+ * Use this for a complete data refresh
+ */
+export async function deleteAllForecastPointsForSpot(
+  spotId: number
+): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  
+  const result = await db
+    .delete(forecastPoints)
+    .where(eq(forecastPoints.spotId, spotId));
+  
+  return result.rowsAffected || 0;
 }

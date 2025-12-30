@@ -9,10 +9,8 @@ export interface SpotProfile {
   name: string;
   swell_target_deg: number; // Ideal swell direction in degrees
   swell_tolerance_deg: number; // Acceptable deviation from target (degrees)
-  tide_best_min_ft: number; // Bottom of ideal tide range (feet)
-  tide_best_max_ft: number; // Top of ideal tide range (feet)
   min_period_s: number; // Minimum usable period (seconds)
-  amplification_factor: number; // Spot-specific wave height multiplier
+  multiplier: number; // Fixed wave height multiplier for this spot
 }
 
 /**
@@ -21,30 +19,24 @@ export interface SpotProfile {
 export const SPOT_PROFILES: Record<string, SpotProfile> = {
   'lido': {
     name: 'Lido Beach',
-    swell_target_deg: 120, // ESE
-    swell_tolerance_deg: 30,
-    tide_best_min_ft: 2.0,
-    tide_best_max_ft: 5.0,
+    swell_target_deg: 140, // SE-SSE (shifted to better capture SSE swells)
+    swell_tolerance_deg: 50, // Widened to include ESE (90°) to SSE (180°) without penalty
     min_period_s: 6,
-    amplification_factor: 1.4,
+    multiplier: 1.5, // Fixed wave height multiplier
   },
   'long-beach': {
     name: 'Long Beach',
     swell_target_deg: 130, // SE
     swell_tolerance_deg: 40,
-    tide_best_min_ft: 2.0,
-    tide_best_max_ft: 5.0,
     min_period_s: 5,
-    amplification_factor: 1.2,
+    multiplier: 1.3, // Fixed wave height multiplier
   },
   'rockaway': {
     name: 'Rockaway Beach',
     swell_target_deg: 110, // ESE
     swell_tolerance_deg: 35,
-    tide_best_min_ft: 1.0,
-    tide_best_max_ft: 4.0,
     min_period_s: 5,
-    amplification_factor: 1.15,
+    multiplier: 1.1, // Fixed wave height multiplier
   },
 };
 
@@ -86,6 +78,63 @@ export function getSpotProfile(spotIdentifier: string): SpotProfile | undefined 
  */
 export function getSpotKey(spotName: string): string | undefined {
   return SPOT_NAME_TO_KEY[spotName];
+}
+
+/**
+ * Calculate physically accurate spot multiplier based on swell height and period
+ * 
+ * Implements period-based tier system and global small swell damping ("Lake Atlantic" rule).
+ * 
+ * @param spotKey - Spot identifier key ("lido", "long-beach", "rockaway")
+ * @param swellHeightFt - Offshore swell height in feet
+ * @param periodS - Swell period in seconds
+ * @returns Spot multiplier (0.8 for small swells, or period-based tier multiplier)
+ */
+export function calculateSpotMultiplier(
+  spotKey: string,
+  swellHeightFt: number,
+  periodS: number
+): number {
+  // Global Small Swell Damping (The "Lake Atlantic" Rule)
+  // Small swells lose energy to friction and cannot use canyon or inlet mechanics
+  if (swellHeightFt < 2.0) {
+    return 0.8;
+  }
+
+  // Spot-specific period-based tiers
+  switch (spotKey) {
+    case 'lido':
+    case 'LIDO_BEACH':
+      // Lido Beach: Hudson Canyon refraction + inlet shoaling
+      if (periodS < 12) {
+        return 1.2; // Tier A: Inlet shoaling only
+      } else {
+        return 1.5; // Tier B: Hudson Canyon refraction + inlet
+      }
+
+    case 'long-beach':
+    case 'LONG_BEACH':
+      // Long Beach: Jetty-driven sandbars
+      if (periodS < 12) {
+        return 1.1; // Tier A
+      } else {
+        return 1.3; // Tier B
+      }
+
+    case 'rockaway':
+    case 'ROCKAWAY':
+      // Rockaway Beach: Deep in NY Bight shadow
+      if (periodS < 11) {
+        return 1.0; // Tier A
+      } else {
+        return 1.1; // Tier B
+      }
+
+    default:
+      // Fallback to neutral multiplier for unknown spots
+      console.warn(`[calculateSpotMultiplier] Unknown spot key: ${spotKey}, using 1.0`);
+      return 1.0;
+  }
 }
 
 

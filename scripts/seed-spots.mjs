@@ -21,7 +21,7 @@ const LONG_ISLAND_SPOTS = [
     latitude: "40.5884",
     longitude: "-73.6579",
     buoyId: "44025", // Ambrose Light buoy
-    tideStationId: "8516945", // Kings Point, NY
+    tideStationId: "8516601", // Long Beach (Inside)
     bathymetryFactor: 6,
     idealSwellDirMin: 120,
     idealSwellDirMax: 200,
@@ -31,7 +31,7 @@ const LONG_ISLAND_SPOTS = [
     latitude: "40.5834",
     longitude: "-73.8168",
     buoyId: "44025", // Ambrose Light buoy
-    tideStationId: "8516945", // Kings Point, NY
+    tideStationId: "8516601", // Long Beach (Inside)
     bathymetryFactor: 5,
     idealSwellDirMin: 130,
     idealSwellDirMax: 210,
@@ -41,7 +41,7 @@ const LONG_ISLAND_SPOTS = [
     latitude: "40.5892",
     longitude: "-73.6256",
     buoyId: "44025", // Ambrose Light buoy
-    tideStationId: "8516945", // Kings Point, NY
+    tideStationId: "8516601", // Long Beach (Inside)
     bathymetryFactor: 5,
     idealSwellDirMin: 130,
     idealSwellDirMax: 200,
@@ -60,7 +60,11 @@ async function seed() {
       await connection.execute(
         `INSERT INTO surf_spots (name, latitude, longitude, buoyId, tideStationId, bathymetryFactor, idealSwellDirMin, idealSwellDirMax, createdAt)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
-         ON DUPLICATE KEY UPDATE name = name`,
+         ON DUPLICATE KEY UPDATE 
+           tideStationId = VALUES(tideStationId),
+           bathymetryFactor = VALUES(bathymetryFactor),
+           idealSwellDirMin = VALUES(idealSwellDirMin),
+           idealSwellDirMax = VALUES(idealSwellDirMax)`,
         [
           spot.name,
           spot.latitude,

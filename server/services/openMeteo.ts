@@ -21,6 +21,10 @@ export interface NomadsForecastPoint {
   secondarySwellHeightFt: number | null;
   secondarySwellPeriodS: number | null;
   secondarySwellDirectionDeg: number | null;
+  // Tertiary swell (third swell component - only available from GFS wave models)
+  tertiarySwellHeightFt: number | null;
+  tertiarySwellPeriodS: number | null;
+  tertiarySwellDirectionDeg: number | null;
   // Wind waves
   windWaveHeightFt: number | null;
   windWavePeriodS: number | null;
@@ -28,6 +32,9 @@ export interface NomadsForecastPoint {
   // Wind data
   windSpeedKts: number | null;
   windDirectionDeg: number | null;
+  // Temperature data
+  waterTempF: number | null;
+  airTempF: number | null;
   source: "ww3" | "gfs" | "hrrr";
 }
 
@@ -48,10 +55,14 @@ interface OpenMeteoResponse {
     swell_wave_height?: (number | null)[]; // meters
     swell_wave_period?: (number | null)[]; // seconds
     swell_wave_direction?: (number | null)[]; // degrees (0-360)
-    // Secondary swell
-    swell_wave_height_secondary?: (number | null)[]; // meters
-    swell_wave_period_secondary?: (number | null)[]; // seconds
-    swell_wave_direction_secondary?: (number | null)[]; // degrees (0-360)
+    // Secondary swell (Open-Meteo uses secondary_swell_* naming)
+    secondary_swell_wave_height?: (number | null)[]; // meters
+    secondary_swell_wave_period?: (number | null)[]; // seconds
+    secondary_swell_wave_direction?: (number | null)[]; // degrees (0-360)
+    // Tertiary swell (only available from GFS wave models)
+    tertiary_swell_wave_height?: (number | null)[]; // meters
+    tertiary_swell_wave_period?: (number | null)[]; // seconds
+    tertiary_swell_wave_direction?: (number | null)[]; // degrees (0-360)
     // Wind waves
     wind_wave_height?: (number | null)[]; // meters
     wind_wave_period?: (number | null)[]; // seconds
@@ -61,9 +72,28 @@ interface OpenMeteoResponse {
     wave_period?: (number | null)[]; // seconds
     wave_direction?: (number | null)[]; // degrees (0-360)
     // Wind data
-    wind_speed_10m?: (number | null)[]; // m/s
+    wind_speed_10m?: (number | null)[]; // km/h
     wind_direction_10m?: (number | null)[]; // degrees (0-360)
+    // Temperature data
+    sea_surface_temperature?: (number | null)[]; // Celsius (from Marine API)
+    temperature_2m?: (number | null)[]; // Celsius (from Weather API)
   };
+}
+
+/**
+ * Gets current conditions from Open-Meteo for a specific surf spot.
+ * Returns the first hour (current/nearest) forecast point.
+ * 
+ * @param spot - The surf spot with latitude/longitude
+ * @returns Current conditions forecast point or null if unavailable
+ */
+export async function getCurrentConditionsFromOpenMeteo(
+  spot: SurfSpot
+): Promise<NomadsForecastPoint | null> {
+  const forecastPoints = await fetchOpenMeteoForecastForSpot(spot, { maxHoursOut: 1 });
+  if (forecastPoints.length === 0) return null;
+  // Return the first point (current/nearest hour, should be hoursOut = 0 or close)
+  return forecastPoints[0];
 }
 
 /**
@@ -90,16 +120,20 @@ export async function fetchOpenMeteoForecastForSpot(
   // Open-Meteo Marine API endpoint
   const apiUrl = "https://marine-api.open-meteo.com/v1/marine";
   
-  // Request parameters - include all swell components
-  const hourlyParams = [
+  // Request parameters for Marine API (wave data only - wind not supported)
+  const marineHourlyParams = [
     // Primary swell
     'swell_wave_height',
     'swell_wave_period',
     'swell_wave_direction',
-    // Secondary swell
-    'swell_wave_height_secondary',
-    'swell_wave_period_secondary',
-    'swell_wave_direction_secondary',
+    // Secondary swell (note: Open-Meteo uses secondary_swell_* naming)
+    'secondary_swell_wave_height',
+    'secondary_swell_wave_period',
+    'secondary_swell_wave_direction',
+    // Tertiary swell (only available from GFS wave models)
+    'tertiary_swell_wave_height',
+    'tertiary_swell_wave_period',
+    'tertiary_swell_wave_direction',
     // Wind waves
     'wind_wave_height',
     'wind_wave_period',
@@ -108,43 +142,81 @@ export async function fetchOpenMeteoForecastForSpot(
     'wave_height',
     'wave_period',
     'wave_direction',
-    // Wind data
-    'wind_speed_10m',
-    'wind_direction_10m',
+    // Water temperature (sea surface temperature)
+    'sea_surface_temperature',
+    // NOTE: wind_speed_10m and wind_direction_10m are NOT supported by Marine API
+    // Wind data and air temperature must come from the Weather Forecast API
   ];
   
-  const params = {
+  // Strictly set to 5 days for 120-hour forecasts
+  // When maxHoursOut is 120, we MUST request exactly 5 days to get 120 hours of data
+  const forecastDays = maxHoursOut >= 120 ? 5 : Math.ceil(maxHoursOut / 24);
+
+  console.log(`[Open-Meteo] Requesting ${forecastDays} days (${maxHoursOut} hours) of forecast data`);
+  if (maxHoursOut >= 120 && forecastDays !== 5) {
+    console.warn(`[Open-Meteo] WARNING: Expected 5 days for 120-hour forecast, but got ${forecastDays}`);
+  }
+
+  const marineParams = {
     latitude: lat.toString(),
     longitude: lon.toString(),
-    hourly: hourlyParams.join(','),
-    timezone: "auto", // Auto-detect timezone
-    forecast_days: Math.ceil(maxHoursOut / 24), // Convert hours to days (round up)
+    hourly: marineHourlyParams.join(','),
+    timezone: "auto",
+    forecast_days: forecastDays,
   };
 
-  // 🌊 STEP 1: Open-Meteo API Request
-  console.log('🌊 STEP 1: Open-Meteo API Request');
+  // 🌊 STEP 1: Open-Meteo Marine API Request
+  console.log('🌊 STEP 1: Open-Meteo Marine API Request');
   console.log('URL:', apiUrl);
-  console.log('Parameters requested:', hourlyParams);
-  
+  console.log('Parameters requested:', marineHourlyParams);
+
   // Construct and log the full request URL
-  const fullUrl = `${apiUrl}?latitude=${lat}&longitude=${lon}&hourly=${hourlyParams.join(',')}&timezone=${params.timezone}&forecast_days=${params.forecast_days}`;
-  console.log('[Open-Meteo] Full request URL:', fullUrl);
+  const fullUrl = `${apiUrl}?latitude=${lat}&longitude=${lon}&hourly=${marineHourlyParams.join(',')}&timezone=${marineParams.timezone}&forecast_days=${marineParams.forecast_days}`;
+  console.log('[Open-Meteo] Full Marine request URL:', fullUrl);
+
+  // Weather API for wind data and air temperature (Marine API doesn't support these)
+  const weatherApiUrl = "https://api.open-meteo.com/v1/forecast";
+  const weatherParams = {
+    latitude: lat.toString(),
+    longitude: lon.toString(),
+    hourly: 'wind_speed_10m,wind_direction_10m,temperature_2m',
+    timezone: "auto",
+    forecast_days: forecastDays,
+  };
+  const weatherFullUrl = `${weatherApiUrl}?latitude=${lat}&longitude=${lon}&hourly=wind_speed_10m,wind_direction_10m,temperature_2m&timezone=${weatherParams.timezone}&forecast_days=${weatherParams.forecast_days}`;
+  console.log('[Open-Meteo] Full Weather request URL:', weatherFullUrl);
 
   try {
-    const response = await axios.get<OpenMeteoResponse>(apiUrl, {
-      params,
-      timeout: 30000,
-    });
-    
-    // Log the response body
-    console.log('[Open-Meteo] Response body:', JSON.stringify(response.data, null, 2));
+    // Fetch marine data and weather data in parallel
+    const [marineResponse, weatherResponse] = await Promise.all([
+      axios.get<OpenMeteoResponse>(apiUrl, {
+        params: marineParams,
+        timeout: 30000,
+      }),
+      axios.get<OpenMeteoResponse>(weatherApiUrl, {
+        params: weatherParams,
+        timeout: 30000,
+      }),
+    ]);
 
-    if (!response.data || !response.data.hourly) {
-      throw new Error("Invalid response from Open-Meteo API");
+    // Log the response bodies
+    console.log('[Open-Meteo] Marine response received');
+    console.log('[Open-Meteo] Weather response received');
+
+    if (!marineResponse.data || !marineResponse.data.hourly) {
+      throw new Error("Invalid response from Open-Meteo Marine API");
     }
 
-    const data = response.data;
+    const data = marineResponse.data;
     const hourly = data.hourly;
+
+    // Get wind and temperature data from weather response
+    const weatherHourly = weatherResponse.data?.hourly || {};
+    // Merge wind data into hourly object
+    hourly.wind_speed_10m = weatherHourly.wind_speed_10m as (number | null)[] || [];
+    hourly.wind_direction_10m = weatherHourly.wind_direction_10m as (number | null)[] || [];
+    // Merge air temperature from weather response
+    hourly.temperature_2m = weatherHourly.temperature_2m as (number | null)[] || [];
 
     // Validate required arrays exist
     if (!hourly.time || hourly.time.length === 0) {
@@ -154,19 +226,26 @@ export async function fetchOpenMeteoForecastForSpot(
     // 🌊 STEP 2: Open-Meteo API Response
     console.log('🌊 STEP 2: Open-Meteo API Response');
     console.log('Has primary swell?', !!hourly.swell_wave_height);
-    console.log('Has secondary swell?', !!hourly.swell_wave_height_secondary);
+    console.log('Has secondary swell?', !!hourly.secondary_swell_wave_height);
     console.log('Has wind waves?', !!hourly.wind_wave_height);
+    console.log('Has wind data?', !!hourly.wind_speed_10m?.length);
+    console.log('Has water temp?', !!hourly.sea_surface_temperature?.length);
+    console.log('Has air temp?', !!hourly.temperature_2m?.length);
     console.log('First hour sample:', {
       primary: hourly.swell_wave_height?.[0],
-      secondary: hourly.swell_wave_height_secondary?.[0],
-      wind: hourly.wind_wave_height?.[0]
+      secondary: hourly.secondary_swell_wave_height?.[0],
+      windWave: hourly.wind_wave_height?.[0],
+      windSpeed: hourly.wind_speed_10m?.[0],
+      windDir: hourly.wind_direction_10m?.[0],
+      waterTempC: hourly.sea_surface_temperature?.[0],
+      airTempC: hourly.temperature_2m?.[0],
     });
     console.log('Available hourly fields:', Object.keys(hourly));
     if (hourly.swell_wave_height) {
       console.log(`Primary swell data: ${hourly.swell_wave_height.filter(v => v !== null).length} non-null values`);
     }
-    if (hourly.swell_wave_height_secondary) {
-      console.log(`Secondary swell data: ${hourly.swell_wave_height_secondary.filter(v => v !== null).length} non-null values`);
+    if (hourly.secondary_swell_wave_height) {
+      console.log(`Secondary swell data: ${hourly.secondary_swell_wave_height.filter(v => v !== null).length} non-null values`);
     } else {
       console.log(`No secondary swell data in response`);
     }
@@ -175,26 +254,35 @@ export async function fetchOpenMeteoForecastForSpot(
     } else {
       console.log(`No wind wave data in response`);
     }
+    if (hourly.wind_speed_10m) {
+      console.log(`Wind speed data: ${hourly.wind_speed_10m.filter(v => v !== null).length} non-null values`);
+    } else {
+      console.log(`No wind speed data in response`);
+    }
 
     // Use current time as model run time (Open-Meteo doesn't provide explicit model run time)
     // The forecast is generated on-demand, so we use "now" as the reference
     const modelRunTime = new Date();
     
     // Convert hourly data to forecast points
+    // IMPORTANT: Do NOT filter out any hours - we need all 120+ points for the 5-day forecast
     const forecastPoints: NomadsForecastPoint[] = [];
-    const numHours = Math.min(hourly.time.length, maxHoursOut);
+    const numHours = hourly.time.length; // Use ALL available hours, don't limit
+
+    console.log(`[Open-Meteo] Processing ${numHours} hourly data points from API response`);
 
     for (let i = 0; i < numHours; i++) {
       const timeStr = hourly.time[i];
       if (!timeStr) continue;
 
       const forecastTimestamp = new Date(timeStr);
-      
+
       // Calculate hours out from model run time
       const hoursOut = Math.round((forecastTimestamp.getTime() - modelRunTime.getTime()) / (1000 * 60 * 60));
-      
-      // Skip if hoursOut is negative (past data) or exceeds max
-      if (hoursOut < 0 || hoursOut > maxHoursOut) continue;
+
+      // Only skip if significantly in the past (more than 2 hours ago)
+      // Keep all future hours regardless of maxHoursOut to ensure we get full 120-hour forecast
+      if (hoursOut < -2) continue;
 
       // Helper function to convert meters to feet
       const metersToFeet = (m: number | null): number | null => {
@@ -219,19 +307,34 @@ export async function fetchOpenMeteoForecastForSpot(
       const primarySwellPeriodS = hourly.swell_wave_period?.[i] ?? hourly.wave_period?.[i] ?? null;
       const primarySwellDirectionDeg = hourly.swell_wave_direction?.[i] ?? hourly.wave_direction?.[i] ?? null;
 
-      // Extract secondary swell values
-      const secondarySwellHeightM = hourly.swell_wave_height_secondary?.[i] ?? null;
-      const secondarySwellPeriodSRaw = hourly.swell_wave_period_secondary?.[i] ?? null;
-      const secondarySwellDirectionDegRaw = hourly.swell_wave_direction_secondary?.[i] ?? null;
+      // Extract secondary swell values (Open-Meteo uses secondary_swell_* naming)
+      const secondarySwellHeightM = hourly.secondary_swell_wave_height?.[i] ?? null;
+      const secondarySwellPeriodSRaw = hourly.secondary_swell_wave_period?.[i] ?? null;
+      const secondarySwellDirectionDegRaw = hourly.secondary_swell_wave_direction?.[i] ?? null;
+
+      // Extract tertiary swell values (only available from GFS wave models)
+      const tertiarySwellHeightM = hourly.tertiary_swell_wave_height?.[i] ?? null;
+      const tertiarySwellPeriodSRaw = hourly.tertiary_swell_wave_period?.[i] ?? null;
+      const tertiarySwellDirectionDegRaw = hourly.tertiary_swell_wave_direction?.[i] ?? null;
 
       // Extract wind wave values
       const windWaveHeightM = hourly.wind_wave_height?.[i] ?? null;
       const windWavePeriodSRaw = hourly.wind_wave_period?.[i] ?? null;
       const windWaveDirectionDegRaw = hourly.wind_wave_direction?.[i] ?? null;
 
-      // Extract wind data
-      const windSpeedMs = hourly.wind_speed_10m?.[i] ?? null;
+      // Extract wind data (Weather API returns km/h, not m/s)
+      const windSpeedKmh = hourly.wind_speed_10m?.[i] ?? null;
       const windDirectionDegRaw = hourly.wind_direction_10m?.[i] ?? null;
+
+      // Extract temperature data (both are in Celsius)
+      const waterTempC = hourly.sea_surface_temperature?.[i] ?? null;
+      const airTempC = hourly.temperature_2m?.[i] ?? null;
+
+      // Helper function to convert Celsius to Fahrenheit
+      const celsiusToFahrenheit = (c: number | null): number | null => {
+        if (c === null || isNaN(c)) return null;
+        return (c * 9/5) + 32;
+      };
 
       // Convert units and validate
       const waveHeightFt = metersToFeet(primarySwellHeightM);
@@ -242,15 +345,23 @@ export async function fetchOpenMeteoForecastForSpot(
       const secondarySwellPeriodS = validatePeriod(secondarySwellPeriodSRaw);
       const secondarySwellDirectionDeg = validateDirection(secondarySwellDirectionDegRaw);
 
+      const tertiarySwellHeightFt = metersToFeet(tertiarySwellHeightM);
+      const tertiarySwellPeriodS = validatePeriod(tertiarySwellPeriodSRaw);
+      const tertiarySwellDirectionDeg = validateDirection(tertiarySwellDirectionDegRaw);
+
       const windWaveHeightFt = metersToFeet(windWaveHeightM);
       const windWavePeriodS = validatePeriod(windWavePeriodSRaw);
       const windWaveDirectionDeg = validateDirection(windWaveDirectionDegRaw);
 
-      const windSpeedKts = windSpeedMs !== null && !isNaN(windSpeedMs) && windSpeedMs >= 0
-        ? windSpeedMs * 1.94384 // m/s to knots
+      const windSpeedKts = windSpeedKmh !== null && !isNaN(windSpeedKmh) && windSpeedKmh >= 0
+        ? windSpeedKmh * 0.539957 // km/h to knots
         : null;
 
       const windDirection = validateDirection(windDirectionDegRaw);
+
+      // Convert temperatures from Celsius to Fahrenheit
+      const waterTempF = celsiusToFahrenheit(waterTempC);
+      const airTempF = celsiusToFahrenheit(airTempC);
 
       forecastPoints.push({
         forecastTimestamp,
@@ -264,6 +375,10 @@ export async function fetchOpenMeteoForecastForSpot(
         secondarySwellHeightFt,
         secondarySwellPeriodS,
         secondarySwellDirectionDeg,
+        // Tertiary swell
+        tertiarySwellHeightFt,
+        tertiarySwellPeriodS,
+        tertiarySwellDirectionDeg,
         // Wind waves
         windWaveHeightFt,
         windWavePeriodS,
@@ -271,6 +386,9 @@ export async function fetchOpenMeteoForecastForSpot(
         // Wind data
         windSpeedKts,
         windDirectionDeg: windDirection,
+        // Temperature data
+        waterTempF,
+        airTempF,
         source: "ww3", // Keep same source enum for compatibility
       });
     }
@@ -282,6 +400,7 @@ export async function fetchOpenMeteoForecastForSpot(
         primary: { height: firstPoint.waveHeightFt, period: firstPoint.wavePeriodSec, dir: firstPoint.waveDirectionDeg },
         secondary: { height: firstPoint.secondarySwellHeightFt, period: firstPoint.secondarySwellPeriodS, dir: firstPoint.secondarySwellDirectionDeg },
         windWave: { height: firstPoint.windWaveHeightFt, period: firstPoint.windWavePeriodS, dir: firstPoint.windWaveDirectionDeg },
+        temperature: { waterTempF: firstPoint.waterTempF, airTempF: firstPoint.airTempF },
       });
     }
     return forecastPoints;
@@ -322,6 +441,10 @@ export function convertToDbFormat(
     secondarySwellHeightFt: forecastPoint.secondarySwellHeightFt !== null ? forecastPoint.secondarySwellHeightFt.toFixed(1) : null,
     secondarySwellPeriodS: forecastPoint.secondarySwellPeriodS !== null ? Math.round(forecastPoint.secondarySwellPeriodS) : null,
     secondarySwellDirectionDeg: forecastPoint.secondarySwellDirectionDeg !== null ? Math.round(forecastPoint.secondarySwellDirectionDeg) : null,
+    // Tertiary swell (stored as decimal feet - convert to string for decimal type)
+    tertiarySwellHeightFt: forecastPoint.tertiarySwellHeightFt !== null ? forecastPoint.tertiarySwellHeightFt.toFixed(1) : null,
+    tertiarySwellPeriodS: forecastPoint.tertiarySwellPeriodS !== null ? Math.round(forecastPoint.tertiarySwellPeriodS) : null,
+    tertiarySwellDirectionDeg: forecastPoint.tertiarySwellDirectionDeg !== null ? Math.round(forecastPoint.tertiarySwellDirectionDeg) : null,
     // Wind waves (stored as decimal feet - convert to string for decimal type)
     windWaveHeightFt: forecastPoint.windWaveHeightFt !== null ? forecastPoint.windWaveHeightFt.toFixed(1) : null,
     windWavePeriodS: forecastPoint.windWavePeriodS !== null ? Math.round(forecastPoint.windWavePeriodS) : null,
@@ -329,6 +452,9 @@ export function convertToDbFormat(
     // Wind data
     windSpeedKts: forecastPoint.windSpeedKts !== null ? Math.round(forecastPoint.windSpeedKts) : null,
     windDirectionDeg: forecastPoint.windDirectionDeg !== null ? Math.round(forecastPoint.windDirectionDeg) : null,
+    // Temperature data (stored as decimal Fahrenheit - convert to string for decimal type)
+    waterTempF: forecastPoint.waterTempF !== null ? forecastPoint.waterTempF.toFixed(1) : null,
+    airTempF: forecastPoint.airTempF !== null ? forecastPoint.airTempF.toFixed(1) : null,
     source: forecastPoint.source,
   };
   return dbPoint;

@@ -63,7 +63,8 @@ export const forecasts = mysqlTable("forecasts", {
   id: int("id").autoincrement().primaryKey(),
   spotId: int("spotId").notNull(),
   forecastTime: timestamp("forecastTime").notNull(),
-  probabilityScore: int("probabilityScore").notNull(), // 0-100
+  probabilityScore: int("probabilityScore").notNull(), // 0-100 (legacy score)
+  qualityScore: int("qualityScore"), // 0-100 (new algorithm score, nullable for backward compatibility)
   waveHeightTenthsFt: int("waveHeightTenthsFt").notNull(), // wave height in tenths of feet
   confidenceBand: varchar("confidenceBand", { length: 16 }).notNull(), // Low, Medium, High
   usabilityIntermediate: int("usabilityIntermediate").notNull(), // 0-100
@@ -96,6 +97,10 @@ export const forecastPoints = mysqlTable("forecast_points", {
   secondarySwellHeightFt: decimal("secondarySwellHeightFt", { precision: 4, scale: 1 }),
   secondarySwellPeriodS: int("secondarySwellPeriodS"), // seconds
   secondarySwellDirectionDeg: int("secondarySwellDirectionDeg"), // degrees
+  // Tertiary swell (third swell component - only from GFS wave models)
+  tertiarySwellHeightFt: decimal("tertiarySwellHeightFt", { precision: 4, scale: 1 }),
+  tertiarySwellPeriodS: int("tertiarySwellPeriodS"), // seconds
+  tertiarySwellDirectionDeg: int("tertiarySwellDirectionDeg"), // degrees
   // Wind waves (NEW - stored as decimal feet)
   windWaveHeightFt: decimal("windWaveHeightFt", { precision: 4, scale: 1 }),
   windWavePeriodS: int("windWavePeriodS"), // seconds
@@ -103,6 +108,9 @@ export const forecastPoints = mysqlTable("forecast_points", {
   // Wind data
   windSpeedKts: int("windSpeedKts"), // knots
   windDirectionDeg: int("windDirectionDeg"), // degrees
+  // Temperature data (NEW)
+  waterTempF: decimal("waterTempF", { precision: 4, scale: 1 }), // Fahrenheit
+  airTempF: decimal("airTempF", { precision: 4, scale: 1 }), // Fahrenheit
   source: mysqlEnum("source", ["ww3", "gfs", "hrrr", "openmeteo"]).default("ww3").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
@@ -122,3 +130,39 @@ export const crowdReports = mysqlTable("crowd_reports", {
 
 export type CrowdReport = typeof crowdReports.$inferSelect;
 export type InsertCrowdReport = typeof crowdReports.$inferInsert;
+
+// Conditions Log Table (historical snapshots for pattern matching)
+// Records condition states at regular intervals for ML/pattern analysis
+export const conditionsLog = mysqlTable("conditions_log", {
+  id: int("id").autoincrement().primaryKey(),
+  timestamp: timestamp("timestamp").notNull(),
+  // Best spot data at this moment
+  bestSpotName: varchar("bestSpotName", { length: 64 }),
+  qualityScore: int("qualityScore"), // 0-100
+  // Wave conditions
+  waveHeightFt: decimal("waveHeightFt", { precision: 4, scale: 1 }), // breaking wave height
+  wavePeriodSec: int("wavePeriodSec"),
+  waveDirectionDeg: int("waveDirectionDeg"),
+  // Wind conditions
+  windSpeedMph: int("windSpeedMph"),
+  windDirectionDeg: int("windDirectionDeg"),
+  windType: varchar("windType", { length: 16 }), // offshore, onshore, cross
+  // Buoy data (raw from NOAA 44065)
+  buoyWaveHeightFt: decimal("buoyWaveHeightFt", { precision: 4, scale: 1 }),
+  buoyPeriodSec: int("buoyPeriodSec"),
+  buoyDirectionDeg: int("buoyDirectionDeg"),
+  // Condition classification
+  isSurfable: int("isSurfable").notNull().default(0), // 0 = not surfable, 1 = surfable
+  unsurfableReason: varchar("unsurfableReason", { length: 32 }), // flat, blown_out, choppy, too_windy, cross_shore, too_small, wind_swell, poor
+  // Metadata for pattern matching
+  dayOfWeek: int("dayOfWeek"), // 0 = Sunday, 6 = Saturday
+  hourOfDay: int("hourOfDay"), // 0-23
+  month: int("month"), // 1-12
+  // Tide data
+  tideHeightFt: decimal("tideHeightFt", { precision: 4, scale: 1 }),
+  tidePhase: varchar("tidePhase", { length: 16 }), // rising, falling, high, low
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ConditionsLog = typeof conditionsLog.$inferSelect;
+export type InsertConditionsLog = typeof conditionsLog.$inferInsert;

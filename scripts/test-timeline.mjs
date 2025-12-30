@@ -31,7 +31,7 @@ async function testTimeline() {
 
     // Step 2: Get forecast points from database
     console.log("Step 2: Retrieving forecast points from database...");
-    const forecastPoints = await getForecastTimeline(testSpot.id, 72); // 72 hours
+    const forecastPoints = await getForecastTimeline(testSpot.id, 120); // 120 hours
     
     if (forecastPoints.length === 0) {
       throw new Error("No forecast points found in database. Run test-nomads-full.mjs first to fetch data.");

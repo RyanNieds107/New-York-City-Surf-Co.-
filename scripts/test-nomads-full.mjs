@@ -32,7 +32,7 @@ async function testFullFlow() {
 
     // Step 2: Fetch forecast data from NOMADS
     console.log("Step 2: Fetching WW3 forecast from NOMADS...");
-    const forecastPoints = await fetchWw3ForecastForSpot(testSpot, undefined, 72); // 72 hours
+    const forecastPoints = await fetchWw3ForecastForSpot(testSpot, undefined, 120); // 120 hours
     
     console.log(`✓ Successfully fetched ${forecastPoints.length} forecast points`);
     console.log();
@@ -62,7 +62,7 @@ async function testFullFlow() {
 
     // Step 5: Retrieve from database
     console.log("Step 5: Retrieving forecast timeline from database...");
-    const retrievedPoints = await getForecastTimeline(testSpot.id, 72);
+    const retrievedPoints = await getForecastTimeline(testSpot.id, 120);
     console.log(`✓ Retrieved ${retrievedPoints.length} forecast points from database`);
     console.log();
 

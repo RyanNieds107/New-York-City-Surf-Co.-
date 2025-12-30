@@ -1,42 +1,131 @@
 /**
  * Breaking Wave Height Calculator
- * 
- * Calculates predicted breaking wave face height from offshore swell data
- * using spot-specific amplification factors and period multipliers.
+ *
+ * Uses quadratic Energy-based formula (H² × T) for swell comparison,
+ * then applies spot multipliers and directional penalties
+ * AFTER selecting the dominant swell.
  */
 
 import type { SpotProfile } from './spotProfiles';
 import type { ForecastPoint } from '../../drizzle/schema';
+import { calculateSpotMultiplier, getSpotKey } from './spotProfiles';
 
 /**
- * Calculate energy for a swell component
- * Energy = height * period^1.5
+ * Get period-based label for a swell component
+ *
+ * @param periodS - Swell period in seconds
+ * @returns Label based on period: "Wind Swell", "Swell", or "Groundswell"
  */
-function calculateEnergy(heightFt: number, periodS: number): number {
-  return heightFt * Math.pow(periodS, 1.5);
+export function getSwellLabel(periodS: number): string {
+  if (periodS < 7) {
+    return "Wind Swell";
+  } else if (periodS <= 12) {
+    return "Swell";
+  } else {
+    return "Groundswell";
+  }
 }
 
 /**
- * Swell component interface
+ * Swell component interface with energy-based metrics
  */
 export interface SwellComponent {
   height_ft: number;
   period_s: number;
   direction_deg: number | null;
-  energy: number;
+  energy: number; // Raw energy = H² × T (used for comparison)
+  breaking_height: number; // Predicted breaking wave height in feet (after penalties)
   type: 'primary' | 'secondary' | 'wind';
+  label?: string; // Period-based label for display: "Wind Swell", "Swell", or "Groundswell"
 }
 
 /**
- * Get the dominant (most energetic) swell from forecast point
- * 
- * Compares primary swell, secondary swell, and wind waves,
- * returns the one with highest energy.
- * 
- * @param forecastPoint - Forecast point with all swell components
- * @returns Dominant swell component, or null if no valid swell data
+ * Calculate swell energy using quadratic H² × T formula
+ *
+ * This is the PRIMARY metric for comparing swells.
+ * Higher energy = more powerful waves that will produce larger surf.
+ *
+ * Example:
+ * - 6.6ft wind swell @ 5s: Energy = 6.6² × 5 = 217.8
+ * - 2.4ft primary swell @ 10s: Energy = 2.4² × 10 = 57.6
+ * - The wind swell has ~4x more energy and will dominate
+ *
+ * @param heightFt - Swell height in feet (must be in feet for correct scale)
+ * @param periodS - Swell period in seconds
+ * @returns Energy value (dimensionless, for comparison only)
  */
-export function getDominantSwell(forecastPoint: ForecastPoint): SwellComponent | null {
+export function calculateSwellEnergy(heightFt: number, periodS: number): number {
+  // Ensure height is positive
+  if (heightFt <= 0 || periodS <= 0) return 0;
+  return heightFt * heightFt * periodS;
+}
+
+/**
+ * Convert energy back to base height for breaking wave calculation
+ *
+ * Formula: baseHeight = sqrt(Energy / period) = sqrt(H² × T / T) = H
+ * This recovers the original swell height from the energy value.
+ *
+ * @param energy - Energy value (H² × T)
+ * @param periodS - Swell period in seconds
+ * @returns Base height in feet
+ */
+export function energyToBaseHeight(energy: number, periodS: number): number {
+  if (energy <= 0 || periodS <= 0) return 0;
+  return Math.sqrt(energy / periodS);
+}
+
+/**
+ * Check if a swell direction is blocked by the Western Long Island landmass
+ *
+ * West swells (250-310°) cannot reach Western LI beaches due to NJ/land shadow.
+ * This is a "kill switch" that returns true if the swell should be blocked.
+ *
+ * @param directionDeg - Swell direction in degrees (0-360) or null
+ * @returns true if the swell is blocked, false otherwise
+ */
+export function isDirectionBlocked(directionDeg: number | null): boolean {
+  if (directionDeg === null || directionDeg === undefined) return false;
+  return directionDeg >= 250 && directionDeg <= 310;
+}
+
+/**
+ * Get directional penalty multiplier for a swell
+ *
+ * East swells (< 105°) wrap around and lose energy, receiving a 0.7x penalty.
+ * All other directions receive no penalty (1.0x).
+ *
+ * @param directionDeg - Swell direction in degrees (0-360) or null
+ * @returns Penalty multiplier (0.7 for east swells, 1.0 otherwise)
+ */
+export function getDirectionalPenalty(directionDeg: number | null): number {
+  if (directionDeg === null || directionDeg === undefined) return 1.0;
+  if (directionDeg < 105) {
+    return 0.7; // East swell wrap penalty
+  }
+  return 1.0;
+}
+
+/**
+ * Get the dominant swell from forecast point based on RAW ENERGY (H² × T)
+ *
+ * IMPORTANT: Selection is based on RAW energy only - NO penalties are applied
+ * during selection. This ensures a blocked west swell doesn't accidentally
+ * become "dominant" with 0ft while the real surf-producing swell is ignored.
+ *
+ * Directional penalties and kill switches are applied AFTER selection,
+ * when calculating the final breaking_height for display.
+ *
+ * @param forecastPoint - Forecast point with all swell components
+ * @param profile - Spot profile with multiplier for breaking height calculation
+ * @param tidePhase - Tide phase: 'high', 'low', 'rising', 'falling', or null
+ * @returns Dominant swell component with breaking_height calculated, or null if no valid data
+ */
+export function getDominantSwell(
+  forecastPoint: ForecastPoint,
+  profile: SpotProfile,
+  tidePhase?: string | null
+): SwellComponent | null {
   console.log('🔍 [getDominantSwell] Checking forecast point:', {
     primary: {
       height: forecastPoint.waveHeightFt ? forecastPoint.waveHeightFt / 10 : null,
@@ -54,186 +143,230 @@ export function getDominantSwell(forecastPoint: ForecastPoint): SwellComponent |
       direction: forecastPoint.windWaveDirectionDeg
     }
   });
-  
-  const swells: SwellComponent[] = [];
-  
+
+  interface SwellCandidate {
+    height_ft: number;
+    period_s: number;
+    direction_deg: number | null;
+    energy: number;
+    type: 'primary' | 'secondary' | 'wind';
+  }
+
+  const candidates: SwellCandidate[] = [];
+
   // Primary swell (from waveHeightFt - stored as integer tenths of feet)
   if (forecastPoint.waveHeightFt !== null && forecastPoint.wavePeriodSec !== null) {
     const heightFt = forecastPoint.waveHeightFt / 10; // Convert from tenths to feet
-    swells.push({
-      height_ft: heightFt,
-      period_s: forecastPoint.wavePeriodSec,
-      direction_deg: forecastPoint.waveDirectionDeg,
-      energy: calculateEnergy(heightFt, forecastPoint.wavePeriodSec),
-      type: 'primary',
-    });
+    if (heightFt > 0) {
+      const energy = calculateSwellEnergy(heightFt, forecastPoint.wavePeriodSec);
+      candidates.push({
+        height_ft: heightFt,
+        period_s: forecastPoint.wavePeriodSec,
+        direction_deg: forecastPoint.waveDirectionDeg,
+        energy,
+        type: 'primary',
+      });
+    }
   }
-  
+
   // Secondary swell (stored as decimal string)
   if (forecastPoint.secondarySwellHeightFt !== null && forecastPoint.secondarySwellPeriodS !== null) {
-    const heightFt = typeof forecastPoint.secondarySwellHeightFt === 'string' 
+    const heightFt = typeof forecastPoint.secondarySwellHeightFt === 'string'
       ? parseFloat(forecastPoint.secondarySwellHeightFt)
       : forecastPoint.secondarySwellHeightFt;
-    if (!isNaN(heightFt)) {
-      swells.push({
+    if (!isNaN(heightFt) && heightFt > 0) {
+      const energy = calculateSwellEnergy(heightFt, forecastPoint.secondarySwellPeriodS);
+      candidates.push({
         height_ft: heightFt,
         period_s: forecastPoint.secondarySwellPeriodS,
         direction_deg: forecastPoint.secondarySwellDirectionDeg,
-        energy: calculateEnergy(heightFt, forecastPoint.secondarySwellPeriodS),
+        energy,
         type: 'secondary',
       });
     }
   }
-  
+
   // Wind waves (stored as decimal string)
   if (forecastPoint.windWaveHeightFt !== null && forecastPoint.windWavePeriodS !== null) {
     const heightFt = typeof forecastPoint.windWaveHeightFt === 'string'
       ? parseFloat(forecastPoint.windWaveHeightFt)
       : forecastPoint.windWaveHeightFt;
-    if (!isNaN(heightFt)) {
-      swells.push({
+    if (!isNaN(heightFt) && heightFt > 0) {
+      const energy = calculateSwellEnergy(heightFt, forecastPoint.windWavePeriodS);
+      candidates.push({
         height_ft: heightFt,
         period_s: forecastPoint.windWavePeriodS,
         direction_deg: forecastPoint.windWaveDirectionDeg,
-        energy: calculateEnergy(heightFt, forecastPoint.windWavePeriodS),
+        energy,
         type: 'wind',
       });
     }
   }
-  
-  // Return the swell with highest energy
-  if (swells.length === 0) {
+
+  if (candidates.length === 0) {
     console.log('❌ [getDominantSwell] No valid swells found!');
     return null;
   }
-  
-  const dominant = swells.sort((a, b) => b.energy - a.energy)[0];
-  
-  console.log('✅ [getDominantSwell] Dominant swell:', {
+
+  // Log energy comparison for all candidates
+  console.log('📊 [getDominantSwell] Energy comparison (H²×T):', candidates.map(c => ({
+    type: c.type,
+    height: c.height_ft.toFixed(1),
+    period: c.period_s,
+    energy: c.energy.toFixed(1),
+    direction: c.direction_deg,
+  })));
+
+  // Sort by RAW ENERGY (H² × T) - highest energy wins
+  // NO penalties applied during selection!
+  const sorted = [...candidates].sort((a, b) => b.energy - a.energy);
+  const winner = sorted[0];
+
+  // NOW calculate breaking height for the winner, applying all penalties
+  const breakingHeight = calculateBreakingWaveHeight(
+    winner.height_ft,
+    winner.period_s,
+    profile,
+    winner.direction_deg,
+    tidePhase
+  );
+
+  const dominant: SwellComponent = {
+    height_ft: winner.height_ft,
+    period_s: winner.period_s,
+    direction_deg: winner.direction_deg,
+    energy: winner.energy,
+    breaking_height: breakingHeight,
+    type: winner.type,
+    label: getSwellLabel(winner.period_s),
+  };
+
+  console.log('✅ [getDominantSwell] Selected dominant swell (by H²×T energy):', {
     type: dominant.type,
-    height: dominant.height_ft,
+    label: dominant.label,
+    height: dominant.height_ft.toFixed(1),
     period: dominant.period_s,
     direction: dominant.direction_deg,
-    energy: dominant.energy
+    energy: dominant.energy.toFixed(1),
+    breaking_height: dominant.breaking_height.toFixed(1),
   });
-  
+
   return dominant;
 }
 
-/**
- * Get period multiplier based on swell period
- * 
- * Period multiplier accounts for wave energy:
- * - Short periods (< 5s): wind chop, weak energy
- * - Medium periods (5-7s): some energy loss
- * - Optimal periods (8-10s): best for Long Island
- * - Long periods (11-13s): extra push
- * - Very long periods (14s+): powerful groundswell
- * 
- * @param periodS - Swell period in seconds
- * @returns Period multiplier (0.6 to 1.15)
- */
-export function getPeriodMultiplier(periodS: number): number {
-  if (periodS < 5) {
-    return 0.6; // wind chop, weak energy
-  } else if (periodS >= 5 && periodS < 8) {
-    return 0.8; // short period, some energy loss
-  } else if (periodS >= 8 && periodS <= 10) {
-    return 1.0; // optimal period for Long Island
-  } else if (periodS >= 11 && periodS <= 13) {
-    return 1.1; // long period, extra push
-  } else {
-    return 1.15; // powerful groundswell (14s+)
-  }
-}
 
 /**
  * Calculate predicted breaking wave face height
- * 
- * Formula: swell_height_ft * amplification_factor * period_multiplier * direction_factor
- * 
- * @param swellHeightFt - Offshore swell height in decimal feet
+ *
+ * This function is called AFTER the dominant swell is selected by energy (H² × T).
+ * It calculates the display height using period-based wave shoaling physics,
+ * then applies directional penalties and tide adjustments.
+ *
+ * SELECTION vs DISPLAY:
+ * - SELECTION: Uses H² × T energy formula (in getDominantSwell)
+ * - DISPLAY: Uses H × (T/10) × spotMultiplier (this function)
+ *
+ * Formula (in order):
+ * 1. Period-adjusted base height: H × (T / 10) - reflects wave shoaling physics
+ * 2. Apply spot multiplier (Lido: 1.5x, Long Beach: 1.3x, Rockaway: 1.1x)
+ * 3. Apply directional kill switch (250-310° West) → 0
+ * 4. Apply directional wrap penalty (< 110° East) → 0.7x
+ * 5. Round to nearest 0.1ft - ONLY at the very end
+ * 6. Apply minimum floor of 0.1ft (if calculated > 0)
+ *
+ * Example: 3ft swell @ 15s at Lido (1.5x) = 3 × 1.5 × 1.5 = 6.75ft → 7ft
+ * Example: 3ft swell @ 5s at Lido (1.5x) = 3 × 0.5 × 1.5 = 2.25ft → 2ft
+ *
+ * @param swellHeightFt - Offshore swell height in decimal feet (MUST be in feet)
  * @param periodS - Swell period in seconds
- * @param profile - Spot profile with amplification factor
+ * @param profile - Spot profile with multiplier
  * @param swellDirectionDeg - Swell direction in degrees (0-360) or null
- * @returns Predicted breaking wave face height in feet
+ * @param tidePhase - Tide phase: 'high', 'low', 'rising', 'falling', or null
+ * @returns Predicted breaking wave face height in feet (rounded to 0.5ft)
  */
 export function calculateBreakingWaveHeight(
   swellHeightFt: number,
   periodS: number,
   profile: SpotProfile,
-  swellDirectionDeg?: number | null
+  swellDirectionDeg?: number | null,
+  tidePhase?: string | null
 ): number {
+  // Validate inputs are in correct units (feet, seconds)
+  if (swellHeightFt < 0 || periodS <= 0) {
+    console.log('⚠️ [calculateBreakingWaveHeight] Invalid input:', { swellHeightFt, periodS });
+    return 0;
+  }
+
+  // Get spot key for multiplier calculation
+  const spotKey = getSpotKey(profile.name) || profile.name.toLowerCase().replace(/\s+/g, '-');
+  
+  // Calculate physically accurate spot multiplier based on swell height and period
+  const spotMultiplier = calculateSpotMultiplier(spotKey, swellHeightFt, periodS);
+
   console.log('🌊 [calculateBreakingWaveHeight] INPUT:', {
     swellHeightFt,
     periodS,
     swellDirectionDeg,
+    tidePhase,
     spotName: profile.name,
-    baseAmplification: profile.amplification_factor
+    spotKey,
+    spotMultiplier,
   });
-  
-  const periodMultiplier = getPeriodMultiplier(periodS);
-  let amplification = profile.amplification_factor;
-  
-  // Log period multiplier
-  console.log('📊 [Period Multiplier]:', periodMultiplier);
-  
-  // Direction-based amplification adjustments for Long Island
-  if (swellDirectionDeg !== null && swellDirectionDeg !== undefined) {
-    console.log('🧭 [Direction Check]:', {
-      direction: swellDirectionDeg,
-      isWest: (swellDirectionDeg >= 247.5 && swellDirectionDeg <= 292.5),
-      isEast: (swellDirectionDeg >= 90 && swellDirectionDeg <= 110)
-    });
-    
-    // West swells (W, WSW, WNW: ~247.5-292.5°) produce minimal surf at Western Long Island
-    // These directions are blocked by the landmass and don't generate real surf
-    if (swellDirectionDeg >= 247.5 && swellDirectionDeg <= 292.5) {
-      // West quadrant (WSW, W, WNW): 90% reduction - minimal surf height
-      const originalAmplification = amplification;
-      amplification = amplification * 0.1;
-      console.log('⚠️ [WEST SWELL PENALTY APPLIED]:', {
-        original: originalAmplification,
-        reduced: amplification,
-        reduction: '90%'
-      });
-    }
-    // East swells (90-110°) break significantly smaller at Long Island
-    // due to swell shadow and refraction around the island
-    // Gradual reduction: more severe for due east, less severe approaching ESE
-    else if (swellDirectionDeg >= 90 && swellDirectionDeg < 100) {
-      // Due east (90-100°): 50% reduction
-      amplification = amplification * 0.5;
-      console.log('⚠️ [EAST SWELL PENALTY]: 50% reduction');
-    } else if (swellDirectionDeg >= 100 && swellDirectionDeg <= 110) {
-      // ESE (100-110°): 35% reduction (transitioning toward SE which works better)
-      amplification = amplification * 0.65;
-      console.log('⚠️ [ESE SWELL PENALTY]: 35% reduction');
-    }
-  } else {
-    console.log('⚠️ [NO DIRECTION DATA]: Using full amplification');
+
+  // STEP 1: Calculate period-adjusted base height
+  // Formula: H × (T / 10) - reflects wave shoaling physics
+  // A 15s groundswell breaks larger than a 5s wind swell of the same offshore height
+  const periodFactor = periodS / 10;
+  const periodAdjustedHeight = swellHeightFt * periodFactor;
+  console.log('📊 [Period-Adjusted Height]:', periodAdjustedHeight.toFixed(2),
+    `ft (${swellHeightFt.toFixed(1)} × ${periodFactor.toFixed(2)})`);
+
+  // STEP 2: Apply Spot Multiplier
+  // Each spot has different bathymetry that amplifies waves
+  // Uses physically accurate period-based tier system with small swell damping
+  let adjustedHeight = periodAdjustedHeight * spotMultiplier;
+  console.log('🏖️ [Spot Multiplier]:', adjustedHeight.toFixed(2),
+    `ft (${periodAdjustedHeight.toFixed(2)} × ${spotMultiplier})`);
+
+  // STEP 3: Check Directional Kill Switch (250° - 310°)
+  // Western Long Island is shadowed by NJ/land - no surf from west
+  // Applied AFTER period & multiplier so we can see the "potential" height in logs
+  if (isDirectionBlocked(swellDirectionDeg ?? null)) {
+    console.log('❌ [DIRECTIONAL KILL SWITCH]: West swell (250-310°) - returning 0');
+    return 0;
   }
-  
-  const breakingHeight = swellHeightFt * amplification * periodMultiplier;
-  
-  console.log('✅ [FINAL CALCULATION]:', {
-    formula: `${swellHeightFt} × ${amplification} × ${periodMultiplier}`,
-    result: breakingHeight,
-    formatted: formatWaveHeight(breakingHeight)
-  });
-  
-  return breakingHeight;
+
+  // STEP 4: Apply Directional Wrap Penalty (< 110°)
+  // East swells wrap around and lose energy
+  const directionalPenalty = getDirectionalPenalty(swellDirectionDeg ?? null);
+  if (directionalPenalty < 1.0) {
+    adjustedHeight = adjustedHeight * directionalPenalty;
+    console.log('🧭 [Directional Wrap Penalty]:', adjustedHeight.toFixed(2),
+      `ft (East swell < 110° → ${directionalPenalty}x)`);
+  }
+
+  // STEP 5: Round to nearest 0.1ft - ONLY at the very end
+  const rounded = Math.round(adjustedHeight * 10) / 10;
+  console.log('✅ [FINAL Breaking Height]:', rounded, 'ft (rounded to 0.1ft)');
+
+  // STEP 6: Apply minimum floor of 0.1ft (if calculated > 0)
+  // Prevents 0.0ft display for very small but non-zero waves
+  if (rounded > 0 && rounded < 0.1) {
+    return 0.1;
+  }
+
+  return Math.max(0, rounded); // Ensure non-negative
 }
 
 /**
  * Format wave height as a range string
- * 
+ *
  * Shows ±0.5ft range, rounds intelligently.
  * Examples:
  * - 2.8ft → "3ft" or "2-3ft"
  * - 4.2ft → "4ft" or "4-5ft"
  * - 5.7ft → "5-6ft" or "6ft"
- * 
+ *
  * @param heightFt - Breaking wave height in feet
  * @returns Formatted string like "3-4ft" or "2ft"
  */
@@ -242,15 +375,15 @@ export function formatWaveHeight(heightFt: number): string {
   if (heightFt < 0.5) {
     return "<1ft";
   }
-  
+
   // Round to nearest 0.5ft
   const rounded = Math.round(heightFt * 2) / 2;
-  
+
   // Determine if we show a range or single value
   // If the value is close to a whole number (within 0.2ft), show single value
   const wholeNumber = Math.round(rounded);
   const diff = Math.abs(rounded - wholeNumber);
-  
+
   if (diff < 0.2) {
     // Close to whole number, show single value
     return `${wholeNumber}ft`;
@@ -261,5 +394,3 @@ export function formatWaveHeight(heightFt: number): string {
     return `${lower}-${upper}ft`;
   }
 }
-
-

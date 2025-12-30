@@ -1,6 +1,8 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight } from "lucide-react";
+import { formatSurfHeight } from "@/lib/forecastUtils";
+import { getScoreBackgroundColor, getRatingLabelColor } from "@/lib/ratingColors";
 
 export type SpotCardProps = {
   name: string;
@@ -25,17 +27,6 @@ export function SpotCard({
   lastUpdated,
   onClick,
 }: SpotCardProps) {
-  const getScoreColor = (score: number) => {
-    if (score >= 70) return "bg-green-500";
-    if (score >= 40) return "bg-yellow-500";
-    return "bg-red-500";
-  };
-
-  const getLabelColor = (label: string) => {
-    if (label === "Good" || label === "Excellent") return "text-green-600";
-    if (label === "Fair") return "text-yellow-600";
-    return "text-red-600";
-  };
 
   const getConfidenceBadge = (band: string) => {
     switch (band) {
@@ -67,12 +58,12 @@ export function SpotCard({
           {/* Right: Score Circle + Label */}
           <div className="flex flex-col items-end gap-2">
             <div
-              className={`w-14 h-14 rounded-full flex items-center justify-center ${getScoreColor(score)}`}
+              className={`w-14 h-14 rounded-full flex items-center justify-center ${getScoreBackgroundColor(score)}`}
             >
               <span className="text-xl font-bold text-white">{score}</span>
             </div>
             <div className="flex flex-col items-end gap-1">
-              <span className={`text-xs font-medium ${getLabelColor(label)}`}>{label}</span>
+              <span className={`text-xs font-medium ${getRatingLabelColor(label)}`}>{label}</span>
               {getConfidenceBadge(confidence)}
             </div>
           </div>
@@ -82,7 +73,7 @@ export function SpotCard({
         <div className="grid grid-cols-3 gap-2 py-2 px-2 bg-gray-50 rounded-lg mb-2">
           <div className="text-center">
             <p className="text-xs text-black mb-0.5">Height</p>
-            <p className="text-sm font-semibold text-black">{waveHeightFt.toFixed(1)} ft</p>
+            <p className="text-sm font-semibold text-black">{formatSurfHeight(waveHeightFt)}</p>
           </div>
           <div className="text-center">
             <p className="text-xs text-black mb-0.5">Wind</p>

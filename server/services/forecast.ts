@@ -3,7 +3,16 @@ import type { CurrentTideInfo, TidePrediction } from "./tides";
 import { fetchTidePredictions } from "./tides";
 import axios from "axios";
 import { generateForecastOutput } from "../utils/forecastOutput";
-import { getSpotKey } from "../utils/spotProfiles";
+import { getSpotKey, getSpotProfile } from "../utils/spotProfiles";
+import {
+  scoreDirection,
+  scoreTide,
+  scoreWind,
+  scoreToRating,
+  calculateQualityScoreWithProfile,
+} from "../utils/qualityRating";
+import type { NomadsForecastPoint } from "./openMeteo";
+import { getDominantSwell, calculateBreakingWaveHeight } from "../utils/waveHeight";
 
 /**
  * Forecasting Model Service
@@ -11,7 +20,8 @@ import { getSpotKey } from "../utils/spotProfiles";
  */
 
 export interface ForecastResult {
-  probabilityScore: number; // 0-100
+  probabilityScore: number; // 0-100 (legacy score)
+  qualityScore: number | null; // 0-100 (new algorithm score)
   waveHeightTenthsFt: number; // wave height in tenths of feet
   confidenceBand: "Low" | "Medium" | "High";
   usabilityIntermediate: number; // 0-100
@@ -27,21 +37,23 @@ export interface ForecastResult {
 
 interface ForecastInput {
   spot: SurfSpot;
-  buoyReading: BuoyReading | null;
+  openMeteoPoint: NomadsForecastPoint | null;
   tideInfo: CurrentTideInfo | null;
   avgCrowdLevel: number | null; // 1-5 scale, null if no reports
 }
 
 /**
  * Generates a forecast for a given spot based on current conditions.
+ * Now uses Open-Meteo data instead of NDBC buoy data.
  */
 export function generateForecast(input: ForecastInput): ForecastResult {
-  const { spot, buoyReading, tideInfo, avgCrowdLevel } = input;
+  const { spot, openMeteoPoint, tideInfo, avgCrowdLevel } = input;
 
   // Default values if no data
-  if (!buoyReading) {
+  if (!openMeteoPoint) {
     return {
       probabilityScore: 0,
+      qualityScore: 0,
       waveHeightTenthsFt: 0,
       confidenceBand: "Low",
       usabilityIntermediate: 0,
@@ -54,14 +66,14 @@ export function generateForecast(input: ForecastInput): ForecastResult {
     };
   }
 
-  // Calculate wave height in feet (from cm)
-  const waveHeightFt = buoyReading.waveHeightCm ? buoyReading.waveHeightCm / 30.48 : 0;
+  // Wave height is already in feet from Open-Meteo
+  const waveHeightFt = openMeteoPoint.waveHeightFt ?? 0;
   const waveHeightTenthsFt = Math.round(waveHeightFt * 10);
 
   // Calculate individual scores (0-100 each)
-  const swellScore = calculateSwellScore(buoyReading, spot);
-  const periodScore = calculatePeriodScore(buoyReading);
-  const windScore = calculateWindScore(buoyReading, spot);
+  const swellScore = calculateSwellScoreFromOpenMeteo(openMeteoPoint, spot);
+  const periodScore = calculatePeriodScoreFromOpenMeteo(openMeteoPoint);
+  const windScore = calculateWindScoreFromOpenMeteo(openMeteoPoint, spot);
   const tideScore = calculateTideScore(tideInfo);
 
   // Weighted combination for probability score
@@ -72,13 +84,14 @@ export function generateForecast(input: ForecastInput): ForecastResult {
   const bathymetryMultiplier = 0.5 + (spot.bathymetryFactor / 10);
   const probabilityScore = Math.min(100, Math.round(rawScore * bathymetryMultiplier));
 
-  // Calculate confidence band based on data freshness
-  const dataAge = Date.now() - buoyReading.timestamp.getTime();
-  const hoursOld = dataAge / (1000 * 60 * 60);
+  // Calculate confidence band based on hours out (Open-Meteo forecasts are always fresh for current conditions)
+  // For current conditions (hoursOut = 0), we consider it High confidence
+  // For forecasts up to 12 hours, High; 12-48 hours Medium; >48 hours Low
   let confidenceBand: "Low" | "Medium" | "High" = "High";
-  if (hoursOld > 3) {
+  const hoursOut = openMeteoPoint.hoursOut;
+  if (hoursOut >= 48) {
     confidenceBand = "Low";
-  } else if (hoursOld > 1) {
+  } else if (hoursOut >= 12) {
     confidenceBand = "Medium";
   }
 
@@ -89,19 +102,53 @@ export function generateForecast(input: ForecastInput): ForecastResult {
     avgCrowdLevel
   );
 
-  // Calculate wind data
-  const windSpeedMph = buoyReading.windSpeedCmps
-    ? Math.round((buoyReading.windSpeedCmps / 100) * 2.237) // m/s to mph
+  // Calculate wind data (Open-Meteo provides wind speed in knots)
+  const windSpeedMph = openMeteoPoint.windSpeedKts
+    ? Math.round(openMeteoPoint.windSpeedKts * 1.15078) // knots to mph
     : null;
-  const windDirectionDeg = buoyReading.windDirectionDeg ?? null;
-  const windType = calculateWindType(buoyReading.windDirectionDeg);
+  const windDirectionDeg = openMeteoPoint.windDirectionDeg ?? null;
+  const windType = calculateWindType(openMeteoPoint.windDirectionDeg);
 
   // Calculate tide data
   const tideHeightFt = tideInfo ? Math.round(tideInfo.currentHeightFt * 10) : null;
   const tidePhase = tideInfo?.tidePhase ?? null;
 
+  // Calculate quality_score using new algorithm
+  // Get spot profile for quality scoring
+  const spotKey = getSpotKey(spot.name);
+  const profile = spotKey ? getSpotProfile(spotKey) : null;
+  
+  let qualityScore: number | null = null;
+  if (profile && tideInfo) {
+    try {
+      // Use calculateQualityScoreWithProfile which now uses breaking wave height
+      // Create a forecast point structure from openMeteoPoint
+      const forecastPointLike = {
+        waveHeightFt: Math.round(waveHeightFt * 10), // Convert to tenths
+        wavePeriodSec: openMeteoPoint.wavePeriodSec ?? null,
+        waveDirectionDeg: openMeteoPoint.waveDirectionDeg ?? null,
+        windSpeedKts: openMeteoPoint.windSpeedKts ?? null,
+        windDirectionDeg: openMeteoPoint.windDirectionDeg ?? null,
+      } as any; // Type assertion since we're only passing required fields
+      
+      const qualityResult = calculateQualityScoreWithProfile(
+        forecastPointLike,
+        spot.name,
+        tideInfo.currentHeightFt,
+        profile,
+        tideInfo.tidePhase ?? null
+      );
+      
+      qualityScore = qualityResult.score;
+    } catch (error) {
+      console.warn(`[Forecast] Failed to calculate quality_score for spot ${spot.name}:`, error);
+      qualityScore = null;
+    }
+  }
+
   return {
     probabilityScore,
+    qualityScore,
     waveHeightTenthsFt,
     confidenceBand,
     usabilityIntermediate,
@@ -131,13 +178,36 @@ function calculateWindType(windDir: number | null): "offshore" | "onshore" | "cr
 }
 
 /**
- * Scores the swell based on height and direction.
+ * Scores tide conditions.
  */
-function calculateSwellScore(reading: BuoyReading, spot: SurfSpot): number {
+function calculateTideScore(tideInfo: CurrentTideInfo | null): number {
+  if (!tideInfo) return 50; // Neutral if no data
+
+  // Most Long Island beach breaks work best on mid-tide
+  // Penalize extreme high or low tides
+  const height = tideInfo.currentHeightFt;
+
+  // Assuming typical tidal range of 0-6 ft, mid-tide is ~3 ft
+  if (height >= 2 && height <= 4) {
+    return 90; // Ideal mid-tide
+  } else if (height >= 1 && height <= 5) {
+    return 70; // Acceptable
+  } else {
+    return 40; // Extreme tide
+  }
+}
+
+/**
+ * Scores the swell based on height and direction using Open-Meteo data.
+ * Open-Meteo provides wave height in feet (not cm).
+ */
+function calculateSwellScoreFromOpenMeteo(point: NomadsForecastPoint, spot: SurfSpot): number {
   let score = 0;
 
-  // Wave height scoring (ideal: 3-8 ft, which is ~90-240 cm)
-  const heightCm = reading.waveHeightCm || 0;
+  // Wave height scoring (ideal: 3-8 ft)
+  const heightFt = point.waveHeightFt ?? 0;
+  const heightCm = heightFt * 30.48; // Convert to cm for consistency with existing logic
+
   if (heightCm < 30) {
     score = 0; // Too small (< 1ft)
   } else if (heightCm < 90) {
@@ -151,7 +221,7 @@ function calculateSwellScore(reading: BuoyReading, spot: SurfSpot): number {
   }
 
   // Swell direction scoring
-  const swellDir = reading.swellDirectionDeg;
+  const swellDir = point.waveDirectionDeg;
   if (swellDir !== null) {
     const idealMin = spot.idealSwellDirMin;
     const idealMax = spot.idealSwellDirMax;
@@ -181,11 +251,11 @@ function calculateSwellScore(reading: BuoyReading, spot: SurfSpot): number {
 }
 
 /**
- * Scores the swell period. Longer periods = more powerful waves.
+ * Scores the swell period using Open-Meteo data.
+ * Open-Meteo provides period in seconds (not deciseconds).
  */
-function calculatePeriodScore(reading: BuoyReading): number {
-  const periodDs = reading.dominantPeriodDs || 0;
-  const periodS = periodDs / 10;
+function calculatePeriodScoreFromOpenMeteo(point: NomadsForecastPoint): number {
+  const periodS = point.wavePeriodSec ?? 0;
 
   // Ideal period: 10-16 seconds
   if (periodS < 5) return 10;
@@ -196,11 +266,14 @@ function calculatePeriodScore(reading: BuoyReading): number {
 }
 
 /**
- * Scores wind conditions. Offshore is best, onshore is worst.
+ * Scores wind conditions using Open-Meteo data.
+ * Open-Meteo provides wind speed in knots (not cm/s or m/s).
  */
-function calculateWindScore(reading: BuoyReading, spot: SurfSpot): number {
-  const windSpeed = reading.windSpeedCmps ? reading.windSpeedCmps / 100 : 0; // m/s
-  const windDir = reading.windDirectionDeg;
+function calculateWindScoreFromOpenMeteo(point: NomadsForecastPoint, spot: SurfSpot): number {
+  // Convert knots to m/s for consistency with existing logic (1 knot = 0.514444 m/s)
+  const windSpeedKts = point.windSpeedKts ?? 0;
+  const windSpeed = windSpeedKts * 0.514444; // Convert to m/s
+  const windDir = point.windDirectionDeg;
 
   // Light wind is always good
   if (windSpeed < 3) return 90;
@@ -227,26 +300,6 @@ function calculateWindScore(reading: BuoyReading, spot: SurfSpot): number {
   // Penalize strong winds
   const speedPenalty = Math.min(40, (windSpeed - 3) * 5);
   return Math.max(0, directionScore - speedPenalty);
-}
-
-/**
- * Scores tide conditions.
- */
-function calculateTideScore(tideInfo: CurrentTideInfo | null): number {
-  if (!tideInfo) return 50; // Neutral if no data
-
-  // Most Long Island beach breaks work best on mid-tide
-  // Penalize extreme high or low tides
-  const height = tideInfo.currentHeightFt;
-
-  // Assuming typical tidal range of 0-6 ft, mid-tide is ~3 ft
-  if (height >= 2 && height <= 4) {
-    return 90; // Ideal mid-tide
-  } else if (height >= 1 && height <= 5) {
-    return 70; // Acceptable
-  } else {
-    return 40; // Extreme tide
-  }
 }
 
 /**
@@ -301,9 +354,15 @@ export interface ForecastTimelineResult {
   usabilityIntermediate: number; // 0-100
   usabilityAdvanced: number; // 0-100
   // Day 1 MVP outputs
-  breaking_wave_height: string | null; // "3-4ft" (predicted breaking wave face height)
-  quality_rating: string | null; // "Flat", "Don't Bother", "Worth a Look", etc.
+  breakingWaveHeightFt: number | null; // Predicted breaking wave face height in feet (numeric)
+  quality_rating: string | null; // "Don't Bother", "Worth a Look", "Go Surf", "Firing", "All-Time"
   quality_score: number | null; // 0-100 (Day 1 MVP quality score)
+  // Dominant swell (highest energy using H² × T formula) - ALWAYS calculated
+  dominantSwellHeightFt: number | null; // Height of the dominant swell component
+  dominantSwellPeriodS: number | null; // Period of the dominant swell component
+  dominantSwellDirectionDeg: number | null; // Direction of the dominant swell component
+  dominantSwellType: 'primary' | 'secondary' | 'wind' | null; // Which swell type is dominant
+  dominantSwellLabel: string | null; // Period-based label: "Wind Swell", "Swell", or "Groundswell"
   // Wave data (primary swell)
   waveHeightFt: number | null;
   wavePeriodSec: number | null;
@@ -323,6 +382,9 @@ export interface ForecastTimelineResult {
   // Tide data
   tideHeightFt: number | null; // in tenths of feet
   tidePhase: "rising" | "falling" | "high" | "low" | null;
+  // Temperature data
+  waterTempF: number | null;
+  airTempF: number | null;
 }
 
 interface ForecastTimelineInput {
@@ -453,32 +515,83 @@ export async function generateForecastTimeline(
       });
     }
 
+    // ========== DOMINANT SWELL CALCULATION (Energy-Based: H² × T) ==========
+    // Calculate the dominant swell using quadratic energy formula (H² × T)
+    // This ensures the highest-energy swell is selected (e.g., 6.6ft wind swell beats 2.4ft primary)
+    // Directional penalties are applied AFTER selection, not during energy comparison
+    const profile = spotKey ? getSpotProfile(spotKey) : null;
+    const dominantSwell = profile ? getDominantSwell(point, profile, tideInfo?.phase ?? null) : null;
+    const dominantSwellHeightFt = dominantSwell?.height_ft ?? null;
+    const dominantSwellPeriodS = dominantSwell?.period_s ?? null;
+    const dominantSwellDirectionDeg = dominantSwell?.direction_deg ?? null;
+    const dominantSwellType = dominantSwell?.type ?? null;
+    const dominantSwellLabel = dominantSwell?.label ?? null;
+
+    // Log dominant swell selection for first point
+    if (results.length === 0 && dominantSwell) {
+      console.log(`[Dominant Swell] Selected ${dominantSwell.type} swell: ${dominantSwellHeightFt}ft @ ${dominantSwellPeriodS}s (${dominantSwellLabel}) (breaking_height: ${dominantSwell.breaking_height}ft)`);
+    }
+
     // Generate Day 1 MVP forecast output (if spot profile exists)
-    let breaking_wave_height: string | null = null;
+    let breakingWaveHeightFt: number | null = null;
     let quality_rating: string | null = null;
     let quality_score: number | null = null;
 
     if (spotKey && tideInfo) {
       try {
-        const mvpOutput = generateForecastOutput(point, spotKey, tideInfo.heightFt);
-        breaking_wave_height = mvpOutput.breaking_wave_height;
+        const mvpOutput = generateForecastOutput(point, spotKey, tideInfo.heightFt, tideInfo.phase);
+
+        breakingWaveHeightFt = mvpOutput.breakingWaveHeightFt;
+
         quality_rating = mvpOutput.quality_rating;
         quality_score = mvpOutput.quality_score;
-        
+
+        // NOTE: High tide penalty removed - tide scoring already handles this in Component C
+        // The new tide scoring logic (scoreTide) properly penalizes high tide conditions
+        // based on breaking wave height, so no additional penalty is needed here
+
         // Log breaking wave height for debugging West swells
         if (point.waveDirectionDeg !== null && point.waveDirectionDeg >= 247.5 && point.waveDirectionDeg <= 292.5) {
-          console.log(`[Forecast] West swell detected (${point.waveDirectionDeg}°): breaking_wave_height=${breaking_wave_height}, raw swell=${waveHeightFt}ft @ ${wavePeriodSec}s`);
+          console.log(`[Forecast] West swell detected (${point.waveDirectionDeg}°): breakingWaveHeightFt=${breakingWaveHeightFt}, raw swell=${waveHeightFt}ft @ ${wavePeriodSec}s`);
         }
       } catch (error) {
         // If Day 1 MVP algorithm fails, continue with legacy data
         console.warn(`[Forecast] Day 1 MVP algorithm failed for spot ${spot.name}:`, error);
       }
+    } else if (spotKey && dominantSwell) {
+      // Fallback: Calculate breaking wave height using dominant swell even without tide data
+      // This ensures the dominant swell (highest energy) is always used for height display
+      try {
+        const profile = getSpotProfile(spotKey);
+        if (profile && dominantSwellHeightFt !== null && dominantSwellPeriodS !== null) {
+          breakingWaveHeightFt = calculateBreakingWaveHeight(
+            dominantSwellHeightFt,
+            dominantSwellPeriodS,
+            profile,
+            dominantSwellDirectionDeg,
+            null // No tide phase available in fallback
+          );
+          if (results.length === 0) {
+            console.log(`[Forecast] Fallback: breakingWaveHeightFt calculated without tide: ${breakingWaveHeightFt}ft from ${dominantSwell.type} swell`);
+          }
+        }
+      } catch (error) {
+        console.warn(`[Forecast] Fallback breaking wave calculation failed:`, error);
+      }
     } else {
-      // Log why breaking_wave_height isn't being calculated
+      // Log why breakingWaveHeightFt isn't being calculated
       if (results.length === 0) {
-        console.log(`[Forecast] breaking_wave_height not calculated: spotKey=${spotKey}, tideInfo=${!!tideInfo}`);
+        console.log(`[Forecast] breakingWaveHeightFt not calculated: spotKey=${spotKey}, tideInfo=${!!tideInfo}`);
       }
     }
+
+    // Extract temperature data (stored as decimal string in DB)
+    const waterTempF = point.waterTempF !== null
+      ? (typeof point.waterTempF === 'string' ? parseFloat(point.waterTempF) : point.waterTempF)
+      : null;
+    const airTempF = point.airTempF !== null
+      ? (typeof point.airTempF === 'string' ? parseFloat(point.airTempF) : point.airTempF)
+      : null;
 
     results.push({
       forecastTimestamp: point.forecastTimestamp,
@@ -489,9 +602,15 @@ export async function generateForecastTimeline(
       usabilityIntermediate,
       usabilityAdvanced,
       // Day 1 MVP outputs
-      breaking_wave_height,
+      breakingWaveHeightFt,
       quality_rating,
       quality_score,
+      // Dominant swell (highest energy using H² × T formula)
+      dominantSwellHeightFt,
+      dominantSwellPeriodS,
+      dominantSwellDirectionDeg,
+      dominantSwellType,
+      dominantSwellLabel,
       // Wave data (primary swell)
       waveHeightFt,
       wavePeriodSec,
@@ -511,6 +630,9 @@ export async function generateForecastTimeline(
       // Tide data
       tideHeightFt: tideInfo ? Math.round(tideInfo.heightFt * 10) : null,
       tidePhase: tideInfo?.phase ?? null,
+      // Temperature data
+      waterTempF: isNaN(waterTempF || 0) ? null : waterTempF,
+      airTempF: isNaN(airTempF || 0) ? null : airTempF,
     });
   }
 

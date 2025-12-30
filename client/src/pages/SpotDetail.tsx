@@ -1,7 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
@@ -13,17 +13,15 @@ import {
   Users,
   ArrowLeft,
   Compass,
-  TrendingUp,
   MapPin,
   Loader2,
   AlertCircle,
-  Gauge,
   Droplet,
   Sun,
-  Thermometer,
   ArrowUp,
   ArrowDown,
-  BarChart3,
+  Car,
+  Train,
 } from "lucide-react";
 import { Link, useParams } from "wouter";
 import { toast } from "sonner";
@@ -32,21 +30,68 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { getLoginUrl } from "@/const";
 import { cn } from "@/lib/utils";
 import { Footer } from "@/components/Footer";
+import { selectCurrentTimelinePoint, CURRENT_CONDITIONS_MAX_AGE_MS, formatSurfHeight, processTimelineForAreaChart, type ExtendedTimelinePoint, type AreaChartDataPoint } from "@/lib/forecastUtils";
+import { WaveHeightChart } from "@/components/WaveHeightChart";
+import { SpotContextHeader, SPOT_CONTEXT } from "@/components/SpotContextHeader";
+import { SwellSignalTeaser } from "@/components/SwellSignalTeaser";
+import { getScoreBadgeColors } from "@/lib/ratingColors";
+import { isNighttime } from "@/lib/sunTimes";
 
 // Reusable component for spot info cards
 function SpotInfoCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-100 relative overflow-hidden transition-all duration-200" style={{
+    <div className="bg-white rounded-none shadow-sm border-2 border-black relative overflow-hidden transition-all duration-200" style={{
       backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E")`,
     }}>
-      <div className="px-8 py-6 border-b border-gray-100">
-        <h3 className="text-2xl font-semibold text-black tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.01em' }}>{title.toUpperCase()}</h3>
+      <div className="px-8 py-6 border-b-2 border-black">
+        <h3 className="text-3xl font-semibold text-black tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.01em' }}>{title.toUpperCase()}</h3>
       </div>
       <div className="px-8 py-10">
         <div className="text-base text-black leading-relaxed space-y-4" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>{children}</div>
       </div>
     </div>
   );
+}
+
+// Helper function to get condition from score (matches WaveHeightChart colors)
+function getConditionFromScore(score: number | null): string {
+  if (score === null || score === undefined) return "dontBother";
+  const s = Math.round(score);
+  if (s <= 39) return "dontBother";
+  if (s <= 59) return "worthALook";
+  if (s <= 75) return "goSurf";
+  if (s <= 90) return "firing";
+  return "allTime";
+}
+
+// Helper function to get banner color based on condition (matches WaveHeightChart colors exactly)
+function getBannerColor(condition: string): { bg: string; text: string } {
+  switch (condition) {
+    case "allTime":
+      return { bg: "#059669", text: "text-white" }; // Emerald - All-Time (91-100)
+    case "firing":
+      return { bg: "#16a34a", text: "text-white" }; // Green - Firing (76-90)
+    case "goSurf":
+      return { bg: "#84cc16", text: "text-black" }; // Lime - Go Surf (60-75)
+    case "worthALook":
+      return { bg: "#eab308", text: "text-black" }; // Yellow - Worth a Look (40-59)
+    case "dontBother":
+      return { bg: "#ef4444", text: "text-white" }; // Red - Don't Bother (0-39)
+    default:
+      return { bg: "#ef4444", text: "text-white" }; // Red fallback
+  }
+}
+
+// Helper function to format condition for banner sentence (Poor/Fair/Good)
+function formatConditionLabel(condition: string): string {
+  switch (condition) {
+    case "allTime": return "Good";
+    case "firing": return "Good";
+    case "goSurf": return "Good";
+    case "worthALook": return "Fair";
+    case "dontBother": return "Poor";
+    default: return "Poor";
+  }
 }
 
 // Ideal conditions data for each spot
@@ -63,10 +108,10 @@ const idealConditionsMap: Record<string, {
     tide: "Incoming Low-Mid",
   },
   "Rockaway Beach": {
-    swellDirection: "NE - SE (45-135°)",
-    waveHeight: "4-6ft at 8-10s swell period",
-    windDirection: "NW - N (offshore)",
-    tide: "Incoming Low-Mid",
+    swellDirection: "ESE - SE (100-135°)",
+    waveHeight: "4-6ft at 7-10s swell period",
+    windDirection: "NW - N (offshore, light W also works)",
+    tide: "Mid-High to High (avoid low unless pumping)",
   },
   "Long Beach": {
     swellDirection: "E - SE (90-135°)",
@@ -79,76 +124,116 @@ const idealConditionsMap: Record<string, {
 // Component for displaying ideal conditions
 function SpotIdealConditions({ spotName }: { spotName: string }) {
   const idealConditions = idealConditionsMap[spotName];
-  
+
   if (!idealConditions) {
     return null; // Don't show if no data for this spot
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-100 relative overflow-hidden transition-all duration-200" style={{
-      backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E")`,
-    }}>
-      <div className="px-8 py-6 border-b border-gray-100">
-        <h2 className="text-2xl font-semibold text-black tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.01em' }}>
-          WHAT GOOD LOOKS LIKE AT {spotName.toUpperCase()}
-        </h2>
-      </div>
-      <div className="px-8 py-10">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-0 divide-y md:divide-y-0 md:divide-x divide-gray-200">
-          {/* Ideal Swell */}
-          <div className="px-8 py-10">
-            <div className="flex flex-col items-center text-center">
-              <Compass className="h-6 w-6 text-black mb-6" style={{ minWidth: '24px', minHeight: '24px' }} />
-              <p className="text-[10px] font-normal text-gray-500 uppercase tracking-wider mb-4" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Ideal Swell</p>
-              <p className="text-xl font-black text-black leading-tight" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                {idealConditions.swellDirection}
-              </p>
-            </div>
-          </div>
-
-          {/* Ideal Size */}
-          <div className="px-8 py-10">
-            <div className="flex flex-col items-center text-center">
-              <Waves className="h-6 w-6 text-black mb-6" style={{ minWidth: '24px', minHeight: '24px' }} />
-              <p className="text-[10px] font-normal text-gray-500 uppercase tracking-wider mb-4" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Ideal Size</p>
-              <p className="text-xl font-black text-black leading-tight" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                {idealConditions.waveHeight}
-              </p>
-            </div>
-          </div>
-
-          {/* Ideal Wind */}
-          <div className="px-8 py-10">
-            <div className="flex flex-col items-center text-center">
-              <Wind className="h-6 w-6 text-black mb-6" style={{ minWidth: '24px', minHeight: '24px' }} />
-              <p className="text-[10px] font-normal text-gray-500 uppercase tracking-wider mb-4" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Ideal Wind</p>
-              <p className="text-xl font-black text-black leading-tight" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                {idealConditions.windDirection}
-              </p>
-            </div>
-          </div>
-
-          {/* Ideal Tide */}
-          <div className="px-8 py-10">
-            <div className="flex flex-col items-center text-center">
-              <Droplet className="h-6 w-6 text-black mb-6" style={{ minWidth: '24px', minHeight: '24px' }} />
-              <p className="text-[10px] font-normal text-gray-500 uppercase tracking-wider mb-4" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Ideal Tide</p>
-              <p className="text-xl font-black text-black leading-tight" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                {idealConditions.tide}
-              </p>
-            </div>
-          </div>
+    <div className="bg-white border-2 border-black">
+      {/* Header */}
+      <div className="border-b-2 border-black p-6">
+        <div className="flex items-center gap-3 mb-2">
+          <span className="text-[10px] font-medium tracking-widest text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>CONDITIONS GUIDE</span>
         </div>
-        
-        {/* Note */}
-        <div className="mt-10 pt-6 border-t border-gray-200">
-          <p className="text-[11px] text-gray-400 italic text-center leading-relaxed" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-            Ideal conditions are based on an analysis of the 100 best days at Lido Beach over the last 10 years.
+        <h3 className="text-4xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.02em' }}>
+          WHAT GOOD LOOKS LIKE
+        </h3>
+        <p className="mt-3 text-base text-gray-700 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+          According to the locals... 
+        </p>
+      </div>
+
+      {/* Conditions Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 divide-x-2 divide-y-2 md:divide-y-0 divide-black border-b-2 border-black">
+        {/* Ideal Swell */}
+        <div className="p-6">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 bg-black flex items-center justify-center">
+              <Compass className="w-4 h-4 text-white" />
+            </div>
+            <span className="text-xs font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>SWELL</span>
+          </div>
+          <h4 className="text-lg font-black text-black uppercase mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>IDEAL DIRECTION</h4>
+          <p className="text-sm text-gray-800 font-semibold" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+            {idealConditions.swellDirection}
+          </p>
+        </div>
+
+        {/* Ideal Size */}
+        <div className="p-6">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 bg-black flex items-center justify-center">
+              <Waves className="w-4 h-4 text-white" />
+            </div>
+            <span className="text-xs font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>SIZE</span>
+          </div>
+          <h4 className="text-lg font-black text-black uppercase mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>IDEAL HEIGHT</h4>
+          <p className="text-sm text-gray-800 font-semibold" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+            {idealConditions.waveHeight}
+          </p>
+        </div>
+
+        {/* Ideal Wind */}
+        <div className="p-6">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 bg-black flex items-center justify-center">
+              <Wind className="w-4 h-4 text-white" />
+            </div>
+            <span className="text-xs font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>WIND</span>
+          </div>
+          <h4 className="text-lg font-black text-black uppercase mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>IDEAL DIRECTION</h4>
+          <p className="text-sm text-gray-800 font-semibold" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+            {idealConditions.windDirection}
+          </p>
+        </div>
+
+        {/* Ideal Tide */}
+        <div className="p-6">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 bg-black flex items-center justify-center">
+              <Droplet className="w-4 h-4 text-white" />
+            </div>
+            <span className="text-xs font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>TIDE</span>
+          </div>
+          <h4 className="text-lg font-black text-black uppercase mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>IDEAL PHASE</h4>
+          <p className="text-sm text-gray-800 font-semibold" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+            {idealConditions.tide}
           </p>
         </div>
       </div>
+
+      {/* Note */}
+      <div className="p-4 bg-gray-50">
+        <p className="text-[10px] text-gray-500 text-center tracking-wide" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+          Based on analysis of the 100 best days at {spotName} over the last 10 years.
+        </p>
+      </div>
     </div>
   );
+}
+
+/**
+ * Get background color class for Timeline cards based on quality score
+ * Matches the verdict badge color using a light -50 tint variant
+ *
+ * @param score - Quality score (0-100)
+ * @returns Tailwind background color class
+ */
+function getCardBackgroundColor(score: number): string {
+  const s = Math.round(score);
+
+  if (s > 90) {
+    return "bg-emerald-50"; // All-Time
+  } else if (s >= 76) {
+    return "bg-green-50"; // Firing
+  } else if (s >= 60) {
+    return "bg-lime-50"; // Go Surf
+  } else if (s >= 40) {
+    return "bg-yellow-50"; // Worth a Look
+  } else {
+    return "bg-red-50"; // Don't Bother (0-39)
+  }
 }
 
 export default function SpotDetail() {
@@ -157,13 +242,43 @@ export default function SpotDetail() {
 
   const { user, isAuthenticated } = useAuth();
   const [crowdLevel, setCrowdLevel] = useState(3);
+  const [showCrowdReport, setShowCrowdReport] = useState(false);
+  const [showScoreBreakdown, setShowScoreBreakdown] = useState(false);
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<string>("ideal-conditions");
+  const [forecastView, setForecastView] = useState<"timeline" | "chart">("timeline");
+  const [selectedChartPoint, setSelectedChartPoint] = useState<{
+    index: number;
+    timelinePoint: ExtendedTimelinePoint | null;
+    chartPoint: AreaChartDataPoint | null;
+  } | null>(null);
+
+  // Auto-refresh interval: 30 minutes
+  const refetchInterval = 30 * 60 * 1000;
 
   const spotQuery = trpc.spots.get.useQuery({ id: spotId });
-  const forecastQuery = trpc.forecasts.getForSpot.useQuery({ spotId });
-  const timelineQuery = trpc.forecasts.getTimeline.useQuery({ spotId, hours: 72 });
-  const crowdQuery = trpc.crowd.getForSpot.useQuery({ spotId });
+  const forecastQuery = trpc.forecasts.getForSpot.useQuery(
+    { spotId },
+    { refetchInterval }
+  );
+  const timelineQuery = trpc.forecasts.getTimeline.useQuery(
+    { spotId, hours: 120 },
+    { refetchInterval }
+  );
+  const crowdQuery = trpc.crowd.getForSpot.useQuery(
+    { spotId },
+    { refetchInterval }
+  );
+  // Fetch raw NOAA Buoy 44065 data for dominant swell display
+  const buoyQuery = trpc.buoy.get44065.useQuery(undefined, {
+    refetchInterval,
+    staleTime: 15 * 60 * 1000, // Consider fresh for 15 minutes
+  });
+  // Fetch breaking wave heights calculated from NOAA Buoy 44065 using the spot-specific algorithm
+  const buoyBreakingHeightsQuery = trpc.buoy.getBreakingHeightsForSpots.useQuery(undefined, {
+    refetchInterval,
+    staleTime: 15 * 60 * 1000,
+  });
   // const debugQuery = trpc.forecasts.debugWaveCalculation.useQuery(
   //   { spotId: spotId },
   //   { enabled: false }
@@ -180,9 +295,9 @@ export default function SpotDetail() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    // Filter out past forecast points (older than 1 hour ago)
+    // Filter out past forecast points (older than max age threshold)
     // Only show future or very recent forecasts
-    const cutoffTime = new Date(now.getTime() - 60 * 60 * 1000); // 1 hour ago
+    const cutoffTime = new Date(now.getTime() - CURRENT_CONDITIONS_MAX_AGE_MS);
     
     timelineQuery.data.timeline.forEach((point, index) => {
       // Create date from timestamp
@@ -222,9 +337,19 @@ export default function SpotDetail() {
     });
     
     // Sort days chronologically
-    return Array.from(groupedByDay.entries()).sort(([a], [b]) => {
+    const sortedDays = Array.from(groupedByDay.entries()).sort(([a], [b]) => {
       return a.localeCompare(b); // ISO date strings sort correctly
     });
+    
+    // Debug: Log grouping results
+    console.log('[Timeline Grouping]', {
+      totalPoints: timelineQuery.data?.timeline.length,
+      afterFilter: timelineQuery.data?.timeline.filter(p => new Date(p.forecastTimestamp).getTime() >= cutoffTime.getTime()).length,
+      daysGrouped: sortedDays.length,
+      days: sortedDays.map(([day, points]) => ({ day, count: points.length })),
+    });
+    
+    return sortedDays;
   }, [timelineQuery.data?.timeline]);
 
   const refreshMutation = trpc.forecasts.refresh.useMutation({
@@ -259,12 +384,14 @@ export default function SpotDetail() {
 
   const spot = spotQuery.data;
   const forecast = forecastQuery.data?.forecast;
-  const buoyReading = forecastQuery.data?.buoyReading;
+  const openMeteoPoint = forecastQuery.data?.openMeteoPoint;
   const isLoading = spotQuery.isLoading || forecastQuery.isLoading;
   const isError = spotQuery.error || forecastQuery.error;
-  
-  // Get current conditions from Open-Meteo (first timeline point)
-  const currentConditions = timelineQuery.data?.timeline?.[0] || null;
+
+  // Get current conditions from Open-Meteo - find nearest point to now using shared utility
+  const currentConditions = useMemo(() => {
+    return selectCurrentTimelinePoint(timelineQuery.data?.timeline) ?? null;
+  }, [timelineQuery.data?.timeline]);
   
   // Temporary debug logging
   useEffect(() => {
@@ -272,15 +399,16 @@ export default function SpotDetail() {
       console.log('🖥️ FRONTEND DISPLAY DEBUG:');
       console.log('Current forecast object:', currentConditions);
       console.log('What UI is showing:', {
-        displayed_wave_height: currentConditions.breaking_wave_height || (currentConditions.waveHeightFt?.toFixed(1) + 'ft'),
-        breaking_wave_height_from_api: currentConditions.breaking_wave_height,
+        displayed_wave_height: formatSurfHeight(currentConditions.breakingWaveHeightFt ?? currentConditions.dominantSwellHeightFt ?? currentConditions.waveHeightFt ?? null),
+        breakingWaveHeightFt_from_api: currentConditions.breakingWaveHeightFt,
+        dominantSwellHeightFt: currentConditions.dominantSwellHeightFt,
         raw_wave_height: currentConditions.waveHeightFt,
         direction: currentConditions.waveDirectionDeg
       });
       
       // Check if UI is using the right field
       console.log('Which field is the UI displaying?');
-      console.log('Is it using breaking_wave_height?', !!currentConditions.breaking_wave_height);
+      console.log('Is it using breakingWaveHeightFt?', !!currentConditions.breakingWaveHeightFt);
       console.log('Is it using waveHeightFt?', !!currentConditions.waveHeightFt);
     }
   }, [currentConditions]);
@@ -289,7 +417,7 @@ export default function SpotDetail() {
   if (currentConditions) {
     console.log('🖥️ STEP 6: Frontend Received');
     console.log('🖥️ Frontend received forecast:', {
-      breaking_wave_height: currentConditions.breaking_wave_height,
+      breakingWaveHeightFt: currentConditions.breakingWaveHeightFt,
       raw_swell_height: currentConditions.waveHeightFt,
       direction: currentConditions.waveDirectionDeg,
       secondarySwellHeightFt: currentConditions.secondarySwellHeightFt,
@@ -302,58 +430,6 @@ export default function SpotDetail() {
   }
 
   // Helper functions
-  const getScoreColor = (score: number) => {
-    if (score >= 70) return "bg-green-500";
-    if (score >= 40) return "bg-yellow-500";
-    return "bg-red-500";
-  };
-
-  const getScoreLabel = (score: number): "Excellent" | "Good" | "Fair" | "Poor" => {
-    if (score >= 70) return "Excellent";
-    if (score >= 40) return "Fair";
-    return "Poor";
-  };
-
-  const getLabelColor = (label: string) => {
-    if (label === "Good" || label === "Excellent") return "text-emerald-600";
-    if (label === "Fair") return "text-amber-600";
-    return "text-red-600";
-  };
-
-  const getConfidenceBadge = (band: string) => {
-    switch (band) {
-      case "High":
-        return (
-          <Badge className="bg-emerald-500 text-white text-xs font-semibold px-3 py-1 shadow-sm border-0">
-            High Confidence
-          </Badge>
-        );
-      case "Medium":
-        return (
-          <Badge className="bg-amber-500 text-white text-xs font-semibold px-3 py-1 shadow-sm border-0">
-            Medium Confidence
-          </Badge>
-        );
-      default:
-        return (
-          <Badge variant="outline" className="border-red-400 text-red-600 text-xs font-semibold px-3 py-1 bg-red-50">
-            Low Confidence
-          </Badge>
-        );
-    }
-  };
-
-  const formatWaveHeight = (tenthsFt: number) => {
-    const feet = tenthsFt / 10;
-    return `${feet.toFixed(1)}ft`;
-  };
-
-  const formatWaveHeightRange = (tenthsFt: number) => {
-    const feet = tenthsFt / 10;
-    // Simple range: ±0.5ft
-    return `${(feet - 0.5).toFixed(1)}-${(feet + 0.5).toFixed(1)}ft`;
-  };
-
   const formatPeriod = (periodDs: number | null) => {
     if (periodDs === null) return "N/A";
     const seconds = periodDs / 10;
@@ -372,6 +448,45 @@ export default function SpotDetail() {
     const cardinal = cardinals[index];
     
     return `${cardinal} ${Math.round(deg)}°`;
+  };
+
+  const getSwellDirectionLabel = (deg: number): string => {
+    const cardinals = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 
+                       'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+    const index = Math.round(deg / 22.5) % 16;
+    return cardinals[index];
+  };
+
+  // Calculate energy percentage (H² × T formula, normalized to 0-100)
+  const calculateEnergyPercentage = (heightFt: number | null, periodS: number | null): number => {
+    if (heightFt === null || periodS === null || heightFt <= 0 || periodS <= 0) return 0;
+    // Energy = H² × T, normalize assuming max reasonable energy is ~300 (e.g., 5ft @ 12s = 300)
+    // This is more realistic for Long Island conditions where 10ft @ 10s is extremely rare
+    const energy = heightFt * heightFt * periodS;
+    return Math.min(100, Math.round((energy / 300) * 100));
+  };
+
+  // Get wind arrow based on direction
+  const getWindArrow = (directionDeg: number): string => {
+    // Wind direction is where wind comes FROM
+    // Arrows point in the direction wind is going (opposite of direction)
+    const normalized = (directionDeg + 180) % 360;
+    
+    if (normalized >= 337.5 || normalized < 22.5) return '↓'; // N -> S
+    if (normalized >= 22.5 && normalized < 67.5) return '↙'; // NE -> SW
+    if (normalized >= 67.5 && normalized < 112.5) return '←'; // E -> W
+    if (normalized >= 112.5 && normalized < 157.5) return '↖'; // SE -> NW
+    if (normalized >= 157.5 && normalized < 202.5) return '↑'; // S -> N
+    if (normalized >= 202.5 && normalized < 247.5) return '↗'; // SW -> NE
+    if (normalized >= 247.5 && normalized < 292.5) return '→'; // W -> E
+    return '↘'; // NW -> SE
+  };
+
+  // Format wind type for display
+  const formatWindType = (windType: string | null): string => {
+    if (!windType) return '';
+    const capitalized = windType.charAt(0).toUpperCase() + windType.slice(1);
+    return capitalized.replace('-', '-');
   };
 
   const formatSwellInfo = (forecast: typeof currentConditions): string => {
@@ -442,8 +557,9 @@ export default function SpotDetail() {
 
   const getDirectionArrowRotation = (degrees: number): number => {
     // Convert from compass degrees (0=N, 90=E) to CSS rotation (0=top, clockwise)
-    // For arrows pointing in the direction the swell is coming FROM
-    return degrees;
+    // For arrows pointing in the direction the swell is going TOWARD (opposite of FROM)
+    // Add 180 degrees to flip the arrow direction
+    return (degrees + 180) % 360;
   };
 
   const DirectionArrow = ({ degrees }: { degrees: number }) => {
@@ -452,9 +568,10 @@ export default function SpotDetail() {
       <span 
         className="inline-block text-black"
         style={{ 
-          transform: `rotate(${rotation}deg)`,
+          transform: `rotate(${rotation}deg) scaleX(0.5) scaleY(1.5)`,
           display: 'inline-block',
-          lineHeight: 1
+          lineHeight: 1,
+          transformOrigin: 'center center'
         }}
       >
         ▲
@@ -467,39 +584,339 @@ export default function SpotDetail() {
     return labels[level] || "Unknown";
   };
 
-  // Generate actionable surf report
-  const getSurfReport = (score: number | null, conditions: typeof currentConditions) => {
-    if (!score && score !== 0) return "No data available";
+  const getCrowdColor = (level: number) => {
+    if (level <= 1) return "bg-emerald-600";
+    if (level === 2) return "bg-emerald-500";
+    if (level === 3) return "bg-amber-500";
+    if (level === 4) return "bg-orange-500";
+    return "bg-red-600";
+  };
+
+  // Get rating label from quality score (0-100)
+  const getRatingLabel = (score: number | null | undefined): string => {
+    if (score === null || score === undefined) return "N/A";
+    const s = Math.round(score);
+    if (s <= 39) return "Don't Bother";
+    if (s <= 59) return "Worth a Look";
+    if (s <= 75) return "Go Surf";
+    if (s <= 90) return "Firing";
+    return "All-Time";
+  };
+
+  // Helper functions for 5-day forecast UI
+  const getFullDayName = (date: Date): string => {
+    return date.toLocaleDateString("en-US", { weekday: "long" }).toUpperCase();
+  };
+
+  const getVerdictLabel = (rating: string): string => {
+    if (rating === "Go Surf") {
+      return "GO SURF";
+    }
+    if (rating === "Firing") {
+      return "FIRING";
+    }
+    if (rating === "All-Time") {
+      return "ALL-TIME";
+    }
+    return rating.toUpperCase();
+  };
+
+  const formatWindDescription = (windType: string | null, windSpeedMph: number | null): string => {
+    if (windType === null) return "N/A";
+    if (windSpeedMph === null) return windType;
     
-    if (score < 40) {
-      // Poor conditions
-      if (conditions?.waveHeightFt && conditions.waveHeightFt < 1) {
-        return "Small and choppy. Skip it today.";
-      } else if (conditions?.windType === "onshore") {
-        return "Onshore winds making it messy. Not worth it.";
-      } else {
-        return "Poor conditions. Skip it today.";
-      }
-    } else if (score < 70) {
-      // Fair conditions
-      if (conditions?.windType === "offshore") {
-        return "Rideable but not great. Early morning best.";
-      } else if (conditions?.waveHeightFt && conditions.waveHeightFt >= 2) {
-        return "Decent size but conditions could be better. Worth checking.";
-      } else {
-        return "Rideable but not great. Early morning best.";
-      }
+    if (windSpeedMph < 10) {
+      if (windType === "offshore") return "light offshore";
+      if (windType === "onshore") return "light onshore";
+      if (windType === "cross") return "light cross-shore";
+      return "light winds";
+    }
+    
+    return `${windType} ${Math.round(windSpeedMph)}mph`;
+  };
+
+  const formatTideDescription = (tidePhase: string | null): string => {
+    if (tidePhase === null) return "N/A";
+    if (tidePhase === "rising") return "rising tide";
+    if (tidePhase === "falling") return "falling tide";
+    if (tidePhase === "high") return "high tide";
+    if (tidePhase === "low") return "low tide";
+    return tidePhase;
+  };
+
+  const getWindowLabel = (hour: number): { label: string; emoji: string } => {
+    if (hour >= 5 && hour < 8) {
+      return { label: "DAWN PATROL", emoji: "🌅" };
+    } else if (hour >= 10 && hour < 14) {
+      return { label: "MIDDAY", emoji: "⚡" };
+    } else if (hour >= 14 && hour < 18) {
+      return { label: "AFTERNOON", emoji: "🌊" };
     } else {
-      // Good/Excellent conditions
-      if (conditions?.windType === "offshore" && conditions?.waveHeightFt && conditions.waveHeightFt >= 2) {
-        return "Clean conditions. Get out there!";
-      } else if (conditions?.windType === "offshore") {
-        return "Offshore winds and clean. Good session ahead.";
-      } else {
-        return "Clean conditions. Get out there!";
-      }
+      return { label: "EVENING", emoji: "🌊" };
     }
   };
+
+  const formatTimeRange = (startHour: number, endHour: number): string => {
+    const formatHour = (hour: number, includePeriod: boolean = true): string => {
+      if (hour === 0) return includePeriod ? "12am" : "12";
+      if (hour < 12) return includePeriod ? `${hour}am` : `${hour}`;
+      if (hour === 12) return includePeriod ? "12pm" : "12";
+      return includePeriod ? `${hour - 12}pm` : `${hour - 12}`;
+    };
+    
+    // Check if both are in the same period (am/pm)
+    const startIsAM = startHour < 12;
+    const endIsAM = endHour < 12;
+    
+    if (startIsAM === endIsAM) {
+      // Same period, simplify format: "6-8am" instead of "6am-8am"
+      const period = startIsAM ? "am" : "pm";
+      return `${formatHour(startHour, false)}-${formatHour(endHour, false)}${period}`;
+    }
+    
+    // Different periods, show full format: "11am-1pm"
+    return `${formatHour(startHour, true)}-${formatHour(endHour, true)}`;
+  };
+
+  interface Window {
+    timeRange: string;
+    label: string;
+    emoji: string;
+    avgScore: number;
+    waveHeight: string;
+    windDesc: string;
+    tideDesc: string;
+    startHour: number;
+    endHour: number;
+  }
+
+  const analyzeBestWindows = (points: Array<NonNullable<typeof timelineQuery.data>['timeline'][number]>): Window[] => {
+    if (!points || points.length === 0) return [];
+
+    // Sort points by timestamp
+    const sortedPoints = [...points].sort((a, b) => {
+      return new Date(a.forecastTimestamp).getTime() - new Date(b.forecastTimestamp).getTime();
+    });
+
+    // Find consecutive windows with quality > 60
+    const windows: Window[] = [];
+    let currentWindow: typeof sortedPoints = [];
+    
+    for (let i = 0; i < sortedPoints.length; i++) {
+      const point = sortedPoints[i];
+      const score = point.quality_score ?? point.probabilityScore ?? 0;
+      const date = new Date(point.forecastTimestamp);
+      const hour = date.getHours();
+      
+      if (score > 60) {
+        // Check if this hour is consecutive with the last point in current window
+        if (currentWindow.length > 0) {
+          const lastPoint = currentWindow[currentWindow.length - 1];
+          const lastDate = new Date(lastPoint.forecastTimestamp);
+          const lastHour = lastDate.getHours();
+          const hoursDiff = hour - lastHour;
+          
+          // Allow up to 1 hour gap (in case of missing data)
+          if (hoursDiff <= 1) {
+            currentWindow.push(point);
+          } else {
+            // Save current window if it has at least 2 hours
+            if (currentWindow.length >= 2) {
+              const window = createWindowFromPoints(currentWindow);
+              if (window) windows.push(window);
+            }
+            currentWindow = [point];
+          }
+        } else {
+          currentWindow = [point];
+        }
+      } else {
+        // Save current window if it has at least 2 hours
+        if (currentWindow.length >= 2) {
+          const window = createWindowFromPoints(currentWindow);
+          if (window) windows.push(window);
+        }
+        currentWindow = [];
+      }
+    }
+    
+    // Save final window if it has at least 2 hours
+    if (currentWindow.length >= 2) {
+      const window = createWindowFromPoints(currentWindow);
+      if (window) windows.push(window);
+    }
+    
+    // Sort by average score (highest first) and take top 3
+    windows.sort((a, b) => b.avgScore - a.avgScore);
+    return windows.slice(0, 3);
+  };
+
+  const createWindowFromPoints = (points: Array<NonNullable<typeof timelineQuery.data>['timeline'][number]>): Window | null => {
+    if (points.length === 0) return null;
+    
+    // Calculate average score
+    const scores = points.map(p => p.quality_score ?? p.probabilityScore ?? 0);
+    const avgScore = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+    
+    // Get time range
+    const firstDate = new Date(points[0].forecastTimestamp);
+    const lastDate = new Date(points[points.length - 1].forecastTimestamp);
+    const startHour = firstDate.getHours();
+    const endHour = lastDate.getHours();
+    
+    // Get window label from middle hour
+    const middleIndex = Math.floor(points.length / 2);
+    const middlePoint = points[middleIndex];
+    const middleDate = new Date(middlePoint.forecastTimestamp);
+    const middleHour = middleDate.getHours();
+    const { label, emoji } = getWindowLabel(middleHour);
+    
+    // Get representative conditions from middle point
+    const waveHeight = formatSurfHeight(
+      middlePoint.dominantSwellHeightFt ?? middlePoint.waveHeightFt ?? null
+    );
+    const windDesc = formatWindDescription(middlePoint.windType ?? null, middlePoint.windSpeedMph ?? null);
+    const tideDesc = formatTideDescription(middlePoint.tidePhase ?? null);
+    
+    return {
+      timeRange: formatTimeRange(startHour, endHour),
+      label,
+      emoji,
+      avgScore,
+      waveHeight,
+      windDesc,
+      tideDesc,
+      startHour,
+      endHour,
+    };
+  };
+
+  const findAvoidWindows = (points: Array<NonNullable<typeof timelineQuery.data>['timeline'][number]>): Array<{ timeRange: string; reason: string }> => {
+    if (!points || points.length === 0) return [];
+
+    const sortedPoints = [...points].sort((a, b) => {
+      return new Date(a.forecastTimestamp).getTime() - new Date(b.forecastTimestamp).getTime();
+    });
+
+    const avoidWindows: Array<{ timeRange: string; reason: string }> = [];
+    let currentWindow: typeof sortedPoints = [];
+    
+    for (let i = 0; i < sortedPoints.length; i++) {
+      const point = sortedPoints[i];
+      const score = point.quality_score ?? point.probabilityScore ?? 0;
+      const windType = point.windType ?? null;
+      const windSpeed = point.windSpeedMph ?? null;
+      const date = new Date(point.forecastTimestamp);
+      const hour = date.getHours();
+      
+      // Check if this is a poor window (quality < 50 AND strong onshore winds > 15mph)
+      if (score < 50 && windType === "onshore" && windSpeed !== null && windSpeed > 15) {
+        if (currentWindow.length > 0) {
+          const lastPoint = currentWindow[currentWindow.length - 1];
+          const lastDate = new Date(lastPoint.forecastTimestamp);
+          const lastHour = lastDate.getHours();
+          const hoursDiff = hour - lastHour;
+          
+          if (hoursDiff <= 1) {
+            currentWindow.push(point);
+          } else {
+            if (currentWindow.length >= 2) {
+              const window = createAvoidWindow(currentWindow);
+              if (window) avoidWindows.push(window);
+            }
+            currentWindow = [point];
+          }
+        } else {
+          currentWindow = [point];
+        }
+      } else {
+        if (currentWindow.length >= 2) {
+          const window = createAvoidWindow(currentWindow);
+          if (window) avoidWindows.push(window);
+        }
+        currentWindow = [];
+      }
+    }
+    
+    if (currentWindow.length >= 2) {
+      const window = createAvoidWindow(currentWindow);
+      if (window) avoidWindows.push(window);
+    }
+    
+    return avoidWindows;
+  };
+
+  const createAvoidWindow = (points: Array<NonNullable<typeof timelineQuery.data>['timeline'][number]>): { timeRange: string; reason: string } | null => {
+    if (points.length === 0) return null;
+    
+    const firstDate = new Date(points[0].forecastTimestamp);
+    const lastDate = new Date(points[points.length - 1].forecastTimestamp);
+    const startHour = firstDate.getHours();
+    const endHour = lastDate.getHours();
+    
+    // Get representative conditions for reason
+    const middleIndex = Math.floor(points.length / 2);
+    const middlePoint = points[middleIndex];
+    const windSpeed = middlePoint.windSpeedMph ?? null;
+    const windType = middlePoint.windType ?? null;
+    
+    let reason = "blown out";
+    if (windType === "onshore" && windSpeed !== null) {
+      reason = `blown out, onshore ${Math.round(windSpeed)}mph`;
+    }
+    
+    return {
+      timeRange: formatTimeRange(startHour, endHour),
+      reason,
+    };
+  };
+
+
+  // Wetsuit recommendation logic
+  const getWetsuitRecommendation = (waterTempF: number | null): { thickness: string; color: string } => {
+    if (waterTempF === null) return { thickness: "N/A", color: "text-black" };
+    
+    if (waterTempF < 42) {
+      return { thickness: "6/5MM HOODED", color: "text-red-600" };
+    } else if (waterTempF >= 42 && waterTempF <= 51) {
+      return { thickness: "5/4MM HOODED", color: "text-orange-600" };
+    } else if (waterTempF >= 52 && waterTempF <= 57) {
+      return { thickness: "4/3MM", color: "text-yellow-600" };
+    } else if (waterTempF >= 58 && waterTempF <= 64) {
+      return { thickness: "4/3MM or 3/2MM", color: "text-yellow-500" };
+    } else {
+      return { thickness: "3/2MM or SPRING SUIT", color: "text-green-600" };
+    }
+  };
+
+  // Accessories recommendation logic
+  const getWetsuitAccessories = (waterTempF: number | null, airTempF: number | null): string => {
+    if (waterTempF === null) return "";
+
+    // Extreme cold: water below 45°F AND air below 30°F
+    if (waterTempF < 45 && airTempF !== null && airTempF < 30) {
+      return "+ Boots · Gloves · Hood";
+    }
+    // Very cold: water below 42°F (but not extreme air)
+    if (waterTempF < 42) {
+      return "+ Boots · Gloves · Hood";
+    }
+    // Cold: 42-51°F water
+    if (waterTempF >= 42 && waterTempF <= 51) {
+      return "+ Boots · Gloves · Hood";
+    }
+    // Cool: 52-57°F water
+    if (waterTempF >= 52 && waterTempF <= 57) {
+      return "+ Boots optional";
+    }
+    // Moderate: 58-64°F water
+    if (waterTempF >= 58 && waterTempF <= 64) {
+      return "Boots optional";
+    }
+    // Warm: 65°F+ water
+    return "";
+  };
+
 
   // Format relative time
   const formatRelativeTime = (date: Date): string => {
@@ -526,8 +943,6 @@ export default function SpotDetail() {
     });
   };
 
-  // Auto-refresh interval (from env or default 3 hours)
-  const refreshIntervalHours = 3;
 
   // Loading state
   if (isLoading) {
@@ -625,7 +1040,13 @@ export default function SpotDetail() {
     );
   }
 
-  const lastUpdated = forecast?.createdAt ? new Date(forecast.createdAt) : null;
+  // For header: use forecast createdAt to show when data was last refreshed
+  const headerLastUpdated = forecast?.createdAt ? new Date(forecast.createdAt) : null;
+
+  // For conditions card: use timeline timestamp to show what time the conditions are for
+  const conditionsAsOf = currentConditions?.forecastTimestamp
+    ? new Date(currentConditions.forecastTimestamp)
+    : null;
 
   return (
     <div className="min-h-screen bg-white">
@@ -653,19 +1074,6 @@ export default function SpotDetail() {
                   </Button>
                 </Link>
                 <div className="flex items-center gap-3">
-                  {/* Last Updated + Auto-refresh indicator */}
-                  {lastUpdated && (
-                    <div className="flex items-center gap-2 text-xs text-white/80">
-                      {refreshMutation.isPending && (
-                        <Loader2 className="h-3 w-3 animate-spin text-white" />
-                      )}
-                      <span>
-                        Updated {formatRelativeTime(lastUpdated)} ({formatAbsoluteTime(lastUpdated)})
-                      </span>
-                      <span className="text-white/60">·</span>
-                      <span>Auto-refresh every {refreshIntervalHours}h</span>
-                    </div>
-                  )}
                   <Button
                     onClick={() => refreshMutation.mutate({ spotId })}
                     disabled={refreshMutation.isPending}
@@ -714,19 +1122,6 @@ export default function SpotDetail() {
                   </Button>
                 </Link>
                 <div className="flex items-center gap-3">
-                  {/* Last Updated + Auto-refresh indicator */}
-                  {lastUpdated && (
-                    <div className="flex items-center gap-2 text-xs text-white/80">
-                      {refreshMutation.isPending && (
-                        <Loader2 className="h-3 w-3 animate-spin text-white" />
-                      )}
-                      <span>
-                        Updated {formatRelativeTime(lastUpdated)} ({formatAbsoluteTime(lastUpdated)})
-                      </span>
-                      <span className="text-white/60">·</span>
-                      <span>Auto-refresh every {refreshIntervalHours}h</span>
-                    </div>
-                  )}
                   <Button
                     onClick={() => refreshMutation.mutate({ spotId })}
                     disabled={refreshMutation.isPending}
@@ -775,19 +1170,6 @@ export default function SpotDetail() {
                   </Button>
                 </Link>
                 <div className="flex items-center gap-3">
-                  {/* Last Updated + Auto-refresh indicator */}
-                  {lastUpdated && (
-                    <div className="flex items-center gap-2 text-xs text-white/80">
-                      {refreshMutation.isPending && (
-                        <Loader2 className="h-3 w-3 animate-spin text-white" />
-                      )}
-                      <span>
-                        Updated {formatRelativeTime(lastUpdated)} ({formatAbsoluteTime(lastUpdated)})
-                      </span>
-                      <span className="text-white/60">·</span>
-                      <span>Auto-refresh every {refreshIntervalHours}h</span>
-                    </div>
-                  )}
                   <Button
                     onClick={() => refreshMutation.mutate({ spotId })}
                     disabled={refreshMutation.isPending}
@@ -832,25 +1214,12 @@ export default function SpotDetail() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                {/* Last Updated + Auto-refresh indicator */}
-                {lastUpdated && (
-                  <div className="flex items-center gap-2 text-xs text-black">
-                    {refreshMutation.isPending && (
-                      <Loader2 className="h-3 w-3 animate-spin text-black" />
-                    )}
-                    <span>
-                      Updated {formatRelativeTime(lastUpdated)} ({formatAbsoluteTime(lastUpdated)})
-                    </span>
-                    <span className="text-black">·</span>
-                    <span>Auto-refresh every {refreshIntervalHours}h</span>
-                  </div>
-                )}
-              <Button
-                onClick={() => refreshMutation.mutate({ spotId })}
-                disabled={refreshMutation.isPending}
-                variant="outline"
-                  size="sm"
-                  className="border-black text-black hover:bg-gray-50"
+                <Button
+                  onClick={() => refreshMutation.mutate({ spotId })}
+                  disabled={refreshMutation.isPending}
+                  variant="outline"
+                    size="sm"
+                    className="border-black text-black hover:bg-gray-50"
               >
                   <RefreshCw className={`h-3 w-3 mr-1.5 ${refreshMutation.isPending ? "animate-spin" : ""}`} />
                 Refresh
@@ -865,33 +1234,29 @@ export default function SpotDetail() {
       <main className="container max-w-5xl py-8">
         {forecast ? (
           <div className="space-y-6">
-            {/* Spot Description - Lido Beach Only */}
-            {spot?.name === "Lido Beach" && (
-              <div className="bg-gray-50 border-2 border-black">
-                <div className="p-6">
-                  <div className="space-y-3 text-center">
-                    <p className="text-3xl md:text-4xl font-black text-black leading-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.02em' }}>
-                      Long Island's premier beach break.
-                    </p>
-                    <p className="text-lg md:text-xl font-semibold text-gray-700 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                      Where offshore bathymetry and perfect sandbars create waves 1-2 feet larger than anywhere else in Western Long Island.
-                    </p>
-                  </div>
-                </div>
-              </div>
+            {/* Spot Context Header */}
+            {spot?.name && SPOT_CONTEXT[spot.name] && (
+              <SpotContextHeader
+                headline={SPOT_CONTEXT[spot.name].headline}
+                description={SPOT_CONTEXT[spot.name].description}
+              />
             )}
             
             {/* Conditions - NYC Style 3-Column Stat Row */}
-            <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
-              <div className="px-6 py-4 border-b border-gray-200">
+            <div className="bg-white border-2 border-black rounded-none">
+              <div className="px-6 py-4 border-b-2 border-black">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                  <h2 className="text-3xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                     Conditions
                   </h2>
-                  {lastUpdated && (
-                    <div className="flex items-center gap-1.5 text-xs text-gray-500" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                  {conditionsAsOf && (
+                    <div className="flex items-center gap-2 text-xs text-black uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                      </span>
                       <Clock className="h-3.5 w-3.5" />
-                      <span>{formatRelativeTime(lastUpdated)}</span>
+                      <span>As of {formatAbsoluteTime(conditionsAsOf)}</span>
                     </div>
                   )}
                 </div>
@@ -900,109 +1265,130 @@ export default function SpotDetail() {
                 {currentConditions ? (
                   <>
                     <div className="grid grid-cols-2 gap-12">
-                      {/* Surf Height */}
+                      {/* Surf Height - calculated from buoy data using spot-specific algorithm */}
                       <div>
-                        <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                        <p className="text-xs font-medium text-black uppercase tracking-wider mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                           Surf Height
                         </p>
-                        <p className="text-3xl font-semibold text-gray-900 mb-2 leading-none" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                          {currentConditions.breaking_wave_height 
-                            ? currentConditions.breaking_wave_height
-                            : currentConditions.waveHeightFt !== null 
-                              ? `${currentConditions.waveHeightFt.toFixed(1)}ft`
-                              : "—"}
-                        </p>
                         {(() => {
-                          const height = currentConditions.breaking_wave_height 
-                            ? parseFloat(currentConditions.breaking_wave_height.split('-')[0] || currentConditions.breaking_wave_height.replace('ft', ''))
-                            : currentConditions.waveHeightFt;
-                          const description = getWaveHeightDescription(height);
-                          return description ? (
-                            <p className="text-sm font-normal text-gray-700" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                              {description}
-                            </p>
-                          ) : null;
+                          // Prefer buoy-calculated breaking height using spot-specific algorithm
+                          const buoyBasedHeight = spot?.name ? buoyBreakingHeightsQuery.data?.[spot.name] : null;
+                          const displayHeight = buoyBasedHeight ?? currentConditions.dominantSwellHeightFt ?? currentConditions.waveHeightFt ?? null;
+                          const description = getWaveHeightDescription(displayHeight);
+
+                          return (
+                            <>
+                              <p className="text-6xl font-black text-black mb-2 leading-none uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                                {formatSurfHeight(displayHeight)}
+                              </p>
+                              {description && (
+                                <p className="text-sm font-normal text-black uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                  {description}
+                                </p>
+                              )}
+                            </>
+                          );
                         })()}
                       </div>
 
                       {/* Swell */}
                       <div>
-                        <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                        <p className="text-xs font-medium text-black uppercase tracking-wider mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                           Swell
                         </p>
                         {(() => {
-                          const swells = [];
-                          
-                          // Primary swell
-                          if (currentConditions.waveHeightFt !== null && currentConditions.wavePeriodSec !== null) {
-                            const height = currentConditions.waveHeightFt.toFixed(1);
-                            const period = currentConditions.wavePeriodSec.toFixed(0);
-                            const direction = currentConditions.waveDirectionDeg !== null && currentConditions.waveDirectionDeg !== undefined
-                              ? formatSwellDirection(currentConditions.waveDirectionDeg)
-                              : null;
+                          const buoyData = buoyQuery.data;
+
+                          // Build swells array - DOMINANT SWELL from buoy, SECONDARY and WIND SWELL from forecast
+                          const swells: Array<{
+                            label: string;
+                            height: string;
+                            period: string;
+                            direction: string | null;
+                            directionDeg: number | null | undefined;
+                            isDominant: boolean;
+                          }> = [];
+
+                          // DOMINANT SWELL - from NOAA Buoy 44065
+                          if (buoyData) {
                             swells.push({
-                              label: 'Primary',
-                              height,
-                              period,
-                              direction,
-                              directionDeg: currentConditions.waveDirectionDeg,
+                              label: 'DOMINANT SWELL',
+                              height: buoyData.waveHeight.toFixed(1),
+                              period: buoyData.dominantPeriod.toFixed(0),
+                              direction: formatSwellDirection(buoyData.waveDirection),
+                              directionDeg: buoyData.waveDirection,
+                              isDominant: true,
                             });
                           }
-                          
-                          // Secondary swell
+
+                          // SECONDARY - from forecast
                           if (currentConditions.secondarySwellHeightFt !== null && currentConditions.secondarySwellPeriodS !== null) {
-                            const height = currentConditions.secondarySwellHeightFt.toFixed(1);
-                            const period = currentConditions.secondarySwellPeriodS.toFixed(0);
-                            const direction = currentConditions.secondarySwellDirectionDeg !== null && currentConditions.secondarySwellDirectionDeg !== undefined
-                              ? formatSwellDirection(currentConditions.secondarySwellDirectionDeg)
-                              : null;
-                            swells.push({
-                              label: 'Secondary',
-                              height,
-                              period,
-                              direction,
-                              directionDeg: currentConditions.secondarySwellDirectionDeg,
-                            });
+                            const heightNum = typeof currentConditions.secondarySwellHeightFt === 'string'
+                              ? parseFloat(currentConditions.secondarySwellHeightFt)
+                              : currentConditions.secondarySwellHeightFt;
+                            const periodNum = typeof currentConditions.secondarySwellPeriodS === 'string'
+                              ? parseFloat(currentConditions.secondarySwellPeriodS)
+                              : currentConditions.secondarySwellPeriodS;
+
+                            if (!isNaN(heightNum) && !isNaN(periodNum)) {
+                              swells.push({
+                                label: 'Secondary',
+                                height: heightNum.toFixed(1),
+                                period: periodNum.toFixed(0),
+                                direction: currentConditions.secondarySwellDirectionDeg !== null && currentConditions.secondarySwellDirectionDeg !== undefined
+                                  ? formatSwellDirection(currentConditions.secondarySwellDirectionDeg)
+                                  : null,
+                                directionDeg: currentConditions.secondarySwellDirectionDeg,
+                                isDominant: false,
+                              });
+                            }
                           }
-                          
-                          // Wind waves
+
+                          // WIND SWELL - from forecast
                           if (currentConditions.windWaveHeightFt !== null && currentConditions.windWavePeriodS !== null) {
-                            const height = currentConditions.windWaveHeightFt.toFixed(1);
-                            const period = currentConditions.windWavePeriodS.toFixed(0);
-                            const direction = currentConditions.windWaveDirectionDeg !== null && currentConditions.windWaveDirectionDeg !== undefined
-                              ? formatSwellDirection(currentConditions.windWaveDirectionDeg)
-                              : null;
-                            swells.push({
-                              label: 'Wind Swell',
-                              height,
-                              period,
-                              direction,
-                              directionDeg: currentConditions.windWaveDirectionDeg,
-                            });
+                            const heightNum = typeof currentConditions.windWaveHeightFt === 'string'
+                              ? parseFloat(currentConditions.windWaveHeightFt)
+                              : currentConditions.windWaveHeightFt;
+                            const periodNum = typeof currentConditions.windWavePeriodS === 'string'
+                              ? parseFloat(currentConditions.windWavePeriodS)
+                              : currentConditions.windWavePeriodS;
+
+                            if (!isNaN(heightNum) && !isNaN(periodNum)) {
+                              swells.push({
+                                label: 'Wind Swell',
+                                height: heightNum.toFixed(1),
+                                period: periodNum.toFixed(0),
+                                direction: currentConditions.windWaveDirectionDeg !== null && currentConditions.windWaveDirectionDeg !== undefined
+                                  ? formatSwellDirection(currentConditions.windWaveDirectionDeg)
+                                  : null,
+                                directionDeg: currentConditions.windWaveDirectionDeg,
+                                isDominant: false,
+                              });
+                            }
                           }
-                          
+
                           if (swells.length === 0) {
-                            return <p className="text-sm text-gray-500">No swell data</p>;
+                            return <p className="text-sm text-black uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>No swell data</p>;
                           }
-                          
+
                           return (
                             <div className="space-y-2">
                               {swells.map((swell, i) => (
-                                <div key={i} className="flex items-center gap-2">
-                                  <span className="text-xs font-medium text-gray-500" style={{ fontFamily: "'Inter', 'Roboto', sans-serif", minWidth: '60px' }}>
+                                <div key={i} className={`flex items-center gap-2 ${swell.isDominant ? 'bg-blue-50 p-2 -mx-2 rounded' : ''}`}>
+                                  <span className={`text-xs font-medium uppercase tracking-wider ${swell.isDominant ? 'text-blue-900' : 'text-black'}`} style={{ fontFamily: "'Inter', 'Roboto', sans-serif", minWidth: '110px' }}>
                                     {swell.label}:
                                   </span>
-                                  <span className="text-sm font-semibold text-gray-900" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                  <span className={`text-sm font-black uppercase ${swell.isDominant ? 'text-blue-900' : 'text-black'}`} style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                                     {swell.height}ft
                                   </span>
-                                  <span className="text-sm font-normal text-gray-700" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                  <span className={`text-sm font-normal ${swell.isDominant ? 'text-blue-800' : 'text-black'}`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                                     {swell.period}s
                                   </span>
                                   {swell.directionDeg !== null && swell.directionDeg !== undefined && (
                                     <>
                                       <DirectionArrow degrees={swell.directionDeg} />
                                       {swell.direction && (
-                                        <span className="text-sm font-normal text-gray-700" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                        <span className={`text-sm font-normal ${swell.isDominant ? 'text-blue-800' : 'text-black'}`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                                           {swell.direction}
                                         </span>
                                       )}
@@ -1016,103 +1402,279 @@ export default function SpotDetail() {
                       </div>
                     </div>
 
-                    {/* Additional Sections: Wind, Tide, Temperature */}
-                    <div className="grid grid-cols-3 gap-8 mt-8 pt-8 border-t border-gray-200">
+                    {/* Additional Sections: Wind, Tide, Temperature, Wetsuit, Crowd */}
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mt-8 pt-8 border-t-2 border-black">
                     {/* Wind */}
                     <div>
-                      <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                      <p className="text-xs font-medium text-black uppercase tracking-wider mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                         Wind
                       </p>
                       {currentConditions.windSpeedMph !== null && currentConditions.windDirectionDeg !== null ? (
-                        <>
-                          <p className="text-2xl font-semibold text-gray-900 mb-1 leading-none" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                            {Math.round(currentConditions.windSpeedMph)}mph {(() => {
-                              const directions = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
-                              const index = Math.round(currentConditions.windDirectionDeg / 22.5) % 16;
-                              return directions[index];
-                            })()}
-                          </p>
-                          {currentConditions.windType && (
-                            <p className="text-sm font-normal text-gray-700 capitalize" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                              {currentConditions.windType}
+                        <div className="flex items-center gap-4">
+                          {/* Wind Compass */}
+                          <div className="relative w-14 h-14 flex-shrink-0">
+                            <svg viewBox="0 0 100 100" className="w-full h-full">
+                              {/* Outer circle */}
+                              <circle cx="50" cy="50" r="45" fill="none" stroke="#e5e7eb" strokeWidth="2" />
+                              {/* Cardinal directions */}
+                              <text x="50" y="12" textAnchor="middle" className="text-[10px] font-bold fill-gray-400">N</text>
+                              <text x="88" y="54" textAnchor="middle" className="text-[10px] font-bold fill-gray-400">E</text>
+                              <text x="50" y="96" textAnchor="middle" className="text-[10px] font-bold fill-gray-400">S</text>
+                              <text x="12" y="54" textAnchor="middle" className="text-[10px] font-bold fill-gray-400">W</text>
+                              {/* Wind direction arrow - points where wind is coming FROM */}
+                              <g transform={`rotate(${currentConditions.windDirectionDeg}, 50, 50)`}>
+                                <line x1="50" y1="20" x2="50" y2="55" stroke={
+                                  currentConditions.windType === 'offshore' ? '#059669' :
+                                  currentConditions.windType === 'onshore' ? '#ef4444' :
+                                  '#f59e0b'
+                                } strokeWidth="3" strokeLinecap="round" />
+                                <polygon points="50,15 44,28 56,28" fill={
+                                  currentConditions.windType === 'offshore' ? '#059669' :
+                                  currentConditions.windType === 'onshore' ? '#ef4444' :
+                                  '#f59e0b'
+                                } />
+                              </g>
+                              {/* Center dot */}
+                              <circle cx="50" cy="50" r="4" fill="#1f2937" />
+                            </svg>
+                          </div>
+                          {/* Wind data */}
+                          <div>
+                            <p className="text-3xl font-black text-black mb-1 leading-none uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                              {Math.round(currentConditions.windSpeedMph)}mph {(() => {
+                                  const directions = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+                                  const index = Math.round(currentConditions.windDirectionDeg / 22.5) % 16;
+                                  return directions[index];
+                              })()}
                             </p>
-                          )}
-                        </>
+                            {currentConditions.windType && (
+                              <p className={`text-sm font-semibold uppercase tracking-wider ${
+                                currentConditions.windType === 'offshore' ? 'text-emerald-600' :
+                                currentConditions.windType === 'onshore' ? 'text-red-500' :
+                                'text-amber-500'
+                              }`} style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                {currentConditions.windType}
+                              </p>
+                            )}
+                          </div>
+                        </div>
                       ) : (
-                        <p className="text-sm text-gray-500">No wind data</p>
+                        <p className="text-sm text-black uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>No wind data</p>
                       )}
                     </div>
 
                     {/* Tide */}
-                    <div>
-                      <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                    <div className="pl-8 md:pl-12">
+                      <p className="text-xs font-medium text-black uppercase tracking-wider mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                         Tide
                       </p>
                       {currentConditions.tideHeightFt !== null ? (
                         <>
                           <div className="flex items-center gap-2 mb-1">
-                            <p className="text-2xl font-semibold text-gray-900 leading-none" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                            <p className="text-3xl font-black text-black leading-none uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                               {(currentConditions.tideHeightFt / 10).toFixed(1)}ft
                             </p>
                             {currentConditions.tidePhase === "rising" && (
-                              <ArrowUp className="h-4 w-4 text-gray-700" />
+                              <ArrowUp className="h-4 w-4 text-black" />
                             )}
                             {currentConditions.tidePhase === "falling" && (
-                              <ArrowDown className="h-4 w-4 text-gray-700" />
+                              <ArrowDown className="h-4 w-4 text-black" />
                             )}
                           </div>
                           {currentConditions.tidePhase && (
-                            <p className="text-sm font-normal text-gray-700 capitalize" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                            <p className="text-sm font-normal text-black uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                               {currentConditions.tidePhase}
                             </p>
                           )}
                         </>
                       ) : (
-                        <p className="text-sm text-gray-500">No tide data</p>
+                        <p className="text-sm text-black uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>No tide data</p>
                       )}
                     </div>
 
                     {/* Temperature */}
                     <div>
-                      <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                      <p className="text-xs font-medium text-black uppercase tracking-wider mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                         Temperature
                       </p>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <Droplet className="h-5 w-5 text-blue-500" />
-                          <p className="text-2xl font-semibold text-gray-900 leading-none" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                            —°f
+                      {currentConditions.waterTempF !== null || currentConditions.airTempF !== null ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Droplet className="h-5 w-5 text-black" />
+                            <p className="text-3xl font-black text-black leading-none uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                              {currentConditions.waterTempF !== null ? `${Math.round(currentConditions.waterTempF)}°F` : '—'}
+                            </p>
+                            <span className="text-xs text-black uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>water</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Sun className="h-5 w-5 text-black" />
+                            <p className="text-3xl font-black text-black leading-none uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                              {currentConditions.airTempF !== null ? `${Math.round(currentConditions.airTempF)}°F` : '—'}
+                            </p>
+                            <span className="text-xs text-black uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>air</span>
+                    </div>
+                  </div>
+                ) : (
+                        <p className="text-sm text-black uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>No temp data</p>
+                      )}
+                    </div>
+
+                    {/* Wetsuit Required */}
+                    <div>
+                      <p className="text-xs font-medium text-black uppercase tracking-wider mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                        Wetsuit Required
+                      </p>
+                      {currentConditions.waterTempF !== null ? (
+                        <>
+                          {(() => {
+                            const { thickness, color } = getWetsuitRecommendation(currentConditions.waterTempF);
+                            return (
+                              <p className={`text-2xl md:text-3xl font-black leading-none uppercase tracking-tight mb-2 ${color}`} style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                                {thickness}
+                              </p>
+                            );
+                          })()}
+                          <p className="text-xs font-normal text-black uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                            {getWetsuitAccessories(currentConditions.waterTempF, currentConditions.airTempF)}
                           </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Sun className="h-5 w-5 text-yellow-500" />
-                          <p className="text-2xl font-semibold text-gray-900 leading-none" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                            —°f
+                        </>
+                      ) : (
+                        <p className="text-sm text-black uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>No temp data</p>
+                      )}
+                    </div>
+
+                    {/* Crowd Level */}
+                    <div>
+                      <p className="text-xs font-medium text-black uppercase tracking-wider mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                        Crowd Level
+                      </p>
+                      {crowdQuery.data?.averageLevel ? (
+                        <button
+                          onClick={() => isAuthenticated && setShowCrowdReport(!showCrowdReport)}
+                          className="w-full text-left hover:opacity-80 transition-opacity"
+                          disabled={!isAuthenticated}
+                        >
+                          <div className="flex items-center gap-2 mb-2">
+                            <Users className="h-5 w-5 text-black" />
+                            <div className="flex-1">
+                              <p className="text-2xl font-black text-black leading-none uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                                {getCrowdLabel(crowdQuery.data.averageLevel)}
+                              </p>
+                              <p className="text-xs text-gray-600 uppercase tracking-wider mt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                {crowdQuery.data.reports.length} {crowdQuery.data.reports.length === 1 ? 'report' : 'reports'}
+                              </p>
+                            </div>
+                            <div className={`w-3 h-3 rounded-full ${getCrowdColor(crowdQuery.data.averageLevel)}`} />
+                          </div>
+                          {isAuthenticated ? (
+                            <span className="text-xs font-bold text-black uppercase tracking-wider hover:underline" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                              {showCrowdReport ? 'Hide' : 'Click to Report'}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-gray-500 uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                              Sign in to report
+                            </span>
+                          )}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => isAuthenticated && setShowCrowdReport(!showCrowdReport)}
+                          className="w-full text-left hover:opacity-80 transition-opacity"
+                          disabled={!isAuthenticated}
+                        >
+                          <p className="text-sm text-gray-600 uppercase tracking-wider mb-2" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                            No reports yet
                           </p>
-                        </div>
+                          {isAuthenticated ? (
+                            <span className="text-xs font-bold text-black uppercase tracking-wider hover:underline" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                              {showCrowdReport ? 'Hide' : 'Be the first →'}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-gray-500 uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                              Sign in to report
+                            </span>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                    </div>
+
+                    {/* Expandable Crowd Report Section */}
+                    {showCrowdReport && (
+                      <div className="mt-6 pt-6 border-t-2 border-black">
+                        {isAuthenticated ? (
+                          <div className="space-y-4">
+                            <div>
+                              <div className="flex justify-between mb-3">
+                                <span className="text-sm font-bold text-black uppercase tracking-wide" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>How crowded is it?</span>
+                                <span className="text-sm font-bold text-black uppercase" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>{getCrowdLabel(crowdLevel).toUpperCase()}</span>
+                              </div>
+                              <Slider
+                                value={[crowdLevel]}
+                                onValueChange={(v) => setCrowdLevel(v[0])}
+                                min={1}
+                                max={5}
+                                step={1}
+                                className="w-full"
+                              />
+                              <div className="flex justify-between mt-2 text-xs font-semibold text-black uppercase tracking-wide" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                <span>Empty</span>
+                                <span>Packed</span>
+                              </div>
+                            </div>
+                            <Button
+                              onClick={() => {
+                                submitCrowdMutation.mutate({ spotId, crowdLevel });
+                                setShowCrowdReport(false);
+                              }}
+                              disabled={submitCrowdMutation.isPending}
+                              className="w-full bg-black hover:bg-gray-900 text-white border-2 border-black font-bold uppercase tracking-wide py-3"
+                              style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
+                            >
+                              {submitCrowdMutation.isPending ? "Submitting..." : "Submit Report"}
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="text-center py-4">
+                            <p className="text-black mb-4 font-semibold uppercase tracking-wide" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Sign in to submit crowd reports</p>
+                            <a href={getLoginUrl()}>
+                              <Button variant="outline" className="border-2 border-black text-black hover:bg-gray-100 font-bold uppercase tracking-wide" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                                Sign In
+                              </Button>
+                            </a>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                    </div>
+                    )}
                   </>
                 ) : (
                   <div className="text-center py-12">
-                    <p className="text-sm text-gray-500" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Loading conditions...</p>
+                    <p className="text-sm text-black uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Loading conditions...</p>
                     {timelineQuery.isLoading && (
-                      <Loader2 className="h-6 w-6 animate-spin text-gray-400 mx-auto mt-4" />
+                      <Loader2 className="h-6 w-6 animate-spin text-black mx-auto mt-4" />
                     )}
                   </div>
                 )}
               </div>
               
-              {/* Quality Bar - Red to Green with Diamond Indicator */}
+              {/* Quality Bar with Color Zones */}
               {forecast && (
                 <div className="px-6 pb-6">
-                  <div className="relative w-full h-4 bg-gradient-to-r from-red-600 to-green-600">
-                    {/* Diamond Indicator */}
+                  <div className="relative w-full h-4 rounded-full overflow-hidden">
+                    {/* Multi-zone gradient background */}
+                    <div className="absolute inset-0 flex">
+                      <div className="w-[40%] bg-gradient-to-r from-red-500 to-red-400" /> {/* 0-39: Don't Bother */}
+                      <div className="w-[20%] bg-gradient-to-r from-red-400 to-yellow-500" /> {/* 40-59: Worth a Look */}
+                      <div className="w-[16%] bg-gradient-to-r from-yellow-500 to-lime-500" /> {/* 60-75: Go Surf */}
+                      <div className="w-[15%] bg-gradient-to-r from-lime-500 to-green-600" /> {/* 76-90: Firing */}
+                      <div className="w-[9%] bg-gradient-to-r from-green-600 to-emerald-600" /> {/* 91-100: All-Time */}
+                    </div>
+                    
+                    {/* Diamond indicator */}
                     <div
-                      className="absolute top-1/2 -translate-y-1/2"
+                      className="absolute top-1/2 -translate-y-1/2 z-10"
                       style={{
-                        left: `${Math.min(100, Math.max(0, currentConditions?.probabilityScore ?? forecast.probabilityScore))}%`,
+                        left: `${Math.min(100, Math.max(0, currentConditions?.quality_score ?? forecast.qualityScore ?? 0))}%`,
                         transform: `translate(-50%, -50%) rotate(45deg)`,
                         width: '12px',
                         height: '12px',
@@ -1121,31 +1683,118 @@ export default function SpotDetail() {
                       }}
                     />
                   </div>
+                  
+                  {/* Rating label - clickable to show breakdown */}
+                  <button
+                    onClick={() => setShowScoreBreakdown(!showScoreBreakdown)}
+                    className="w-full text-center mt-2 group cursor-pointer"
+                  >
+                    <span className="text-sm font-medium text-black uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                      {getRatingLabel(currentConditions?.quality_score ?? forecast.qualityScore ?? 0)}
+                    </span>
+                    <span className="ml-2 text-xs text-gray-500 group-hover:text-black transition-colors" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      {showScoreBreakdown ? '▲ Hide breakdown' : '▼ Why this rating?'}
+                    </span>
+                  </button>
+
+                  {/* Score Breakdown - Expandable */}
+                  {showScoreBreakdown && currentConditions && (
+                    <div className="mt-4 pt-4 border-t border-gray-200 animate-in slide-in-from-top-2 duration-200">
+                      <div className="flex justify-center gap-8">
+                        {/* Swell Score */}
+                        <div className="text-center">
+                          <div className="text-xs text-gray-500 uppercase tracking-wider mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Swell</div>
+                          <div className={`text-2xl font-black ${
+                            (currentConditions.dominantSwellHeightFt ?? 0) >= 3 ? 'text-emerald-600' :
+                            (currentConditions.dominantSwellHeightFt ?? 0) >= 2 ? 'text-amber-500' :
+                            'text-red-500'
+                          }`} style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                            {currentConditions.dominantSwellHeightFt ? `${Number(currentConditions.dominantSwellHeightFt).toFixed(1)}ft` : '—'}
+                          </div>
+                          <div className="text-[10px] text-gray-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                            {currentConditions.dominantSwellPeriodS ? `${Math.round(currentConditions.dominantSwellPeriodS)}s period` : ''}
+                          </div>
+                        </div>
+
+                        {/* Wind Score */}
+                        <div className="text-center">
+                          <div className="text-xs text-gray-500 uppercase tracking-wider mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Wind</div>
+                          <div className={`text-2xl font-black ${
+                            currentConditions.windType === 'offshore' ? 'text-emerald-600' :
+                            currentConditions.windType === 'onshore' ? 'text-red-500' :
+                            'text-amber-500'
+                          }`} style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                            {currentConditions.windType === 'offshore' ? '✓' :
+                             currentConditions.windType === 'onshore' ? '✗' : '~'}
+                          </div>
+                          <div className="text-[10px] text-gray-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                            {currentConditions.windSpeedMph ? `${Math.round(currentConditions.windSpeedMph)}mph ${currentConditions.windType ?? ''}` : '—'}
+                          </div>
+                        </div>
+
+                        {/* Tide Score */}
+                        <div className="text-center">
+                          <div className="text-xs text-gray-500 uppercase tracking-wider mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Tide</div>
+                          <div className={`text-2xl font-black ${
+                            currentConditions.tidePhase === 'rising' || currentConditions.tidePhase === 'falling' ? 'text-emerald-600' :
+                            'text-amber-500'
+                          }`} style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                            {currentConditions.tidePhase === 'rising' ? '↑' :
+                             currentConditions.tidePhase === 'falling' ? '↓' :
+                             currentConditions.tidePhase === 'high' ? '▲' : '▼'}
+                          </div>
+                          <div className="text-[10px] text-gray-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                            {currentConditions.tideHeightFt ? `${(currentConditions.tideHeightFt / 10).toFixed(1)}ft ${currentConditions.tidePhase ?? ''}` : '—'}
+                          </div>
+                        </div>
+
+                        {/* Overall Score */}
+                        <div className="text-center">
+                          <div className="text-xs text-gray-500 uppercase tracking-wider mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Score</div>
+                          <div className="text-2xl font-black text-black" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                            {Math.round(currentConditions.quality_score ?? forecast.qualityScore ?? 0)}
+                          </div>
+                          <div className="text-[10px] text-gray-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                            out of 100
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
               
               {/* Local Insight */}
               {forecast && currentConditions && (
                 <div className="px-6 pb-6 border-t border-black pt-4">
-                  <p className="text-sm italic text-black" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    {getSurfReport(currentConditions.probabilityScore ?? forecast.probabilityScore, currentConditions)}
+                  <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    LOCAL INSIGHT
+                  </span>
+                  <p className="mt-2 text-sm text-gray-700" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                    Coming soon...
                   </p>
                 </div>
               )}
             </div>
 
-            {/* Forecast Timeline - Multi-Day Forecast - NYC Style */}
-            <div className="bg-white border border-black relative" style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E")`,
-            }}>
+            {/* Forecast Timeline - Multi-Day Forecast - NYC Grit Style */}
+            <div className="bg-white border border-black">
               <div className="p-6 border-b border-black">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h2 className="text-2xl font-bold text-black mb-1 uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                      72-HOUR FORECAST
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-8 h-8 bg-black flex items-center justify-center">
+                        <Clock className="w-4 h-4 text-white" />
+                      </div>
+                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        MARINE FORECAST
+                      </span>
+                    </div>
+                    <h2 className="text-4xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.02em' }}>
+                      5-DAY FORECAST
                     </h2>
-                    <p className="text-xs font-bold text-black uppercase tracking-wider" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                      QUALITY SCORES FOR THE NEXT 3 DAYS
+                    <p className="mt-3 text-base text-gray-700 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                      Quality scores and conditions for the next 5 days
                     </p>
                   </div>
                   {(!timelineQuery.data?.timeline || timelineQuery.data.timeline.length === 0) && (
@@ -1171,17 +1820,324 @@ export default function SpotDetail() {
                     </Button>
                   )}
                 </div>
+                {/* Tab Navigation */}
+                {timelineQuery.data?.timeline && timelineQuery.data.timeline.length > 0 && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setForecastView("timeline")}
+                      className={cn(
+                        "px-6 py-3 text-sm font-bold uppercase tracking-wide transition-all duration-200 border-2",
+                        forecastView === "timeline"
+                          ? "bg-black text-white border-black"
+                          : "bg-white text-black border-black hover:bg-gray-100"
+                      )}
+                      style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
+                    >
+                      Timeline
+                    </button>
+                    <button
+                      onClick={() => setForecastView("chart")}
+                      className={cn(
+                        "px-6 py-3 text-sm font-bold uppercase tracking-wide transition-all duration-200 border-2",
+                        forecastView === "chart"
+                          ? "bg-black text-white border-black"
+                          : "bg-white text-black border-black hover:bg-gray-100"
+                      )}
+                      style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
+                    >
+                      Chart
+                    </button>
+                  </div>
+                )}
               </div>
               {timelineQuery.isLoading ? (
                 <div className="p-6">
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-black" />
-                    <span className="ml-2 text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Loading forecast timeline...</span>
+                  <div className="flex items-center justify-center py-12">
+                    <div className="flex items-center gap-3">
+                      <Loader2 className="h-6 w-6 animate-spin text-black" />
+                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        LOADING FORECAST DATA...
+                      </span>
+                    </div>
                   </div>
                 </div>
               ) : timelineQuery.data?.timeline && timelineQuery.data.timeline.length > 0 ? (
-                <div className="p-6">
-                  <div className="space-y-3">
+                forecastView === "chart" ? (
+                  (() => {
+                    // Debug: Log timeline data structure
+                    if (timelineQuery.data.timeline.length > 0) {
+                      const samplePoint = timelineQuery.data.timeline[0];
+                      console.log('[Chart Debug] Timeline point sample:', {
+                        forecastTimestamp: samplePoint.forecastTimestamp,
+                        dominantSwellLabel: samplePoint.dominantSwellLabel,
+                        dominantSwellPeriodS: samplePoint.dominantSwellPeriodS,
+                        dominantSwellHeightFt: samplePoint.dominantSwellHeightFt,
+                        breakingWaveHeightFt: samplePoint.breakingWaveHeightFt,
+                        waveHeightFt: samplePoint.waveHeightFt,
+                        quality_score: samplePoint.quality_score,
+                        hasAllFields: {
+                          dominantSwellLabel: 'dominantSwellLabel' in samplePoint,
+                          dominantSwellPeriodS: 'dominantSwellPeriodS' in samplePoint,
+                        },
+                        // Check all swell-related fields
+                        allSwellFields: {
+                          dominantSwellLabel: (samplePoint as any).dominantSwellLabel,
+                          dominantSwellPeriodS: (samplePoint as any).dominantSwellPeriodS,
+                          dominantSwellHeightFt: (samplePoint as any).dominantSwellHeightFt,
+                          dominantSwellType: (samplePoint as any).dominantSwellType,
+                        }
+                      });
+                    }
+                    const chartData = processTimelineForAreaChart(timelineQuery.data.timeline);
+                    if (chartData.length > 0) {
+                      console.log('[Chart Debug] Chart data sample:', {
+                        swellLabel: chartData[0].swellLabel,
+                        waveHeight: chartData[0].waveHeight,
+                        timestamp: chartData[0].timestamp,
+                      });
+                      // Log multiple points to see if labels vary
+                      console.log('[Chart Debug] First 5 chart points swell labels:', 
+                        chartData.slice(0, 5).map(p => ({ 
+                          time: p.timeLabel, 
+                          swellLabel: p.swellLabel,
+                          waveHeight: p.waveHeight 
+                        }))
+                      );
+                    }
+                    return (
+                      <>
+                        <WaveHeightChart 
+                          key={`chart-${timelineQuery.dataUpdatedAt || Date.now()}`} 
+                          data={chartData}
+                          selectedIndex={selectedChartPoint?.index}
+                          onPointSelect={(index, chartPoint) => {
+                            // Find the corresponding timeline point
+                            const timelinePoint = timelineQuery.data?.timeline?.find(p => {
+                              const chartTime = new Date(chartPoint.timestamp);
+                              const timelineTime = new Date(p.forecastTimestamp);
+                              return Math.abs(chartTime.getTime() - timelineTime.getTime()) < 30 * 60 * 1000; // Within 30 min
+                            });
+                            
+                            if (timelinePoint) {
+                              setSelectedChartPoint({ index, timelinePoint, chartPoint });
+                            }
+                          }}
+                        />
+                        {/* Bottom Section - Conditions Summary and Details */}
+                        {selectedChartPoint?.timelinePoint && (() => {
+                          // Use chart point's condition if available (already calculated), otherwise calculate from score
+                          const condition = selectedChartPoint.chartPoint?.condition ?? getConditionFromScore(selectedChartPoint.timelinePoint.quality_score ?? 0);
+                          const bannerColors = getBannerColor(condition);
+                          
+                          return (
+                            <div className="mt-6 space-y-4">
+                              {/* Conditions Summary Banner */}
+                              <div className={`${bannerColors.text} p-4 border border-black`} style={{ backgroundColor: bannerColors.bg }}>
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <span className="text-sm font-medium uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                      Conditions are {formatSurfHeight(selectedChartPoint.timelinePoint.dominantSwellHeightFt ?? selectedChartPoint.timelinePoint.waveHeightFt ?? 0)} and {formatConditionLabel(condition)} at {new Date(selectedChartPoint.timelinePoint.forecastTimestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })} on {new Date(selectedChartPoint.timelinePoint.forecastTimestamp).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                                    </span>
+                                  </div>
+                                  <button
+                                    onClick={() => setSelectedChartPoint(null)}
+                                    className="text-white hover:text-gray-200 text-xl font-bold"
+                                    style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              </div>
+
+                            {/* Detailed Forecast Panel - Two Row Grid */}
+                            {(() => {
+                              const point = selectedChartPoint.timelinePoint;
+                              
+                              // Calculate energy percentages
+                              const primaryEnergy = calculateEnergyPercentage(
+                                point.dominantSwellHeightFt ?? point.waveHeightFt,
+                                point.dominantSwellPeriodS ?? point.wavePeriodSec ?? null
+                              );
+                              const secondaryEnergy = calculateEnergyPercentage(
+                                point.secondarySwellHeightFt ?? null,
+                                point.secondarySwellPeriodS ?? null
+                              );
+                              const windSwellEnergy = calculateEnergyPercentage(
+                                point.windWaveHeightFt ?? null,
+                                point.windWavePeriodS ?? null
+                              );
+
+                              // Get swell data
+                              const primaryDir = point.dominantSwellDirectionDeg ?? point.waveDirectionDeg ?? 0;
+                              const secondaryDir = point.secondarySwellDirectionDeg ?? 0;
+                              const windSwellDir = point.windWaveDirectionDeg ?? 0;
+
+                              // Wind data
+                              const windDir = point.windDirectionDeg ?? 0;
+                              const windSpeed = point.windSpeedMph ?? null;
+                              const windType = point.windType ?? null;
+
+                              // Tide data
+                              const tideHeight = point.tideHeightFt !== null ? point.tideHeightFt / 10 : null;
+                              const tidePhase = point.tidePhase;
+                              const tideArrow = tidePhase === 'rising' ? '↗' : tidePhase === 'falling' ? '↘' : '';
+                              
+                              // Find next tide event
+                              const currentTime = new Date(point.forecastTimestamp);
+                              const futureTides = timelineQuery.data?.timeline?.filter(p => {
+                                const time = new Date(p.forecastTimestamp);
+                                return time > currentTime && (p.tidePhase === 'high' || p.tidePhase === 'low');
+                              }) || [];
+                              const nextTide = futureTides[0];
+                              const nextTideTime = nextTide ? new Date(nextTide.forecastTimestamp) : null;
+                              const nextTideHeight = nextTide && nextTide.tideHeightFt !== null ? nextTide.tideHeightFt / 10 : null;
+                              const nextTidePhase = nextTide?.tidePhase;
+
+                              return (
+                                <div className="border border-black bg-white">
+                                  {/* Row 1: Three Swell Columns */}
+                                  <div className="grid grid-cols-1 md:grid-cols-3 border-b border-black">
+                                    {/* Primary Swell */}
+                                    <div className="p-5 border-b md:border-b-0 md:border-r border-black">
+                                      <div className="uppercase mb-2" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', fontWeight: 700, color: '#64748b', letterSpacing: '0.5px' }}>
+                                        PRIMARY
+                                      </div>
+                                      {point.dominantSwellHeightFt && point.dominantSwellPeriodS ? (
+                                        <>
+                                          {/* Energy Bar */}
+                                          <div className="flex items-center gap-2 mb-3">
+                                            <div className="flex-1 h-2 bg-[#e2e8f0] relative" style={{ height: '8px' }}>
+                                              <div 
+                                                className="h-full bg-[#3b82f6]" 
+                                                style={{ width: `${primaryEnergy}%` }}
+                                              />
+                                            </div>
+                                            <span className="text-xs font-semibold text-black" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', fontWeight: 600 }}>
+                                              {primaryEnergy}%
+                                            </span>
+                                          </div>
+                                          {/* Swell Info */}
+                                          <div className="text-[#1e293b]" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '14px', fontWeight: 600 }}>
+                                            {getSwellDirectionLabel(primaryDir)} {Math.round(primaryDir)}° | {Number(point.dominantSwellHeightFt).toFixed(1)}ft @ {Number(point.dominantSwellPeriodS).toFixed(0)}s
+                                          </div>
+                                        </>
+                                      ) : (
+                                        <div className="text-sm text-gray-500">—</div>
+                                      )}
+                                    </div>
+
+                                    {/* Secondary Swell */}
+                                    <div className="p-5 border-b md:border-b-0 md:border-r border-black">
+                                      <div className="uppercase mb-2" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', fontWeight: 700, color: '#64748b', letterSpacing: '0.5px' }}>
+                                        SECONDARY
+                                      </div>
+                                      {point.secondarySwellHeightFt && point.secondarySwellPeriodS ? (
+                                        <>
+                                          {/* Energy Bar */}
+                                          <div className="flex items-center gap-2 mb-3">
+                                            <div className="flex-1 h-2 bg-[#e2e8f0] relative" style={{ height: '8px' }}>
+                                              <div 
+                                                className="h-full bg-[#94a3b8]" 
+                                                style={{ width: `${secondaryEnergy}%` }}
+                                              />
+                                            </div>
+                                            <span className="text-xs font-semibold text-black" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', fontWeight: 600 }}>
+                                              {secondaryEnergy}%
+                                            </span>
+                                          </div>
+                                          {/* Swell Info */}
+                                          <div className="text-[#1e293b]" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '14px', fontWeight: 600 }}>
+                                            {getSwellDirectionLabel(secondaryDir)} {Math.round(secondaryDir)}° | {Number(point.secondarySwellHeightFt).toFixed(1)}ft @ {Number(point.secondarySwellPeriodS).toFixed(0)}s
+                                          </div>
+                                        </>
+                                      ) : (
+                                        <div className="text-sm text-gray-500">—</div>
+                                      )}
+                                    </div>
+
+                                    {/* Wind Swell */}
+                                    <div className="p-5 md:border-b-0 md:border-r-0">
+                                      <div className="uppercase mb-2" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', fontWeight: 700, color: '#64748b', letterSpacing: '0.5px' }}>
+                                        WIND SWELL
+                                      </div>
+                                      {point.windWaveHeightFt && point.windWavePeriodS ? (
+                                        <>
+                                          {/* Energy Bar */}
+                                          <div className="flex items-center gap-2 mb-3">
+                                            <div className="flex-1 h-2 bg-[#e2e8f0] relative" style={{ height: '8px' }}>
+                                              <div 
+                                                className="h-full bg-[#f97316]" 
+                                                style={{ width: `${windSwellEnergy}%` }}
+                                              />
+                                            </div>
+                                            <span className="text-xs font-semibold text-black" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', fontWeight: 600 }}>
+                                              {windSwellEnergy}%
+                                            </span>
+                                          </div>
+                                          {/* Swell Info */}
+                                          <div className="text-[#1e293b]" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '14px', fontWeight: 600 }}>
+                                            {getSwellDirectionLabel(windSwellDir)} {Math.round(windSwellDir)}° | {Number(point.windWaveHeightFt).toFixed(1)}ft @ {Number(point.windWavePeriodS).toFixed(0)}s
+                                          </div>
+                                        </>
+                                      ) : (
+                                        <div className="text-sm text-gray-500">—</div>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Row 2: Wind and Tide */}
+                                  <div className="grid grid-cols-1 md:grid-cols-[40%_60%]">
+                                    {/* Wind Column */}
+                                    <div className="p-5 border-b md:border-b-0 md:border-r border-black">
+                                      <div className="uppercase mb-2" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', fontWeight: 700, color: '#64748b', letterSpacing: '0.5px' }}>
+                                        WIND
+                                      </div>
+                                      {windDir !== null && windSpeed !== null ? (
+                                        <>
+                                          <div className="text-[#1e293b] mb-1.5" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '16px', fontWeight: 700 }}>
+                                            {getSwellDirectionLabel(windDir)} {Math.round(windDir)}° {getWindArrow(windDir)}
+                                          </div>
+                                          <div className="text-[#64748b]" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '14px', fontWeight: 600 }}>
+                                            {Math.round(windSpeed)}mph {windType ? formatWindType(windType) : ''}
+                                          </div>
+                                        </>
+                                      ) : (
+                                        <div className="text-sm text-gray-500">—</div>
+                                      )}
+                                    </div>
+
+                                    {/* Tide Column */}
+                                    <div className="p-5 md:border-b-0 md:border-r-0">
+                                      <div className="uppercase mb-2" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', fontWeight: 700, color: '#64748b', letterSpacing: '0.5px' }}>
+                                        TIDE
+                                      </div>
+                                      {tideHeight !== null ? (
+                                        <>
+                                          <div className="text-[#1e293b] mb-1.5" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '16px', fontWeight: 700 }}>
+                                            {tideHeight.toFixed(1)}ft {tideArrow} {tidePhase ? tidePhase.charAt(0).toUpperCase() + tidePhase.slice(1) : ''}
+                                          </div>
+                                          {nextTideTime && nextTideHeight !== null && (
+                                            <div className="text-[#64748b]" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '14px', fontWeight: 600 }}>
+                                              {nextTidePhase === 'high' ? 'High' : 'Low'} @ {nextTideTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })} ({nextTideHeight.toFixed(1)}ft)
+                                            </div>
+                                          )}
+                                        </>
+                                      ) : (
+                                        <div className="text-sm text-gray-500">—</div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                          );
+                        })()}
+                      </>
+                    );
+                  })()
+                ) : (
+                <div className="divide-y-2 divide-black">
                     {groupedTimeline.map(([dayKey, points], dayIndex) => {
                       const today = new Date();
                       today.setHours(0, 0, 0, 0);
@@ -1202,22 +2158,15 @@ export default function SpotDetail() {
                           : 0;
                         const bestScore = validScores.length > 0 ? Math.max(...validScores) : 0;
                         
-                        // Prefer breaking_wave_height, fallback to waveHeightFt
-                        const breakingHeights = points.map(p => p.breaking_wave_height).filter(h => h !== null && h !== undefined) as string[];
-                        const heightRange = breakingHeights.length > 0 
-                          ? breakingHeights[0] // Show first breaking height (most common will be first)
-                          : (() => {
-                              const validHeights = points.map(p => p.waveHeightFt).filter(h => h !== null && h > 0) as number[];
-                              const minHeight = validHeights.length > 0 ? Math.min(...validHeights) : null;
-                              const maxHeight = validHeights.length > 0 ? Math.max(...validHeights) : null;
-                              return minHeight && maxHeight 
-                                ? minHeight === maxHeight 
-                                  ? `${minHeight.toFixed(1)}ft`
-                                  : `${minHeight.toFixed(1)}-${maxHeight.toFixed(1)}ft`
-                                : "N/A";
-                            })();
-                        
-                        const validPeriods = points.map(p => p.wavePeriodSec).filter(p => p !== null && p > 0) as number[];
+                        // Use breakingWaveHeightFt which accounts for period (3s wind chop != surfable waves)
+                        // 0 is a valid value meaning flat conditions, so we use explicit null check
+                        const validHeights = points.map(p => p.breakingWaveHeightFt !== null ? p.breakingWaveHeightFt : (p.dominantSwellHeightFt ?? p.waveHeightFt)).filter(h => h !== null) as number[];
+                        const avgHeight = validHeights.length > 0
+                          ? validHeights.reduce((a, b) => a + b, 0) / validHeights.length
+                          : null;
+                        const heightRange = avgHeight !== null ? `${avgHeight.toFixed(1)}ft` : "N/A";
+
+                        const validPeriods = points.map(p => p.dominantSwellPeriodS ?? p.wavePeriodSec).filter(p => p !== null && p > 0) as number[];
                         const avgPeriod = validPeriods.length > 0
                           ? (validPeriods.reduce((a, b) => a + b, 0) / validPeriods.length).toFixed(1)
                           : "N/A";
@@ -1250,27 +2199,98 @@ export default function SpotDetail() {
                             : "Low Confidence";
                         }
                         
-                        // Day label
+                        // Day label - uppercase format
                         let dayLabel = "";
+                        let fullDayName = "";
                         if (isToday) {
-                          dayLabel = `Today (${dayDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })})`;
+                          fullDayName = "TODAY";
+                          dayLabel = `TODAY (${dayDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase()})`;
                         } else if (isTomorrow) {
-                          dayLabel = `Tomorrow (${dayDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })})`;
+                          fullDayName = "TOMORROW";
+                          dayLabel = `TOMORROW (${dayDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase()})`;
                         } else {
-                          dayLabel = dayDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                          fullDayName = getFullDayName(dayDate);
+                          dayLabel = `${fullDayName} (${dayDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase()})`;
                         }
+                        
+                        // Calculate average quality rating for the day
+                        const avgQualityRating = getRatingLabel(avgScore);
+                        const verdictLabel = getVerdictLabel(avgQualityRating);
+                        
+                        // Calculate wave height range (min-max) for AM and PM separately
+                        const amPoints = points.filter(p => {
+                          const date = new Date(p.forecastTimestamp);
+                          return date.getHours() < 12;
+                        });
+                        const pmPoints = points.filter(p => {
+                          const date = new Date(p.forecastTimestamp);
+                          return date.getHours() >= 12;
+                        });
+                        
+                        const calculateConditions = (pointSet: typeof points) => {
+                          // Use breakingWaveHeightFt which accounts for period (3s wind chop != surfable waves)
+                          // 0 is a valid value meaning flat conditions, so we use explicit null check
+                          const heights = pointSet.map(p => p.breakingWaveHeightFt !== null ? p.breakingWaveHeightFt : (p.dominantSwellHeightFt ?? p.waveHeightFt)).filter(h => h !== null) as number[];
+                          const periods = pointSet.map(p => p.dominantSwellPeriodS ?? p.wavePeriodSec).filter(p => p !== null && p > 0) as number[];
+
+                          if (heights.length === 0 || periods.length === 0) {
+                            return { heightStr: "N/A", periodStr: "N/A" };
+                          }
+
+                          // Use average height - formatSurfHeight already returns a range label like "3-4ft"
+                          const avgHeight = heights.reduce((a, b) => a + b, 0) / heights.length;
+                          const avgPeriod = (periods.reduce((a, b) => a + b, 0) / periods.length).toFixed(0);
+
+                          return { heightStr: formatSurfHeight(avgHeight), periodStr: `${avgPeriod}s` };
+                        };
+                        
+                        const amConditions = calculateConditions(amPoints);
+                        const pmConditions = calculateConditions(pmPoints);
+                        
+                        let conditionsStr = "CONDITIONS";
+                        if (amConditions.heightStr !== "N/A" && pmConditions.heightStr !== "N/A") {
+                          conditionsStr = `CONDITIONS AM: ${amConditions.heightStr} ${amConditions.periodStr} PM: ${pmConditions.heightStr} ${pmConditions.periodStr}`;
+                        } else if (amConditions.heightStr !== "N/A") {
+                          conditionsStr = `CONDITIONS AM: ${amConditions.heightStr} ${amConditions.periodStr}`;
+                        } else if (pmConditions.heightStr !== "N/A") {
+                          conditionsStr = `CONDITIONS PM: ${pmConditions.heightStr} ${pmConditions.periodStr}`;
+                        } else {
+                          conditionsStr = "CONDITIONS: N/A";
+                        }
+                        
+                        // Calculate average wind for the day
+                        const validWindSpeeds = points.map(p => p.windSpeedMph).filter(s => s !== null) as number[];
+                        const validWindDirs = points.map(p => p.windDirectionDeg).filter(d => d !== null) as number[];
+                        const avgWindSpeed = validWindSpeeds.length > 0 
+                          ? Math.round(validWindSpeeds.reduce((a, b) => a + b, 0) / validWindSpeeds.length)
+                          : null;
+                        // Average wind direction (handle 360° wrap-around)
+                        let avgWindDir: number | null = null;
+                        if (validWindDirs.length > 0) {
+                          const sinSum = validWindDirs.reduce((sum, dir) => sum + Math.sin(dir * Math.PI / 180), 0);
+                          const cosSum = validWindDirs.reduce((sum, dir) => sum + Math.cos(dir * Math.PI / 180), 0);
+                          avgWindDir = Math.round((Math.atan2(sinSum / validWindDirs.length, cosSum / validWindDirs.length) * 180 / Math.PI + 360) % 360);
+                        }
+                        const windDirCardinal = avgWindDir !== null ? formatDirection(avgWindDir) : null;
+                        
+                        // Calculate confidence percentage (High = 95%, Medium = 75%, Low = 50%)
+                        const confidencePercentage = displayConfidence === "High" ? 95 : displayConfidence === "Medium" ? 75 : 50;
                         
                         const isExpanded = expandedDays.has(dayKey);
                         
+                        // Calculate best windows for use in expanded section
+                        const bestWindows = analyzeBestWindows(points);
+                        const avoidWindows = findAvoidWindows(points);
+
+                        // Format average height for display
+                        const displayAvgHeight = avgHeight !== null ? formatSurfHeight(avgHeight) : "N/A";
+
                         return (
                           <div
                             key={dayKey}
-                            className="bg-white border border-black transition-all mb-3"
-                            style={{
-                              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E")`,
-                            }}
+                            className={`${getCardBackgroundColor(avgScore)} transition-all`}
                           >
-                            {/* Day Summary Card */}
+                            {/* Day Summary Card - Secondary Season Format */}
                             <button
                               onClick={() => {
                                 const newExpanded = new Set(expandedDays);
@@ -1281,175 +2301,444 @@ export default function SpotDetail() {
                                 }
                                 setExpandedDays(newExpanded);
                               }}
-                              className="w-full p-4 hover:bg-gray-50 transition-colors text-left border-b border-black"
+                              className="w-full p-6 text-left"
                             >
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-3 mb-2">
-                                    <h3 className="text-lg font-bold text-black" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>{dayLabel}</h3>
-                                    <span className={`text-xs uppercase tracking-wider px-2 py-1 border border-black ${
-                                      displayConfidence === "High"
-                                        ? "bg-green-600 text-white"
-                                        : displayConfidence === "Medium"
-                                        ? "bg-yellow-500 text-black"
-                                        : "bg-red-600 text-white"
-                                    }`} style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                                      {confidenceLabel}
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1 min-w-0">
+                                  {/* Main verdict line: DAY - VERDICT BADGE - CONFIDENCE */}
+                                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                    <h4 className="text-2xl font-black text-black uppercase" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                                      {fullDayName}
+                                    </h4>
+                                    <span className={`${getScoreBadgeColors(avgScore).bg} ${getScoreBadgeColors(avgScore).text} px-2 py-0.5 text-[10px] font-medium tracking-widest uppercase`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                      {verdictLabel.toUpperCase()}
+                                    </span>
+                                    <span className="text-[10px] font-medium tracking-widest text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                      {confidencePercentage}% CONFIDENCE
                                     </span>
                                   </div>
-                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                                    <div>
-                                      <span className="text-black font-bold uppercase tracking-wide" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>BEST:</span>
-                                      <span
-                                        className={`ml-2 font-bold ${
-                                          bestScore >= 70
-                                            ? "text-green-600"
-                                            : bestScore >= 40
-                                            ? "text-yellow-500"
-                                            : "text-red-600"
-                                        }`}
-                                        style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                                      >
-                                        {bestScore}
-                                      </span>
-                                    </div>
-                                    <div>
-                                      <span className="text-black font-bold uppercase tracking-wide" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>AVG:</span>
-                                      <span
-                                        className={`ml-2 font-bold ${
-                                          avgScore >= 70
-                                            ? "text-green-600"
-                                            : avgScore >= 40
-                                            ? "text-yellow-500"
-                                            : "text-red-600"
-                                        }`}
-                                        style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                                      >
-                                        {avgScore}
-                                      </span>
-                                    </div>
-                                    <div>
-                                      <span className="text-black font-bold uppercase tracking-wide" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>HEIGHT:</span>
-                                      <span className="ml-2 font-normal text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>{heightRange}</span>
-                                    </div>
-                                    <div>
-                                      <span className="text-black font-bold uppercase tracking-wide" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>PERIOD:</span>
-                                      <span className="ml-2 font-bold text-black" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>{avgPeriod}s</span>
-                                    </div>
-                                  </div>
+
+                                  {/* Date + Stats line */}
+                                  <p className="text-xs text-gray-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                    <span className="font-semibold">{dayDate.toLocaleDateString("en-US", { weekday: 'short', month: "short", day: "numeric" })}</span>
+                                    <span className="mx-2">•</span>
+                                    <span className="font-bold text-black">{displayAvgHeight}</span>
+                                    {avgWindSpeed !== null && windDirCardinal && (
+                                      <>
+                                        <span className="mx-2">•</span>
+                                        <span className="font-bold text-black">{windDirCardinal.cardinal} {(() => {
+                                          const goingTo = (windDirCardinal.degrees + 180) % 360;
+                                          if (goingTo >= 337.5 || goingTo < 22.5) return '↑';
+                                          if (goingTo >= 22.5 && goingTo < 67.5) return '↗';
+                                          if (goingTo >= 67.5 && goingTo < 112.5) return '→';
+                                          if (goingTo >= 112.5 && goingTo < 157.5) return '↘';
+                                          if (goingTo >= 157.5 && goingTo < 202.5) return '↓';
+                                          if (goingTo >= 202.5 && goingTo < 247.5) return '↙';
+                                          if (goingTo >= 247.5 && goingTo < 292.5) return '←';
+                                          return '↖';
+                                        })()} {avgWindSpeed}mph</span>
+                                      </>
+                                    )}
+                                  </p>
                                 </div>
-                                <div className="ml-4">
+
+                                {/* Expand/Collapse Chevron */}
+                                <div className="flex-shrink-0 self-center">
                                   {isExpanded ? (
-                                    <ChevronUp className="h-5 w-5 text-black" />
+                                    <ChevronUp className="h-6 w-6 text-black" />
                                   ) : (
-                                    <ChevronDown className="h-5 w-5 text-black" />
+                                    <ChevronDown className="h-6 w-6 text-black" />
                                   )}
                                 </div>
                               </div>
                             </button>
-                            
-                            {/* Hourly Breakdown (Expandable) */}
+
+                            {/* Expandable Section - Two White Boxes + Hourly Breakdown */}
                             <div
-                              className={`border-t border-black bg-white overflow-hidden transition-all duration-300 ease-in-out ${
+                              className={`overflow-hidden transition-all duration-300 ease-in-out ${
                                 isExpanded ? "max-h-[5000px] opacity-100" : "max-h-0 opacity-0"
                               }`}
                             >
-                              <div className="p-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                              <div className="px-6 pb-6">
+                                {/* Three White Boxes - CONDITIONS, BEST WINDOWS, and TIDE FORECAST */}
+                                <div className="grid md:grid-cols-3 gap-3 mb-6">
+                                  {/* CONDITIONS Box */}
+                                  <div className="bg-white border-2 border-black p-3">
+                                    <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>CONDITIONS</span>
+                                    <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                      {amConditions.heightStr !== "N/A" && pmConditions.heightStr !== "N/A" ? (
+                                        <><span className="font-semibold">AM:</span> {amConditions.heightStr} @ {amConditions.periodStr} <span className="font-semibold">·</span> <span className="font-semibold">PM:</span> {pmConditions.heightStr} @ {pmConditions.periodStr}</>
+                                      ) : amConditions.heightStr !== "N/A" ? (
+                                        <><span className="font-semibold">AM:</span> {amConditions.heightStr} @ {amConditions.periodStr}</>
+                                      ) : pmConditions.heightStr !== "N/A" ? (
+                                        <><span className="font-semibold">PM:</span> {pmConditions.heightStr} @ {pmConditions.periodStr}</>
+                                      ) : (
+                                        <>N/A</>
+                                      )}
+                                    </p>
+                                  </div>
+
+                                  {/* BEST WINDOWS Box */}
+                                  <div className="bg-white border-2 border-black p-3">
+                                    <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>BEST WINDOWS</span>
+                                    {bestWindows.length === 0 ? (
+                                      <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                        {(() => {
+                                          const allScores = points.map(p => p.quality_score ?? p.probabilityScore ?? 0);
+                                          const allBelow50 = allScores.every(s => s < 50);
+
+                                          if (allBelow50) {
+                                            const avgWindType = points.filter(p => p.windType === "onshore").length > points.length / 2 ? "onshore" : null;
+                                            const avgPeriodNum = validPeriods.length > 0 ? validPeriods.reduce((a, b) => a + b, 0) / validPeriods.length : 0;
+                                            const avgHeightNum = validHeights.length > 0 ? validHeights.reduce((a, b) => a + b, 0) / validHeights.length : 0;
+
+                                            if (avgHeightNum < 2 && avgPeriodNum < 6 && avgWindType === "onshore") {
+                                              return "None – small waves, short period, onshore winds all day";
+                                            } else if (avgHeightNum < 2) {
+                                              return "None – small waves all day";
+                                            } else if (avgPeriodNum < 6) {
+                                              return "None – short period all day";
+                                            } else if (avgWindType === "onshore") {
+                                              return "None – onshore winds all day";
+                                            }
+                                          }
+                                          return "None – poor conditions all day";
+                                        })()}
+                                      </p>
+                                    ) : (
+                                      <div className="space-y-2">
+                                        {bestWindows.map((window, idx) => (
+                                          <div key={idx} className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                            <p className="font-semibold">{window.label.toUpperCase()}: {window.timeRange}</p>
+                                            <p className="text-xs text-gray-600">Quality: {window.avgScore}/100 · {window.waveHeight}, {window.windDesc}, {window.tideDesc}</p>
+                                          </div>
+                                        ))}
+                                        {avoidWindows.length > 0 && avoidWindows.map((avoid, idx) => (
+                                          <p key={`avoid-${idx}`} className="text-xs text-red-600 font-medium" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                            AVOID: {avoid.timeRange} ({avoid.reason})
+                                          </p>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* TIDE FORECAST Box */}
+                                  <div className="bg-white border-2 border-black p-3">
+                                    <span className="text-[10px] font-bold tracking-widest text-gray-500 uppercase block mb-2" style={{ fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.5px' }}>TIDE FORECAST</span>
                                     {(() => {
-                                      // Deduplicate points by time slot - keep only first occurrence of each unique time
+                                      // Find high and low tide points for this day
+                                      const tideExtremes: { type: 'high' | 'low'; time: Date; height: number }[] = [];
+
+                                      for (let i = 1; i < points.length - 1; i++) {
+                                        const prev = points[i - 1];
+                                        const curr = points[i];
+                                        const next = points[i + 1];
+
+                                        const prevHeight = prev.tideHeightFt != null ? prev.tideHeightFt / 10 : null;
+                                        const currHeight = curr.tideHeightFt != null ? curr.tideHeightFt / 10 : null;
+                                        const nextHeight = next.tideHeightFt != null ? next.tideHeightFt / 10 : null;
+
+                                        if (prevHeight !== null && currHeight !== null && nextHeight !== null) {
+                                          // Local maximum = high tide
+                                          if (currHeight > prevHeight && currHeight > nextHeight) {
+                                            tideExtremes.push({
+                                              type: 'high',
+                                              time: new Date(curr.forecastTimestamp),
+                                              height: currHeight
+                                            });
+                                          }
+                                          // Local minimum = low tide
+                                          if (currHeight < prevHeight && currHeight < nextHeight) {
+                                            tideExtremes.push({
+                                              type: 'low',
+                                              time: new Date(curr.forecastTimestamp),
+                                              height: currHeight
+                                            });
+                                          }
+                                        }
+                                      }
+
+                                      const highTide = tideExtremes.find(t => t.type === 'high');
+                                      const lowTide = tideExtremes.find(t => t.type === 'low');
+
+                                      const formatTideTime = (date: Date) => {
+                                        const hours = date.getHours();
+                                        const minutes = date.getMinutes();
+                                        const period = hours >= 12 ? 'pm' : 'am';
+                                        const hour12 = hours % 12 || 12;
+                                        return minutes === 0 ? `${hour12}${period}` : `${hour12}:${minutes.toString().padStart(2, '0')}${period}`;
+                                      };
+
+                                      const highVal = highTide ? `${formatTideTime(highTide.time)} (${highTide.height.toFixed(1)}ft)` : 'N/A';
+                                      const lowVal = lowTide ? `${formatTideTime(lowTide.time)} (${lowTide.height.toFixed(1)}ft)` : 'N/A';
+
+                                      return (
+                                        <p className="text-[14px] text-gray-900" style={{ fontFamily: "'Inter', 'Roboto', sans-serif", lineHeight: '1.5' }}>
+                                          <span className="font-semibold">High:</span> {highVal} <span className="font-semibold">•</span> <span className="font-semibold">Low:</span> {lowVal}
+                                        </p>
+                                      );
+                                    })()}
+                                  </div>
+                                </div>
+
+                                {/* Hourly Breakdown Section */}
+                                <div className="bg-white border-2 border-black">
+                                  <div className="px-6 py-4 border-b-2 border-black">
+                                    <span className="text-[11px] font-bold tracking-wide text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>HOURLY BREAKDOWN</span>
+                                  </div>
+
+                                  {/* Table Header */}
+                                  <div
+                                    className="grid gap-4 px-3 py-2 bg-gray-50 border-b border-gray-200 text-[10px] font-bold tracking-wide text-gray-500 uppercase"
+                                    style={{ gridTemplateColumns: '50px 100px 1fr 130px 80px', fontFamily: "'JetBrains Mono', monospace" }}
+                                  >
+                                    <div>Time</div>
+                                    <div>Wind</div>
+                                    <div>Swell</div>
+                                    <div>Quality</div>
+                                    <div>Tide</div>
+                                  </div>
+
+                                  <div>
+                                    {(() => {
+                                      // Helper function to get wind arrow unicode based on direction (where wind GOES)
+                                      const getWindArrow = (degrees: number): string => {
+                                        // Wind direction is where it comes FROM, so add 180 to show where it GOES
+                                        const goingTo = (degrees + 180) % 360;
+                                        if (goingTo >= 337.5 || goingTo < 22.5) return '↑';
+                                        if (goingTo >= 22.5 && goingTo < 67.5) return '↗';
+                                        if (goingTo >= 67.5 && goingTo < 112.5) return '→';
+                                        if (goingTo >= 112.5 && goingTo < 157.5) return '↘';
+                                        if (goingTo >= 157.5 && goingTo < 202.5) return '↓';
+                                        if (goingTo >= 202.5 && goingTo < 247.5) return '↙';
+                                        if (goingTo >= 247.5 && goingTo < 292.5) return '←';
+                                        return '↖';
+                                      };
+
+                                      // Helper function to get quality border color (matches rating labels)
+                                      // Don't Bother (0-39): red, Worth a Look (40-59): yellow
+                                      // Go Surf (60-75): lime, Firing (76-90): green-600, All-Time (>90): emerald
+                                      const getQualityBorderColor = (score: number): string => {
+                                        const s = Math.round(score);
+                                        if (s > 90) return 'bg-emerald-600';
+                                        if (s >= 76) return 'bg-green-600';
+                                        if (s >= 60) return 'bg-lime-500';
+                                        if (s >= 40) return 'bg-yellow-500';
+                                        return 'bg-red-500';
+                                      };
+
+                                      // Helper function to get star count (1-5 based on score 0-100)
+                                      const getStarCount = (score: number): number => {
+                                        if (score >= 90) return 5;
+                                        if (score >= 70) return 4;
+                                        if (score >= 49) return 3;
+                                        if (score >= 30) return 2;
+                                        return 1;
+                                      };
+
+                                      // Helper function to get tide info
+                                      // Determines if current point is at high/low by comparing with adjacent points
+                                      const getTideInfo = (point: typeof points[0], pointIndex: number, allPoints: typeof points): { 
+                                        height: number | null; 
+                                        state: 'rising' | 'dropping' | 'high' | 'low' | null;
+                                      } => {
+                                        const tideHeightFt = point.tideHeightFt !== null ? point.tideHeightFt / 10 : null;
+                                        
+                                        if (tideHeightFt === null) {
+                                          return { height: null, state: null };
+                                        }
+                                        
+                                        // Check if we're at a local maximum (HIGH) or minimum (LOW)
+                                        const prevPoint = pointIndex > 0 ? allPoints[pointIndex - 1] : null;
+                                        const nextPoint = pointIndex < allPoints.length - 1 ? allPoints[pointIndex + 1] : null;
+                                        
+                                        const prevHeight = prevPoint?.tideHeightFt != null ? prevPoint.tideHeightFt / 10 : null;
+                                        const nextHeight = nextPoint?.tideHeightFt != null ? nextPoint.tideHeightFt / 10 : null;
+                                        
+                                        // Determine if this is a local maximum (HIGH) or minimum (LOW)
+                                        if (prevHeight !== null && nextHeight !== null) {
+                                          // Local maximum: current height is higher than both neighbors
+                                          if (tideHeightFt > prevHeight && tideHeightFt > nextHeight) {
+                                            return { height: tideHeightFt, state: 'high' };
+                                          }
+                                          // Local minimum: current height is lower than both neighbors
+                                          if (tideHeightFt < prevHeight && tideHeightFt < nextHeight) {
+                                            return { height: tideHeightFt, state: 'low' };
+                                          }
+                                        }
+                                        
+                                        // If we can't determine local max/min, determine direction from height comparison
+                                        // If we have previous point, compare with it
+                                        if (prevHeight !== null) {
+                                          if (tideHeightFt > prevHeight) {
+                                            return { height: tideHeightFt, state: 'rising' };
+                                          } else if (tideHeightFt < prevHeight) {
+                                            return { height: tideHeightFt, state: 'dropping' };
+                                          }
+                                        }
+                                        
+                                        // If we have next point but no previous, compare with next
+                                        if (nextHeight !== null && prevHeight === null) {
+                                          if (tideHeightFt < nextHeight) {
+                                            return { height: tideHeightFt, state: 'rising' };
+                                          } else if (tideHeightFt > nextHeight) {
+                                            return { height: tideHeightFt, state: 'dropping' };
+                                          }
+                                        }
+                                        
+                                        // Fallback: use backend phase directly (no swapping)
+                                        const tidePhase = point.tidePhase;
+                                        let state: 'rising' | 'dropping' | 'high' | 'low' | null = null;
+                                        if (tidePhase === 'rising') state = 'rising';
+                                        else if (tidePhase === 'falling') state = 'dropping';
+                                        else if (tidePhase === 'high') state = 'high';
+                                        else if (tidePhase === 'low') state = 'low';
+                                        
+                                        return { height: tideHeightFt, state };
+                                      };
+
+                                      // Deduplicate points by time slot
                                       const seenTimes = new Set<string>();
                                       const uniquePoints = points.filter((point) => {
                                         const date = new Date(point.forecastTimestamp);
-                                        const timeStr = date.toLocaleTimeString("en-US", {
-                                          hour: "numeric",
-                                          minute: "2-digit",
-                                          hour12: true,
-                                        });
-                                        
-                                        // Use hour and minute as the unique key (ignore seconds)
                                         const hour = date.getHours();
                                         const minute = date.getMinutes();
                                         const timeKey = `${hour}:${minute}`;
-                                        
+
                                         if (seenTimes.has(timeKey)) {
-                                          return false; // Skip duplicate
+                                          return false;
                                         }
                                         seenTimes.add(timeKey);
-                                        return true; // Keep first occurrence
+                                        return true;
                                       });
-                                      
-                                      // Sort by timestamp to ensure chronological order
+
+                                      // Sort by timestamp
                                       uniquePoints.sort((a, b) => {
                                         return new Date(a.forecastTimestamp).getTime() - new Date(b.forecastTimestamp).getTime();
                                       });
-                                      
+
                                       return uniquePoints.map((point, index) => {
                                         const date = new Date(point.forecastTimestamp);
-                                        const timeStr = date.toLocaleTimeString("en-US", {
-                                          hour: "numeric",
-                                          minute: "2-digit",
-                                          hour12: true,
-                                        });
-                                        
+                                        const hour = date.getHours();
+                                        const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+                                        const period = hour < 12 ? 'am' : 'pm';
+                                        const qualityScore = point.quality_score ?? point.probabilityScore ?? 0;
+
+                                        // Check if this hour is during nighttime
+                                        const isNight = spot ? isNighttime(point.forecastTimestamp, parseFloat(String(spot.latitude)), parseFloat(String(spot.longitude))) : false;
+
+                                        // Wind data
+                                        const windSpeed = point.windSpeedMph !== null ? Math.round(point.windSpeedMph) : null;
+                                        const windDir = point.windDirectionDeg !== null ? formatDirection(point.windDirectionDeg) : null;
+                                        const windArrow = point.windDirectionDeg !== null ? getWindArrow(point.windDirectionDeg) : '';
+
+                                        // Primary swell data (dominant swell or fallback to primary)
+                                        // Note: decimal fields from database come as strings, convert to numbers
+                                        const primarySwellHeight = point.dominantSwellHeightFt != null ? Number(point.dominantSwellHeightFt) : (point.waveHeightFt ?? null);
+                                        const primarySwellPeriod = point.dominantSwellPeriodS ?? point.wavePeriodSec ?? null;
+                                        const primarySwellDeg = point.dominantSwellDirectionDeg ?? point.waveDirectionDeg ?? null;
+                                        const primarySwellDir = primarySwellDeg !== null ? formatDirection(primarySwellDeg) : null;
+
+                                        // Secondary swell data (secondary swell or wind wave)
+                                        // Note: decimal fields from database come as strings, convert to numbers
+                                        const hasSecondarySwell = (Number(point.secondarySwellHeightFt) ?? 0) > 0;
+                                        const secondaryHeight = hasSecondarySwell
+                                          ? Number(point.secondarySwellHeightFt)
+                                          : (point.windWaveHeightFt != null ? Number(point.windWaveHeightFt) : null);
+                                        const secondaryPeriod = hasSecondarySwell
+                                          ? point.secondarySwellPeriodS
+                                          : (point.windWavePeriodS ?? null);
+                                        const secondaryDeg = hasSecondarySwell
+                                          ? point.secondarySwellDirectionDeg
+                                          : (point.windWaveDirectionDeg ?? null);
+                                        const secondaryDir = secondaryDeg !== null ? formatDirection(secondaryDeg) : null;
+
+                                        const starCount = getStarCount(qualityScore);
+                                        const tideInfo = getTideInfo(point, index, uniquePoints);
+
                                         return (
                                           <div
                                             key={`${point.forecastTimestamp}-${index}`}
-                                            className="bg-white border border-black p-3 transition-all hover:bg-gray-50"
-                                            style={{
-                                              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E")`,
-                                            }}
+                                            className={cn(
+                                              "grid gap-4 px-3 py-3.5 border-b border-gray-100 relative transition-colors",
+                                              isNight ? "bg-gray-100 hover:bg-gray-200" : "hover:bg-gray-50"
+                                            )}
+                                            style={{ gridTemplateColumns: '50px 100px 1fr 130px 80px' }}
                                           >
-                                            <div className="flex items-center justify-between mb-2">
-                                              <span className="text-sm font-medium text-black" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{timeStr}</span>
-                                              {point.quality_rating ? (
-                                                <div
-                                                  className={`text-sm font-black uppercase tracking-wide ${
-                                                    point.quality_score !== null && point.quality_score >= 75
-                                                      ? "text-green-600"
-                                                      : point.quality_score !== null && point.quality_score >= 60
-                                                      ? "text-yellow-500"
-                                                      : "text-red-600"
-                                                  }`}
-                                                  style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                                                >
-                                                  {point.quality_rating}
-                                                </div>
-                                              ) : (
-                                                <div
-                                                  className={`text-xl font-black ${
-                                                    point.probabilityScore >= 70
-                                                      ? "text-green-600"
-                                                      : point.probabilityScore >= 40
-                                                      ? "text-yellow-500"
-                                                      : "text-red-600"
-                                                  }`}
-                                                  style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                                                >
-                                                  {point.probabilityScore}
+                                            {/* Quality indicator left border */}
+                                            <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${getQualityBorderColor(qualityScore)}`} />
+
+                                            {/* Time */}
+                                            <div className="flex items-center gap-1">
+                                              <span className="text-[15px] font-bold text-gray-900">{hour12}</span>
+                                              <span className="text-[11px] text-gray-400 font-medium">{period}</span>
+                                            </div>
+
+                                            {/* Wind */}
+                                            <div className="flex items-center gap-1.5">
+                                              <span className="text-[15px] font-bold text-gray-900">{windDir?.cardinal ?? 'N/A'}</span>
+                                              <span className="text-gray-600">{windArrow}</span>
+                                              <span className="text-[13px] text-gray-500">{windSpeed !== null ? `${windSpeed}mph` : ''}</span>
+                                            </div>
+
+                                            {/* Swell */}
+                                            <div className="flex flex-col gap-1">
+                                              {/* Primary Swell */}
+                                              <div className="flex items-center gap-2">
+                                                <span className="text-[15px] font-bold text-gray-900 min-w-[45px]">
+                                                  {primarySwellHeight !== null ? `${primarySwellHeight.toFixed(1)}ft` : 'N/A'}
+                                                </span>
+                                                <span className="text-[13px] text-gray-500 flex items-center gap-1">
+                                                  {primarySwellDir?.cardinal ?? ''} <span className="text-gray-400">⤡</span>
+                                                  <span className="text-[12px] text-gray-400">{primarySwellPeriod !== null ? `${Math.round(primarySwellPeriod)}s` : ''}</span>
+                                                </span>
+                                              </div>
+
+                                              {/* Secondary Swell */}
+                                              {secondaryHeight !== null && secondaryHeight > 0 && (
+                                                <div className="flex items-center gap-2">
+                                                  <span className="text-[15px] font-bold text-gray-900 min-w-[45px]">
+                                                    {secondaryHeight.toFixed(1)}ft
+                                                  </span>
+                                                  <span className="text-[13px] text-gray-500 flex items-center gap-1">
+                                                    {secondaryDir?.cardinal ?? ''} <span className="text-gray-400">⤡</span>
+                                                    <span className="text-[12px] text-gray-400">{secondaryPeriod !== null ? `${Math.round(secondaryPeriod)}s` : ''}</span>
+                                                  </span>
                                                 </div>
                                               )}
                                             </div>
-                                            
-                                            <div className="space-y-1 text-xs">
-                                              <div className="flex items-center justify-between">
-                                                <span className="text-black font-bold uppercase tracking-wide" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>WAVES</span>
-                                                <span className="font-normal text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                                                  {point.breaking_wave_height || (point.waveHeightFt?.toFixed(1) ? `${point.waveHeightFt.toFixed(1)}ft` : "N/A")}
-                                                </span>
+
+                                            {/* Quality */}
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-[18px] font-black text-gray-900 min-w-[28px]">{Math.round(qualityScore)}</span>
+                                              <div className="flex gap-0.5">
+                                                {[1, 2, 3, 4, 5].map((star) => (
+                                                  <span
+                                                    key={star}
+                                                    className={`text-[14px] ${star <= starCount ? 'text-gray-900' : 'text-gray-200'}`}
+                                                  >
+                                                    ★
+                                                  </span>
+                                                ))}
                                               </div>
-                                              <div className="flex items-center justify-between">
-                                                <span className="text-black font-bold uppercase tracking-wide" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>PERIOD</span>
-                                                <span className="font-normal text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                                                  {point.wavePeriodSec?.toFixed(0) ?? "N/A"}s
+                                            </div>
+
+                                            {/* Tide */}
+                                            <div className="flex items-center">
+                                              {tideInfo.height !== null && tideInfo.state && (
+                                                <span className={`text-[14px] ${
+                                                  tideInfo.state === 'high' || tideInfo.state === 'low' 
+                                                    ? 'font-bold text-[#1e293b]' 
+                                                    : 'font-semibold text-[#64748b]'
+                                                }`}>
+                                                  {tideInfo.height.toFixed(1)}ft {
+                                                    tideInfo.state === 'high' ? 'HIGH' :
+                                                    tideInfo.state === 'low' ? 'LOW' :
+                                                    tideInfo.state === 'rising' ? '↑' :
+                                                    tideInfo.state === 'dropping' ? '↓' : ''
+                                                  }
                                                 </span>
-                                              </div>
-                                              <div className="flex items-center justify-between">
-                                                <span className="text-black font-bold uppercase tracking-wide" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>TIDE</span>
-                                                <span className="font-normal text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                                                  {point.tideHeightFt ? (point.tideHeightFt / 10).toFixed(1) : "N/A"}ft
-                                                </span>
-                                              </div>
+                                              )}
                                             </div>
                                           </div>
                                         );
@@ -1458,204 +2747,128 @@ export default function SpotDetail() {
                                   </div>
                                 </div>
                               </div>
+                            </div>
                           </div>
                         );
                     })}
-                  </div>
                 </div>
+                )
               ) : (
                 <div className="p-6">
-                  <div className="text-center py-8">
-                    <p className="text-black mb-4" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>No forecast timeline available yet.</p>
-                    <Button
+                  <div className="bg-gray-50 border-2 border-black p-6">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-8 h-8 bg-black flex items-center justify-center">
+                        <AlertCircle className="w-4 h-4 text-white" />
+                      </div>
+                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        NO DATA
+                      </span>
+                    </div>
+                    <h4 className="text-xl font-black text-black uppercase mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                      FORECAST UNAVAILABLE
+                    </h4>
+                    <p className="text-sm text-gray-700 leading-relaxed mb-4" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                      No forecast timeline available yet. Fetch the latest marine data from Open-Meteo.
+                    </p>
+                    <button
                       onClick={() => refreshTimelineMutation.mutate({ spotId })}
                       disabled={refreshTimelineMutation.isPending}
-                      variant="outline"
-                      className="border-black text-black hover:bg-gray-50 font-bold uppercase tracking-wide"
+                      className="bg-black text-white px-6 py-3 font-bold uppercase tracking-wide text-sm border-2 border-black hover:bg-gray-900 transition-colors disabled:opacity-50"
                       style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
                     >
                       {refreshTimelineMutation.isPending ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        <span className="flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
                           FETCHING...
-                        </>
+                        </span>
                       ) : (
-                        <>
-                          <RefreshCw className="h-4 w-4 mr-2" />
-                          FETCH 72-HOUR FORECAST
-                        </>
+                        <span className="flex items-center gap-2">
+                          <RefreshCw className="h-4 w-4" />
+                          FETCH 5-DAY FORECAST
+                        </span>
                       )}
-                    </Button>
-                    <p className="text-xs text-gray-600 mt-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      This will fetch marine forecast data from Open-Meteo
-                    </p>
+                    </button>
                   </div>
                 </div>
               )}
             </div>
 
+            {/* The Swell Signal - Long Range Forecast Teaser */}
+            <div className="mt-12">
+              <SwellSignalTeaser />
+            </div>
+
             {/* Tabbed Content Interface */}
-            {spot && (spot.name === "Lido Beach" || spot.name === "Rockaway Beach") && (
+            {spot && (spot.name === "Lido Beach" || spot.name === "Rockaway Beach" || spot.name === "Long Beach") && (
               <div className="mt-12">
                 {/* Tab Navigation */}
                 <div className="bg-gray-50 border-2 border-black mb-8">
                   <div className="p-4 border-b-2 border-black">
-                    <h2 className="text-2xl font-bold text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                    <h2 className="text-3xl font-bold text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                       SPOT GUIDE
                     </h2>
                   </div>
-                  <div className="flex gap-2 p-4">
-                    {spot.name === "Lido Beach" ? (
-                      <>
-                        <button
-                          onClick={() => setActiveTab("ideal-conditions")}
-                          className={cn(
-                            "flex-1 px-6 py-4 text-base font-bold uppercase tracking-wide transition-all duration-200 relative border-2",
-                            activeTab === "ideal-conditions"
-                              ? "bg-black text-white border-black"
-                              : "bg-white text-black border-black hover:bg-gray-100"
-                          )}
-                          style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                        >
-                          Ideal Conditions
-                        </button>
-                        <button
-                          onClick={() => setActiveTab("when-to-go")}
-                          className={cn(
-                            "flex-1 px-6 py-4 text-base font-bold uppercase tracking-wide transition-all duration-200 relative border-2",
-                            activeTab === "when-to-go"
-                              ? "bg-black text-white border-black"
-                              : "bg-white text-black border-black hover:bg-gray-100"
-                          )}
-                          style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                        >
-                          When to Go
-                        </button>
-                        <button
-                          onClick={() => setActiveTab("bathymetry")}
-                          className={cn(
-                            "flex-1 px-6 py-4 text-base font-bold uppercase tracking-wide transition-all duration-200 relative border-2",
-                            activeTab === "bathymetry"
-                              ? "bg-black text-white border-black"
-                              : "bg-white text-black border-black hover:bg-gray-100"
-                          )}
-                          style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                        >
-                          Bathymetry
-                        </button>
-                        <button
-                          onClick={() => setActiveTab("location")}
-                          className={cn(
-                            "flex-1 px-6 py-4 text-base font-bold uppercase tracking-wide transition-all duration-200 relative border-2",
-                            activeTab === "location"
-                              ? "bg-black text-white border-black"
-                              : "bg-white text-black border-black hover:bg-gray-100"
-                          )}
-                          style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                        >
-                          Location
-                        </button>
-                        <button
-                          onClick={() => setActiveTab("local-knowledge")}
-                          className={cn(
-                            "flex-1 px-6 py-4 text-base font-bold uppercase tracking-wide transition-all duration-200 relative border-2",
-                            activeTab === "local-knowledge"
-                              ? "bg-black text-white border-black"
-                              : "bg-white text-black border-black hover:bg-gray-100"
-                          )}
-                          style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                        >
-                          Local Knowledge
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => setActiveTab("ideal-conditions")}
-                          className={cn(
-                            "px-6 py-4 text-base font-bold uppercase tracking-wide transition-all duration-200 relative whitespace-nowrap border-2",
-                            activeTab === "ideal-conditions"
-                              ? "bg-black text-white border-black"
-                              : "bg-white text-black border-black hover:bg-gray-100"
-                          )}
-                          style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                        >
-                          Ideal Conditions
-                        </button>
-                        <button
-                          onClick={() => setActiveTab("overview")}
-                          className={cn(
-                            "px-6 py-4 text-base font-bold uppercase tracking-wide transition-all duration-200 relative whitespace-nowrap border-2",
-                            activeTab === "overview"
-                              ? "bg-black text-white border-black"
-                              : "bg-white text-black border-black hover:bg-gray-100"
-                          )}
-                          style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                        >
-                          Overview
-                        </button>
-                        <button
-                          onClick={() => setActiveTab("who-its-for")}
-                          className={cn(
-                            "px-6 py-4 text-base font-bold uppercase tracking-wide transition-all duration-200 relative whitespace-nowrap border-2",
-                            activeTab === "who-its-for"
-                              ? "bg-black text-white border-black"
-                              : "bg-white text-black border-black hover:bg-gray-100"
-                          )}
-                          style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                        >
-                          Who It's For
-                        </button>
-                        <button
-                          onClick={() => setActiveTab("best-conditions")}
-                          className={cn(
-                            "px-6 py-4 text-base font-bold uppercase tracking-wide transition-all duration-200 relative whitespace-nowrap border-2",
-                            activeTab === "best-conditions"
-                              ? "bg-black text-white border-black"
-                              : "bg-white text-black border-black hover:bg-gray-100"
-                          )}
-                          style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                        >
-                          Best Conditions
-                        </button>
-                        <button
-                          onClick={() => setActiveTab("hazards")}
-                          className={cn(
-                            "px-6 py-4 text-base font-bold uppercase tracking-wide transition-all duration-200 relative whitespace-nowrap border-2",
-                            activeTab === "hazards"
-                              ? "bg-black text-white border-black"
-                              : "bg-white text-black border-black hover:bg-gray-100"
-                          )}
-                          style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                        >
-                          Hazards
-                        </button>
-                        <button
-                          onClick={() => setActiveTab("seasonality")}
-                          className={cn(
-                            "px-6 py-4 text-base font-bold uppercase tracking-wide transition-all duration-200 relative whitespace-nowrap border-2",
-                            activeTab === "seasonality"
-                              ? "bg-black text-white border-black"
-                              : "bg-white text-black border-black hover:bg-gray-100"
-                          )}
-                          style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                        >
-                          Seasonality
-                        </button>
-                        <button
-                          onClick={() => setActiveTab("getting-there")}
-                          className={cn(
-                            "px-6 py-4 text-base font-bold uppercase tracking-wide transition-all duration-200 relative whitespace-nowrap border-2",
-                            activeTab === "getting-there"
-                              ? "bg-black text-white border-black"
-                              : "bg-white text-black border-black hover:bg-gray-100"
-                          )}
-                          style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                        >
-                          Getting There
-                        </button>
-                      </>
-                    )}
+                  <div className="flex gap-2 p-4 flex-wrap">
+                    <button
+                      onClick={() => setActiveTab("ideal-conditions")}
+                      className={cn(
+                        "flex-1 px-6 py-4 text-base font-bold uppercase tracking-wide transition-all duration-200 relative border-2 whitespace-nowrap",
+                        activeTab === "ideal-conditions"
+                          ? "bg-black text-white border-black"
+                          : "bg-white text-black border-black hover:bg-gray-100"
+                      )}
+                      style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
+                    >
+                      Ideal Conditions
+                    </button>
+                    <button
+                      onClick={() => setActiveTab("when-to-go")}
+                      className={cn(
+                        "flex-1 px-6 py-4 text-base font-bold uppercase tracking-wide transition-all duration-200 relative border-2 whitespace-nowrap",
+                        activeTab === "when-to-go"
+                          ? "bg-black text-white border-black"
+                          : "bg-white text-black border-black hover:bg-gray-100"
+                      )}
+                      style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
+                    >
+                      When to go
+                    </button>
+                    <button
+                      onClick={() => setActiveTab(spot.name === "Lido Beach" ? "offshore-bathymetry" : spot.name === "Rockaway Beach" || spot.name === "Long Beach" ? "getting-there" : "location")}
+                      className={cn(
+                        "flex-1 px-6 py-4 text-base font-bold uppercase tracking-wide transition-all duration-200 relative border-2 whitespace-nowrap",
+                        (spot.name === "Lido Beach" ? activeTab === "offshore-bathymetry" : spot.name === "Rockaway Beach" || spot.name === "Long Beach" ? activeTab === "getting-there" : activeTab === "location")
+                          ? "bg-black text-white border-black"
+                          : "bg-white text-black border-black hover:bg-gray-100"
+                      )}
+                      style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
+                    >
+                      {spot.name === "Lido Beach" ? "Offshore Bathymetry" : spot.name === "Rockaway Beach" || spot.name === "Long Beach" ? "Getting There" : "Location"}
+                    </button>
+                    <button
+                      onClick={() => setActiveTab("wave-mechanics")}
+                      className={cn(
+                        "flex-1 px-6 py-4 text-base font-bold uppercase tracking-wide transition-all duration-200 relative border-2 whitespace-nowrap",
+                        activeTab === "wave-mechanics"
+                          ? "bg-black text-white border-black"
+                          : "bg-white text-black border-black hover:bg-gray-100"
+                      )}
+                      style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
+                    >
+                      Wave Mechanics
+                    </button>
+                    <button
+                      onClick={() => setActiveTab("surf-culture")}
+                      className={cn(
+                        "flex-1 px-6 py-4 text-base font-bold uppercase tracking-wide transition-all duration-200 relative border-2 whitespace-nowrap",
+                        activeTab === "surf-culture"
+                          ? "bg-black text-white border-black"
+                          : "bg-white text-black border-black hover:bg-gray-100"
+                      )}
+                      style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
+                    >
+                      {spot.name === "Lido Beach" ? "Local Culture & Etiquette" : "Surf Culture"}
+                    </button>
                   </div>
                 </div>
 
@@ -1670,98 +2883,317 @@ export default function SpotDetail() {
                   {spot.name === "Lido Beach" && (
                     <>
                       {activeTab === "when-to-go" && (
-                        <SpotInfoCard title="When to Go">
-                          <div className="space-y-4">
-                            <div className="bg-green-50 border-l-4 border-green-500 p-4">
-                              <p className="font-bold text-black mb-2" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Prime Time: September - October</p>
-                              <p className="text-base text-black leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Hurricane season brings the most consistent large surf. Active low pressure systems and the occassion Nor'easter bring mid-period E/SE swells with offshore winds create the famous A-frames.</p>
+                        <div className="bg-white border-2 border-black">
+                          {/* Header */}
+                          <div className="border-b-2 border-black p-6">
+                            <div className="flex items-center gap-3 mb-2">
+                              <span className="text-[10px] font-medium tracking-widest text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>SEASONAL GUIDE</span>
                             </div>
-                            <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4">
-                              <p className="font-bold text-black mb-2" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Occasional: Winter</p>
-                              <p className="text-base text-black leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Short windows when S/SSW low pressure systems align perfectly. Timing is everything. Water is freezing so crowds are down the most.</p>
+                            <h3 className="text-4xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.02em' }}>
+                              WHEN TO PADDLE OUT
+                            </h3>
+                          </div>
+
+                          {/* Season Cards */}
+                          <div className="divide-y-2 divide-black">
+                            {/* Prime Season */}
+                            <div className="p-6 bg-emerald-50">
+                              <div className="flex items-start gap-4">
+                                <div className="w-16 h-16 bg-emerald-600 flex items-center justify-center shrink-0">
+                                  <span className="text-white font-black text-sm leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>SEP-OCT</span>
+                                </div>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <h4 className="text-2xl font-black text-black uppercase" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>PRIME SEASON</h4>
+                                    <span className="text-[10px] font-medium tracking-widest bg-emerald-600 text-white px-2 py-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>GO</span>
+                                  </div>
+                                  <p className="text-sm text-gray-700 mb-4 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    Fall is the transition period where summer south winds fade and winter patterns emerge. This is prime time because it offers the highest probability of the "Magic Combo": <span className="font-bold">SE Swell + Northern Winds</span>.
+                                  </p>
+                                  <div className="bg-white border-2 border-black p-4">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>HURRICANE TRACKS</span>
+                                    </div>
+                                    <p className="text-sm text-gray-800 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                      Tropical systems pump in swell from the Southeast. If a cold front moves through simultaneously, it provides the N/NW wind needed to groom that tropical energy into world-class waves.
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
-                            <div className="bg-red-50 border-l-4 border-red-500 p-4">
-                              <p className="font-bold text-black mb-2" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Avoid: Summer</p>
-                              <p className="text-base text-black leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Crowded, onshore winds dominate. Mostly small and weak unless a rare long-period pulse shows up.</p>
+
+                            {/* Secondary Season */}
+                            <div className="p-6 bg-amber-50">
+                              <div className="flex items-start gap-4">
+                                <div className="w-16 h-16 bg-amber-500 flex items-center justify-center shrink-0">
+                                  <span className="text-white font-black text-sm leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>DEC-MAR</span>
+                                </div>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <h4 className="text-2xl font-black text-black uppercase" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>SECONDARY SEASON</h4>
+                                    <span className="text-[10px] font-medium tracking-widest bg-amber-500 text-white px-2 py-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>MAYBE</span>
+                                  </div>
+                                  <p className="text-sm text-gray-700 mb-4 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    For hardcore surfers with 5mm wetsuits. Winter brings powerful lows, nor'easters, and offshore winds. Potential for all-time barrels, but conditions are inconsistent—quality windows are short-lived before winds turn side-shore.
+                                  </p>
+                                  <div className="grid md:grid-cols-2 gap-3">
+                                    <div className="bg-white border-2 border-black p-3">
+                                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>THE REALITY</span>
+                                      <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>NJ often gets the better end as westerly winds prevail.</p>
+                                    </div>
+                                    <div className="bg-white border-2 border-black p-3">
+                                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>THE KEY</span>
+                                      <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Wait for the "backside" of the storm—N/NW winds after the low passes.</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
+
+                            {/* Off Season */}
+                            <div className="p-6 bg-red-50">
+                              <div className="flex items-start gap-4">
+                                <div className="w-16 h-16 bg-red-500 flex items-center justify-center shrink-0">
+                                  <span className="text-white font-black text-sm leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>JUN-AUG</span>
+                                </div>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <h4 className="text-2xl font-black text-black uppercase" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>OFF-SEASON</h4>
+                                    <span className="text-[10px] font-medium tracking-widest bg-red-500 text-white px-2 py-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>SKIP</span>
+                                  </div>
+                                  <p className="text-sm text-gray-700 mb-4 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    The North Atlantic goes quiet. Small, weak pulses. Persistent S/SW sea breezes dominate afternoons, creating choppy, crumbly conditions better suited for longboards.
+                                  </p>
+                                  <div className="grid md:grid-cols-3 gap-3">
+                                    <div className="bg-white border-2 border-black p-3">
+                                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>THE MOVE</span>
+                                      <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Dawn patrol before 8 AM when winds are friendliest.</p>
+                                    </div>
+                                    <div className="bg-white border-2 border-black p-3">
+                                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>CROWDS</span>
+                                      <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>High-traffic. Lifeguard restrictions 9 AM – 6 PM.</p>
+                                    </div>
+                                    <div className="bg-white border-2 border-black p-3">
+                                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>ACCESS</span>
+                                      <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Daily passes or seasonal permits required.</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {activeTab === "wave-mechanics" && (
+                        <div className="bg-white border-2 border-black">
+                          {/* Header */}
+                          <div className="border-b-2 border-black p-6">
+                            <div className="flex items-center gap-3 mb-2">
+                              <span className="text-[10px] font-medium tracking-widest text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>WAVE SCIENCE</span>
+                            </div>
+                            <h3 className="text-4xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.02em' }}>
+                              THE LIDO BUMP
+                            </h3>
+                            <p className="mt-3 text-base text-gray-700 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                              Lido consistently delivers waves a foot or more bigger than Long Beach down the road. Locals call it the "Lido Bump," and it's all thanks to what's happening beneath the surface.
+                            </p>
+                          </div>
+
+                          {/* Content Sections */}
+                          <div className="divide-y-2 divide-black">
+                            {/* The Jones Inlet Lens */}
+                            <div className="p-6">
+                              <div className="flex items-start gap-4">
+                                <div className="w-12 h-12 bg-black flex items-center justify-center shrink-0">
+                                  <span className="text-white font-black text-lg" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>01</span>
+                                </div>
+                                <div className="flex-1">
+                                  <h4 className="text-2xl font-black text-black uppercase mb-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>THE JONES INLET LENS</h4>
+                                  <p className="text-sm text-gray-700 mb-4 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    The massive sand deposit at Jones Inlet acts like a magnifying glass for swell energy. When waves roll in from the southeast, they hit this shallow underwater hill and bend toward Lido, focusing the energy right into the lineup instead of spreading it evenly down the coast.
+                                  </p>
+
+                                  {/* Technical Explanation */}
+                                  <div className="bg-gray-50 border-2 border-black p-4 mb-4">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>TECHNICAL</span>
+                                    </div>
+                                    <p className="text-sm text-gray-800 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                      The sand deposit is technically called an <span className="font-bold">ebb-tidal shoal</span>. Because waves move slower in shallow water, the part of a wave hitting the shoal slows down while the part in the deeper channel maintains speed. This causes the wave crest to bend (refraction) and converge toward a focal point—in this case, Lido.
+                                    </p>
+                                  </div>
+
+                                  <p className="text-sm text-gray-700 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    While other beaches get the standard swell, Lido gets the concentrated hit. When that fast-moving swell finally hits Lido's steep sandbar close to shore, it jacks up hard and vertical—creating those powerful, hollow A-frames the spot is known for.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Jones Inlet Shoal Visual */}
+                            <div className="p-6 bg-gray-50">
+                              <div className="flex items-center gap-2 mb-4">
+                                <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>BATHYMETRY VISUAL</span>
+                              </div>
+                              <div className="border-2 border-black overflow-hidden">
+                                <img
+                                  src="/Jones Inlet Shoal.png"
+                                  alt="Jones Inlet Shoal diagram showing wave refraction and the Lido Bump effect"
+                                  className="w-full"
+                                  style={{ maxWidth: '100%', height: 'auto' }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* No Jetties, No Problem */}
+                            <div className="p-6">
+                              <div className="flex items-start gap-4">
+                                <div className="w-12 h-12 bg-black flex items-center justify-center shrink-0">
+                                  <span className="text-white font-black text-lg" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>02</span>
+                                </div>
+                                <div className="flex-1">
+                                  <h4 className="text-2xl font-black text-black uppercase mb-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>NO JETTIES, NO PROBLEM</h4>
+                                  <p className="text-sm text-gray-700 mb-4 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    Long Beach and Rockaway's rock groins chop up wave lines and kill momentum. Lido's open beach lets swells maintain clean, uninterrupted crests with maximum power. The natural sand movement builds up a middle bar that amplifies those heavy peaks.
+                                  </p>
+
+                                  {/* Bottom Line */}
+                                  <div className="bg-black p-4">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <span className="text-[10px] font-medium tracking-widest text-gray-400 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>BOTTOM LINE</span>
+                                    </div>
+                                    <p className="text-sm text-white leading-relaxed font-medium" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                      While other beaches get the leftovers, Lido gets the focused hit. When it's on, it's bigger, hollower, and way less forgiving. Paddle accordingly.
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {activeTab === "offshore-bathymetry" && (
+                        <SpotInfoCard title="Offshore Bathymetry">
+                          <div className="space-y-6">
+                            <p className="text-black leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                              Content coming soon...
+                            </p>
                           </div>
                         </SpotInfoCard>
                       )}
 
-                      {activeTab === "bathymetry" && (
-                        <SpotInfoCard title="Bathymetry">
-                          <div className="space-y-6">
+
+                      {activeTab === "surf-culture" && (
+                        <div className="bg-white rounded-none shadow-sm border-2 border-black relative overflow-hidden transition-all duration-200" style={{
+                          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E")`,
+                        }}>
+                          <div className="px-8 py-6 border-b-2 border-black">
+                            <h3 className="text-3xl font-semibold text-black tracking-tight mb-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.01em' }}>LOCAL CULTURE & ETIQUETTE</h3>
+                            <p className="text-base text-gray-700 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                              The surf culture at Lido Beach is more intense than anywhere else in Western Long Island. Because it gets the best surf, it attracts the best surfers.
+                            </p>
+                          </div>
+                          <div className="px-8 py-10">
+                            <div className="text-base text-black leading-relaxed space-y-4" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                              <div className="space-y-6">
+
+                            {/* The Lineup */}
                             <div>
-                              <p className="font-bold text-black mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>The Hudson Canyon Depth Advantage</p>
-                              <p className="text-black mb-3 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                                While the Mid-Atlantic Ridge creates a 100-mile shallow continental shelf that drags on swells and reduces wave energy, Lido is an exception. The Hudson Canyon creates deeper water directly offshore, allowing swells to maintain more energy as they approach the beach.
-                              </p>
-                              <p className="text-black mb-0 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                                This is why you might see 5-foot waves at Lincoln, 7-foot waves at Lido, and 2-foot waves at Point Lookout to the east—all from the same swell.
-                              </p>
+                              <h4 className="text-lg font-black text-black uppercase mb-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>THE LINEUP</h4>
+                              <div className="bg-white border-2 border-black p-4">
+                                <p className="text-sm text-gray-800 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                  The lineup is dominated by a dedicated core of Long Beach locals who treat this break as their backyard. This crew is present year-round—from the hurricane swells of September to the freezing, heavy barrels of February—and the hierarchy in the water is established and enforced.
+                                </p>
+                              </div>
                             </div>
+
+                            {/* A Note on Etiquette */}
                             <div>
-                              <p className="font-bold text-black mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Offshore Bathymetry & Sandbars</p>
-                              <p className="text-black mb-3 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                                Lido sits in a curved ridge where the offshore water is deeper than surrounding areas. This means swells experience less drag and produce larger surf. Unlike jetty beaches where sand gets trapped in one area, Lido's lack of dominant jetty influence allows sand to build up in multiple areas throughout the stretch.
-                              </p>
-                              <p className="text-black mb-0 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                                This combination of offshore depth and distributed sandbars is what creates the famous A-frame peaks that Lido is known for—often 1-2 feet larger than surrounding breaks.
-                              </p>
+                              <h4 className="text-lg font-black text-black uppercase mb-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>A NOTE ON ETIQUETTE</h4>
+                              <div className="space-y-3">
+                                <div className="bg-red-50 border-2 border-red-500 p-4">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <AlertCircle className="w-4 h-4 text-red-600" />
+                                    <span className="text-sm font-bold text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>High-Performance Zone</span>
+                                  </div>
+                                  <p className="text-sm text-gray-800 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    The space between the main jetties (shown below) is not a learning ground. On days when the surf is working, the lineup becomes a high-performance zone.
+                                  </p>
+                                </div>
+
+                                <div className="bg-amber-50 border-2 border-black p-4">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className="text-[10px] font-medium tracking-widest bg-amber-500 text-white px-2 py-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>KNOW YOUR LEVEL</span>
+                                  </div>
+                                  <p className="text-sm text-gray-800 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                  On days with quality surf, we strongly advise beginner surfers to avoid the area between the jetties entirely. Intermediate surfers new to Lido Beach should start their session outside these main zones to acclimate to the lineup.
+                                  </p>
+                                </div>
+
+                                <div className="bg-red-50 border-2 border-red-500 p-4">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className="text-[10px] font-medium tracking-widest bg-red-500 text-white px-2 py-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>RESPECT THE LINEUP</span>
+                                  </div>
+                                  <p className="text-sm text-gray-800 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    Dropping in on a local or ditching your board in front of a breaking wave is dangerous and will not be tolerated. Breaching etiquette here doesn't just ruin a wave; it ruins your session.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Lido Beach Surfing Zones */}
+                            <div>
+                              <h4 className="text-lg font-black text-black uppercase mb-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>LIDO BEACH SURFING ZONES</h4>
+                              <div className="space-y-4">
+                                <img 
+                                  src="/Lido Surf Zones.png" 
+                                  alt="Lido Beach surfing zones map showing the main jetties and surf zones"
+                                  className="w-full h-auto border-2 border-black"
+                                />
+                                <div className="bg-gray-50 border-2 border-black p-4">
+                                  <p className="text-sm text-gray-800 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    The main jetties create distinct zones where the best waves break. Understanding these zones helps you position yourself correctly and respect the established lineup hierarchy.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Local Knowledge Quick Reference */}
+                            <div>
+                              <h4 className="text-lg font-black text-black uppercase mb-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>LOCAL KNOWLEDGE</h4>
+                              <div className="grid md:grid-cols-2 gap-3">
+                                <div className="bg-white border-2 border-black p-4">
+                                  <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>THE VIBE</span>
+                                  <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    High intensity. This is the premier break in Western Long Island, and the local talent reflects that.
+                                  </p>
+                                </div>
+                                <div className="bg-white border-2 border-black p-4">
+                                  <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>THE CROWD</span>
+                                  <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    Dominated by the Long Beach crew. The pecking order is strict and strictly enforced.
+                                  </p>
+                                </div>
+                                <div className="bg-red-50 border-2 border-red-500 p-4">
+                                  <span className="text-[10px] font-medium tracking-widest bg-red-500 text-white px-2 py-0.5 block mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>THE WARNING</span>
+                                  <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    Not for beginners. The surfing between the two main jetties is high-consequence.
+                                  </p>
+                                </div>
+                                <div className="bg-white border-2 border-black p-4">
+                                  <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>THE RULE</span>
+                                  <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    If you drop in or ditch your board, expect a bad day. If you are unsure of your ability, do not paddle out here.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                              </div>
                             </div>
                           </div>
-                        </SpotInfoCard>
-                      )}
-
-                      {activeTab === "location" && (
-                        <SpotInfoCard title="Location">
-                          <div className="space-y-6">
-                            <div>
-                              <p className="font-bold text-black mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Location Advantage</p>
-                              <p className="text-black mb-0 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                                Lido sits at the west end of the Long Beach strip, positioned in between Rockaway to the west and Jones Beach to the east. This unique position gives it access to swells that other breaks miss.
-                              </p>
-                            </div>
-                          </div>
-                        </SpotInfoCard>
-                      )}
-
-
-                      {activeTab === "local-knowledge" && (
-                        <SpotInfoCard title="Local Knowledge">
-                          <div className="space-y-6">
-                            <div>
-                              <p className="font-bold text-black mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>The Jetty Situation</p>
-                              <p className="text-black mb-3 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                                The jetties along the Long Beach strip have long been known for producing the best waves. Sand buildup in jetty areas creates sandbars that gradually fade as you get away from the jetty—creating a makeshift point break and a goofyfooter's dream. Dreamy lefts have long been a staple of jetty beaches.
-                              </p>
-                              <p className="text-black mb-0 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                                However, over the years, something has happened with the jetties. They haven't been breaking the way they used to. While there's no scientific study proving this, anecdotal evidence from longtime locals confirms this theory. This is part of why more attention has shifted to Lido Beach over the years.
-                              </p>
-                            </div>
-                            <div>
-                              <p className="font-bold text-black mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>The Unpredictability Factor</p>
-                              <p className="text-black mb-3 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                                While understanding swell period/height, swell direction, and winds can give you a good idea of how waves are going to break at Lido Beach, ultimately Mother Nature has her own agenda. It's nearly impossible to know what you're getting into when you arrive at the Lido West parking lot and peek over the mound facing the water in front of you.
-                              </p>
-                              <p className="text-black mb-0 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                                There are so many days that looked average going in that ended up being phenomenal. More times than not, there have been fair share of busts—when you look over the mound and it's nowhere near what you're expecting. Surfline cams have helped big time with this.
-                              </p>
-                            </div>
-                            <div>
-                              <p className="font-bold text-black mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Best Viewing Spot</p>
-                              <p className="text-black mb-0 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                                The West parking lot mound is the best spot to check conditions. This elevated position gives you a clear view of the break and helps you assess what you're getting into before paddling out.
-                              </p>
-                            </div>
-                            <div>
-                              <p className="font-bold text-black mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>The Reality</p>
-                              <p className="text-black mb-0 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                                Western Long Island is by no means a hotbed for surfing. For most of the year, the surf is completely flat. However, the more time spent in the water, the more you learn about the wave and all its hidden agendas. Lido rewards those who understand its nuances and are willing to wait for the right conditions.
-                              </p>
-                            </div>
-                          </div>
-                        </SpotInfoCard>
+                        </div>
                       )}
                     </>
                   )}
@@ -1769,96 +3201,767 @@ export default function SpotDetail() {
                   {/* Rockaway Beach Tabs */}
                   {spot.name === "Rockaway Beach" && (
                     <>
-                      {activeTab === "overview" && (
-                        <>
-                          <div className="mb-8">
-                            {/* Tag Badges */}
-                            <div className="flex flex-wrap gap-2 mb-6">
-                              <Badge variant="outline" className="border-black text-black">
-                                Beach break
-                              </Badge>
-                              <Badge variant="outline" className="border-black text-black">
-                                Year round
-                              </Badge>
-                              <Badge variant="outline" className="border-black text-black">
-                                Crowded
-                              </Badge>
+                      {activeTab === "when-to-go" && (
+                        <div className="bg-white border-2 border-black">
+                          {/* Header */}
+                          <div className="border-b-2 border-black p-6">
+                            <div className="flex items-center gap-3 mb-2">
+                              <span className="text-[10px] font-medium tracking-widest text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>SEASONAL GUIDE</span>
                             </div>
-
-                            {/* Overview Paragraph */}
-                            <p className="text-lg text-black leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                              The most accessible and most crowded break in the region. Consistent, punchy beach break with jetties that shape the sand. Works better than most people think on the right tide and wind.
+                            <h3 className="text-4xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.02em' }}>
+                              WHEN TO PADDLE OUT
+                            </h3>
+                            <p className="mt-3 text-base text-gray-700 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                              Rockaway runs on seasonal rhythms. Time it right, and you'll score. Miss the window, and you'll be fighting crowds for crumbs.
                             </p>
                           </div>
-                          <SpotInfoCard title="Break overview">
-                            <ul className="list-disc list-inside space-y-1 text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                              <li>Beach break</li>
-                              <li>Short, sometimes dumpy peaks</li>
-                              <li>Occasional A-frames during hurricane season and solid NE setups</li>
-                            </ul>
-                          </SpotInfoCard>
-                        </>
+
+                          {/* Season Cards */}
+                          <div className="divide-y-2 divide-black">
+                            {/* Prime Season */}
+                            <div className="p-6 bg-emerald-50">
+                              <div className="flex items-start gap-4">
+                                <div className="w-16 h-16 bg-emerald-600 flex items-center justify-center shrink-0">
+                                  <span className="text-white font-black text-sm leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>SEP-OCT</span>
+                                </div>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <h4 className="text-2xl font-black text-black uppercase" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>PRIME SEASON</h4>
+                                    <span className="text-[10px] font-medium tracking-widest bg-emerald-600 text-white px-2 py-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>GO</span>
+                                  </div>
+                                  <p className="text-sm text-gray-700 mb-4 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    Fall is the transition period where summer Southerlies fade and winter patterns emerge. Prime time for the "Magic Combo": <span className="font-bold">SE Swell + Northern Wind</span>.
+                                  </p>
+                                  <div className="grid md:grid-cols-2 gap-3">
+                                    <div className="bg-white border-2 border-black p-3">
+                                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>HURRICANE TRACKS</span>
+                                      <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Tropical systems pump SE swell. Cold fronts provide N/NW grooming winds.</p>
+                                    </div>
+                                    <div className="bg-white border-2 border-black p-3">
+                                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>IDEAL TRACK</span>
+                                      <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Cape Verde storm riding Bermuda High, recurving north. Bill '09, Larry '21, Lee '23.</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Secondary Season */}
+                            <div className="p-6 bg-amber-50">
+                              <div className="flex items-start gap-4">
+                                <div className="w-16 h-16 bg-amber-500 flex items-center justify-center shrink-0">
+                                  <span className="text-white font-black text-sm leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>DEC-MAR</span>
+                                </div>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <h4 className="text-2xl font-black text-black uppercase" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>SECONDARY SEASON</h4>
+                                    <span className="text-[10px] font-medium tracking-widest bg-amber-500 text-white px-2 py-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>MAYBE</span>
+                                  </div>
+                                  <p className="text-sm text-gray-700 mb-4 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    For hardcore surfers with 5mm wetsuits. Winter brings powerful lows, nor'easters, and offshore winds. All-time barrel potential, but windows are short-lived.
+                                  </p>
+                                  <div className="grid md:grid-cols-2 gap-3">
+                                    <div className="bg-white border-2 border-black p-3">
+                                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>THE REALITY</span>
+                                      <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>NJ often gets the better end as westerly winds prevail.</p>
+                                    </div>
+                                    <div className="bg-white border-2 border-black p-3">
+                                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>THE KEY</span>
+                                      <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Wait for the "backside"—N/NW winds after the low passes east.</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Off Season */}
+                            <div className="p-6 bg-red-50">
+                              <div className="flex items-start gap-4">
+                                <div className="w-16 h-16 bg-red-500 flex items-center justify-center shrink-0">
+                                  <span className="text-white font-black text-sm leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>JUN-AUG</span>
+                                </div>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <h4 className="text-2xl font-black text-black uppercase" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>OFF-SEASON</h4>
+                                    <span className="text-[10px] font-medium tracking-widest bg-red-500 text-white px-2 py-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>SKIP</span>
+                                  </div>
+                                  <p className="text-sm text-gray-700 mb-4 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    North Atlantic goes quiet. Small, weak pulses. S/SW sea breezes dominate afternoons—choppy, crumbly conditions better suited for longboards.
+                                  </p>
+                                  <div className="grid md:grid-cols-3 gap-3">
+                                    <div className="bg-white border-2 border-black p-3">
+                                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>THE MOVE</span>
+                                      <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Dawn patrol before 8 AM when winds are friendliest.</p>
+                                    </div>
+                                    <div className="bg-white border-2 border-black p-3">
+                                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>CROWDS</span>
+                                      <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>High-traffic. Lifeguard restrictions 9 AM – 6 PM.</p>
+                                    </div>
+                                    <div className="bg-white border-2 border-black p-3">
+                                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>THE PERK</span>
+                                      <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Beach access is free. No tags, no passes.</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       )}
 
-                      {activeTab === "who-its-for" && (
-                        <SpotInfoCard title="Who it is for">
-                          <ul className="list-disc list-inside space-y-1 text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                            <li>Everyone</li>
-                            <li>Beginners often pack the inside</li>
-                            <li>Advanced surfers sit deeper by the jetties and on better sandbars</li>
-                          </ul>
-                        </SpotInfoCard>
-                      )}
+                      {activeTab === "wave-mechanics" && (
+                        <SpotInfoCard title="Wave Mechanics">
+                          <div className="space-y-8">
+                            {/* Map Section */}
+                            <div className="space-y-4">
+                              <img 
+                                src="/Rockaway Lefts.png" 
+                                alt="Rockaway Beach surf break map showing groins, sandbars, and famous lefts"
+                                className="w-full h-auto border-2 border-black"
+                              />
+                              <div className="bg-gray-50 border-2 border-black p-4">
+                                <h4 className="text-lg font-black text-black uppercase mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>SURF BREAK FORMATION</h4>
+                                <p className="text-sm text-gray-800 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                  Nearshore currents moving east to west (green arrows) push sand against groins, creating sandbars at their tips. The groins act as focal points where sand accumulates, forming the sandbars that can produce world-class left-breaking waves.
+                                </p>
+                              </div>
+                            </div>
 
-                      {activeTab === "best-conditions" && (
-                        <SpotInfoCard title="Best conditions">
-                          <div className="space-y-2">
-                            <div>
-                              <p className="font-medium text-black mb-1" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Best swell:</p>
-                              <p className="text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Hurricane / long-period SE–S swells; NE swells with offshore NW winds</p>
+                            {/* Reference Image */}
+                            <div className="space-y-2">
+                              <img 
+                                src="/Rockaway Lefts.jpg" 
+                                alt="Reference photo showing what the left breaking waves at Rockaway Beach actually look like"
+                                className="w-full h-auto border-2 border-black object-cover"
+                                style={{ maxHeight: '400px' }}
+                              />
+                              <p className="text-xs text-gray-600 text-center" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                <strong>Reference:</strong> What the famous left-breaking waves at Rockaway actually look like in action.
+                              </p>
                             </div>
+
+                            {/* Period Guide */}
                             <div>
-                              <p className="font-medium text-black mb-1" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Best wind:</p>
-                              <p className="text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>NW (classic offshore - best), W or N (good), Avoid anything S (usually its very calm)</p>
+                              <h4 className="text-xl font-black text-black uppercase mb-4" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>PERIOD GUIDE</h4>
+                              <div className="space-y-4">
+                                <div className="bg-emerald-50 border-2 border-black p-4">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className="text-[10px] font-medium tracking-widest bg-emerald-600 text-white px-2 py-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>SWEET SPOT</span>
+                                    <span className="text-sm font-bold text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>7-10s</span>
+                                  </div>
+                                  <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    This is when you get fun, peaky surf. The local's focus is always on the period—this range delivers the best shape at Rockaway.
+                                  </p>
+                                </div>
+                                <div className="bg-amber-50 border-2 border-black p-4">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className="text-[10px] font-medium tracking-widest bg-amber-500 text-white px-2 py-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>WARNING</span>
+                                    <span className="text-sm font-bold text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>11-12s+</span>
+                                  </div>
+                                  <p className="text-sm text-gray-800 mb-2" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    After 11s it starts to get walled up. Loses shape quickly, especially if the swell isn't far enough south. Most long-period days, Rockaway will be dumpy (zero shape; jetty to jetty), while Long Beach will have much better shape.
+                                  </p>
+                                  <p className="text-xs text-gray-600 italic" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    "If you think about the way Rockaway faces—south and east—if swell is not far enough south, it loses shape. SE angle is where it starts."
+                                  </p>
+                                </div>
+                                <div className="bg-gray-50 border-2 border-black p-4">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className="text-[10px] font-medium tracking-widest bg-gray-600 text-white px-2 py-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>ANOMALY</span>
+                                    <span className="text-sm font-bold text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Hurricane Erin (Aug 2025)</span>
+                                  </div>
+                                  <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    Was an exception with 17s period. Typically, there's no way Rockaway can handle a 17s period. The hurricane was more easterly in direction and there were multiple other swells in the water—storm was in the right place at the right time.
+                                  </p>
+                                </div>
+                              </div>
                             </div>
+
+                            {/* Wind Guide */}
                             <div>
-                              <p className="font-medium text-black mb-1" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Best tide:</p>
-                              <p className="text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Incoming tide is ideal; Mid to high tide usually works best; Low tide often gets dumpy with lots of closeouts</p>
+                              <h4 className="text-xl font-black text-black uppercase mb-4" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>WIND GUIDE</h4>
+                              <div className="space-y-3">
+                                <div className="bg-white border-2 border-black p-4">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Wind className="w-4 h-4 text-black" />
+                                    <span className="text-sm font-bold text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>NW (Northwest)</span>
+                                    <span className="text-[10px] font-medium tracking-widest bg-emerald-600 text-white px-2 py-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>DEAD OFFSHORE</span>
+                                  </div>
+                                  <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Best wind direction for Rockaway.</p>
+                                </div>
+                                <div className="bg-white border-2 border-black p-4">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Wind className="w-4 h-4 text-black" />
+                                    <span className="text-sm font-bold text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>N (North)</span>
+                                  </div>
+                                  <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Can be a little too North, but still works.</p>
+                                </div>
+                                <div className="bg-white border-2 border-black p-4">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Wind className="w-4 h-4 text-black" />
+                                    <span className="text-sm font-bold text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>W (West)</span>
+                                  </div>
+                                  <p className="text-sm text-gray-800 mb-2" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Even west works at Rockaway.</p>
+                                  <p className="text-xs text-gray-600 italic" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    "Any day of the year, I'd surf a 10-15 mph W wind over a 10-15 mph east wind"
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Tide Guide */}
+                            <div>
+                              <h4 className="text-xl font-black text-black uppercase mb-4" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>TIDE GUIDE</h4>
+                              <div className="space-y-3">
+                                <div className="bg-red-50 border-2 border-black p-4">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Droplet className="w-4 h-4 text-black" />
+                                    <span className="text-sm font-bold text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Low Tide</span>
+                                    <span className="text-[10px] font-medium tracking-widest bg-red-500 text-white px-2 py-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>AVOID</span>
+                                  </div>
+                                  <p className="text-sm text-gray-800 italic" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    "Low tide at Rockaway sucks unless it's pumping surf." On the average day, low tide has zero shape.
+                                  </p>
+                                </div>
+                                <div className="bg-emerald-50 border-2 border-black p-4">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Droplet className="w-4 h-4 text-black" />
+                                    <span className="text-sm font-bold text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Mid-High Tide</span>
+                                    <span className="text-[10px] font-medium tracking-widest bg-emerald-600 text-white px-2 py-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>PREFERRED</span>
+                                  </div>
+                                  <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                  This is the preferred tide for most sessions. 
+                                  </p>
+                                </div>
+                                <div className="bg-emerald-50 border-2 border-black p-4">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Droplet className="w-4 h-4 text-black" />
+                                    <span className="text-sm font-bold text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>High Tide</span>
+                                    <span className="text-[10px] font-medium tracking-widest bg-emerald-600 text-white px-2 py-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>GREAT</span>
+                                  </div>
+                                  <p className="text-sm text-gray-800 mb-2" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    "At high tide, there are usually really great waves" - if there's actual swell in the water. If it's a 1.2ft swell, no, but if there's actually swell, high tide is good.
+                                  </p>
+                                  <p className="text-xs text-gray-600" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    Example: 3.2ft @ 8s on November 10th - "Really fun day of waves"
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Reading Conditions */}
+                            <div>
+                              <h4 className="text-xl font-black text-black uppercase mb-4" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>READING CONDITIONS</h4>
+                              <div className="bg-gray-50 border-2 border-black p-4 space-y-3">
+                                <p className="text-sm text-gray-800 italic" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                  "Reading the buoy's here is way more difficult than California"
+                                </p>
+                                <p className="text-sm text-gray-800 italic" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                  "The swell periods are really short. I'm always more focused on the period"
+                                </p>
+                              </div>
                             </div>
                           </div>
                         </SpotInfoCard>
                       )}
 
-                      {activeTab === "hazards" && (
-                        <SpotInfoCard title="Hazards">
-                          <ul className="list-disc list-inside space-y-1 text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                            <li>Crowds and drop-ins</li>
-                            <li>Surf schools and beginners on soft tops</li>
-                            <li>Rips near the jetties</li>
-                            <li>Boards flying around on busy summer weekends</li>
-                          </ul>
-                        </SpotInfoCard>
-                      )}
-
-                      {activeTab === "seasonality" && (
-                        <SpotInfoCard title="Seasonality">
-                          <ul className="list-disc list-inside space-y-1 text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                            <li><strong className="text-black">Hurricane season (Aug–Oct):</strong> usually the best Rockaway of the year</li>
-                            <li><strong className="text-black">Fall:</strong> very consistent with frequent surfable days</li>
-                            <li><strong className="text-black">Winter:</strong> colder, less crowded, and usually perfect when it works</li>
-                            <li><strong className="text-black">Summer:</strong> mostly small and weak unless a rare long-period pulse shows up</li>
-                          </ul>
+                      {activeTab === "surf-culture" && (
+                        <SpotInfoCard title="Surf Culture">
+                          <div className="space-y-6">
+                            <div>
+                              <h4 className="text-lg font-black text-black uppercase mb-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>WHO IT'S FOR</h4>
+                              <div className="space-y-3">
+                                <div className="bg-white border-2 border-black p-4">
+                                  <p className="text-sm text-gray-800 mb-2" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    <span className="font-bold">Everyone</span> - Beginners often pack the inside, while advanced surfers sit deeper by the jetties and on better sandbars.
+                                  </p>
+                                  <div className="bg-amber-50 border-2 border-amber-500 p-3 mt-2">
+                                    <p className="text-xs text-amber-900 font-semibold" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                      ⚠️ There are certain areas when beginners should not be going out
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            <div>
+                              <h4 className="text-lg font-black text-black uppercase mb-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>HAZARDS</h4>
+                              <div className="space-y-3">
+                                <div className="bg-white border-2 border-black p-4">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <AlertCircle className="w-4 h-4 text-black" />
+                                    <span className="text-sm font-bold text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>General Hazards</span>
+                                  </div>
+                                  <ul className="text-sm text-gray-800 space-y-1" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    <li>• Crowds and drop-ins</li>
+                                    <li>• Surf schools and beginners on soft tops</li>
+                                    <li>• Rips near the jetties</li>
+                                    <li>• Boards flying around on busy summer weekends</li>
+                                  </ul>
+                                </div>
+                                <div className="bg-red-50 border-2 border-red-500 p-4">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <AlertCircle className="w-4 h-4 text-red-600" />
+                                    <span className="text-sm font-bold text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Seasonal Issues</span>
+                                  </div>
+                                  <div className="space-y-2 text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    <p><span className="font-semibold">Summertime:</span> All rules are out the window</p>
+                                    <p><span className="font-semibold">Fall:</span> Water still warm, so you're getting kooks - "People that surf in NYC see 8-10 feet and good, and they just go and are total kooks"</p>
+                                    <p><span className="font-semibold">Occasional fist fights</span></p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            <div>
+                              <h4 className="text-lg font-black text-black uppercase mb-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>OFF-SEASON RESTRICTIONS</h4>
+                              <div className="bg-amber-50 border-2 border-black p-4">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Clock className="w-4 h-4 text-black" />
+                                  <span className="text-sm font-bold text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Summer Hours</span>
+                                  <span className="text-[10px] font-medium tracking-widest bg-amber-500 text-white px-2 py-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>BEFORE 10AM</span>
+                                </div>
+                                <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                  Can only surf before 10am - designated. This is when lifeguard restrictions are in effect during the summer months.
+                                </p>
+                              </div>
+                            </div>
+                            <div>
+                              <h4 className="text-lg font-black text-black uppercase mb-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>STREET/BREAK GUIDE</h4>
+                              <div className="space-y-3">
+                                <div className="bg-white border-2 border-black p-4">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <MapPin className="w-4 h-4 text-black" />
+                                    <span className="text-sm font-bold text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>90th Street</span>
+                                    <span className="text-[10px] font-medium tracking-widest bg-black text-white px-2 py-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>MAIN BREAK</span>
+                                  </div>
+                                  <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    The main break, where everyone goes. Has the Surfline cam.
+                                  </p>
+                                </div>
+                                <div className="bg-white border-2 border-black p-4">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <MapPin className="w-4 h-4 text-black" />
+                                    <span className="text-sm font-bold text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>90-98th Street</span>
+                                    <span className="text-[10px] font-medium tracking-widest bg-emerald-600 text-white px-2 py-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>BEST SWELLS</span>
+                                  </div>
+                                  <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    4 jetties - they get the best of all the swells.
+                                  </p>
+                                </div>
+                                <div className="bg-white border-2 border-black p-4">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <MapPin className="w-4 h-4 text-black" />
+                                    <span className="text-sm font-bold text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>70s Street</span>
+                                  </div>
+                                  <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    Always a little bit smaller than the main breaks.
+                                  </p>
+                                </div>
+                                <div className="bg-white border-2 border-black p-4">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <MapPin className="w-4 h-4 text-black" />
+                                    <span className="text-sm font-bold text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>60s-70s Street</span>
+                                  </div>
+                                  <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    Now getting more surfers as the main breaks get more crowded.
+                                  </p>
+                                </div>
+                                <p className="text-xs text-gray-600 italic" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                  "The best streets are totally up to opinion"
+                                </p>
+                              </div>
+                            </div>
+                            <div>
+                              <h4 className="text-lg font-black text-black uppercase mb-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>WAVE DIRECTION</h4>
+                              <div className="bg-gray-50 border-2 border-black p-4 space-y-2">
+                                <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                  "On the right swells, you can get rights and lefts"
+                                </p>
+                                <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                  "If you're surfing right off the jetty, lefts are usually your only option"
+                                </p>
+                              </div>
+                            </div>
+                            <div>
+                              <h4 className="text-lg font-black text-black uppercase mb-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>VIBE</h4>
+                              <div className="bg-emerald-50 border-2 border-black p-4 space-y-2">
+                                <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                  For the most part it is mellow. Tons of surfers from NY going there, tons of people that want to surf. For the most part the vibes are good.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
                         </SpotInfoCard>
                       )}
 
                       {activeTab === "getting-there" && (
-                        <SpotInfoCard title="Getting here from NYC">
-                          <ul className="list-disc list-inside space-y-1 text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                            <li>A train to Beach 90th / 98th / 105th</li>
-                            <li>NYC Ferry from Wall Street to Rockaway, then local shuttle or bike</li>
-                            <li>Bike path from Brooklyn</li>
-                            <li>20–45 min drive from parts of the city depending on traffic and bridges</li>
-                          </ul>
+                        <div className="bg-white border-2 border-black">
+                          {/* Header */}
+                          <div className="border-b-2 border-black p-6">
+                            <div className="flex items-center gap-3 mb-2">
+                              <span className="text-[10px] font-medium tracking-widest text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>TRANSIT GUIDE</span>
+                            </div>
+                            <h3 className="text-4xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.02em' }}>
+                              THE ROCKAWAY PILGRIMAGE
+                            </h3>
+                            <p className="mt-3 text-base text-gray-700 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                              Rockaway is the only place in the world where you'll see a 9-foot longboard on a subway car. Here's how to navigate the trip from the city to the lineup.
+                            </p>
+                          </div>
+
+                          {/* Transport Options Grid */}
+                          <div className="grid md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-black border-b-2 border-black">
+                            {/* A Train */}
+                            <div className="p-6">
+                              <div className="flex items-center gap-2 mb-3">
+                                <div className="w-8 h-8 bg-[#0039A6] flex items-center justify-center">
+                                  <span className="text-white font-black text-sm" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>A</span>
+                                </div>
+                                <span className="text-xs font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>SUBWAY</span>
+                              </div>
+                              <h4 className="text-xl font-black text-black uppercase mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>THE A TRAIN & SHUTTLE</h4>
+                              <p className="text-sm text-gray-700 mb-4 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                The most iconic way to get here. Cheap, avoids Belt Parkway traffic, drops you blocks from the break.
+                              </p>
+                              <div className="space-y-2 text-sm" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                <div className="flex gap-2">
+                                  <span className="text-[10px] font-medium tracking-wider text-gray-500 uppercase w-16 shrink-0 pt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>ROUTE</span>
+                                  <span className="text-gray-800">Far Rockaway-bound A to Broad Channel, transfer to S shuttle</span>
+                                </div>
+                                <div className="flex gap-2">
+                                  <span className="text-[10px] font-medium tracking-wider text-gray-500 uppercase w-16 shrink-0 pt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>STOPS</span>
+                                  <span className="text-gray-800">Beach 90th (the scene), 105th (quieter), 116th (end of line)</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Ferry */}
+                            <div className="p-6">
+                              <div className="flex items-center gap-2 mb-3">
+                                <div className="w-8 h-8 bg-black flex items-center justify-center">
+                                  <Waves className="w-4 h-4 text-white" />
+                                </div>
+                                <span className="text-xs font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>FERRY</span>
+                              </div>
+                              <h4 className="text-xl font-black text-black uppercase mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>NYC FERRY</h4>
+                              <p className="text-sm text-gray-700 mb-4 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                The fastest way to get your head in the game. 50-minute cruise swaps subway heat for salt-air breeze.
+                              </p>
+                              <div className="space-y-2 text-sm" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                <div className="flex gap-2">
+                                  <span className="text-[10px] font-medium tracking-wider text-gray-500 uppercase w-16 shrink-0 pt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>FROM</span>
+                                  <span className="text-gray-800">Wall St./Pier 11 or Sunset Park (Brooklyn)</span>
+                                </div>
+                                <div className="flex gap-2">
+                                  <span className="text-[10px] font-medium tracking-wider text-gray-500 uppercase w-16 shrink-0 pt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>DROP</span>
+                                  <span className="text-gray-800">Beach 108th St. 10-min walk to the 90s</span>
+                                </div>
+                                <div className="flex gap-2">
+                                  <span className="text-[10px] font-medium tracking-wider text-gray-500 uppercase w-16 shrink-0 pt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>TIP</span>
+                                  <span className="text-gray-800">Bar on board. Makes the ride back even better.</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Driving */}
+                            <div className="p-6">
+                              <div className="flex items-center gap-2 mb-3">
+                                <div className="w-8 h-8 bg-black flex items-center justify-center">
+                                  <Car className="w-4 h-4 text-white" />
+                                </div>
+                                <span className="text-xs font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>DRIVING</span>
+                              </div>
+                              <h4 className="text-xl font-black text-black uppercase mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>CAR & PARKING</h4>
+                              <p className="text-sm text-gray-700 mb-4 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                Great for winter sessions. A nightmare on summer weekends.
+                              </p>
+                              <div className="space-y-2 text-sm" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                <div className="flex gap-2">
+                                  <span className="text-[10px] font-medium tracking-wider text-gray-500 uppercase w-16 shrink-0 pt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>RULE</span>
+                                  <span className="text-gray-800">Summer: parked by 7:30 AM or you're circling blocks</span>
+                                </div>
+                                <div className="flex gap-2">
+                                  <span className="text-[10px] font-medium tracking-wider text-gray-500 uppercase w-16 shrink-0 pt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>COST</span>
+                                  <span className="text-gray-800">Street parking free but limited near breaks</span>
+                                </div>
+                                <div className="flex gap-2">
+                                  <span className="text-[10px] font-medium tracking-wider text-gray-500 uppercase w-16 shrink-0 pt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>PERK</span>
+                                  <span className="text-gray-800">Beach access is free. No tags, no passes.</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Cheat Sheet */}
+                          <div className="p-6">
+                            <div className="flex items-center gap-2 mb-4">
+                              <span className="text-xs font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>THE CHEAT SHEET</span>
+                            </div>
+                            <div className="overflow-x-auto">
+                              <table className="w-full border-collapse text-sm" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                <thead>
+                                  <tr>
+                                    <th className="border-2 border-black bg-black text-white px-4 py-3 text-left font-black uppercase tracking-wide text-xs" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>METHOD</th>
+                                    <th className="border-2 border-black bg-black text-white px-4 py-3 text-left font-black uppercase tracking-wide text-xs" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>BEST FOR</th>
+                                    <th className="border-2 border-black bg-black text-white px-4 py-3 text-left font-black uppercase tracking-wide text-xs" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>THE TRADE-OFF</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  <tr>
+                                    <td className="border-2 border-black px-4 py-3 font-bold">A Train</td>
+                                    <td className="border-2 border-black px-4 py-3">The car-less surfer</td>
+                                    <td className="border-2 border-black px-4 py-3 text-gray-600">A long, gritty commute</td>
+                                  </tr>
+                                  <tr>
+                                    <td className="border-2 border-black px-4 py-3 font-bold">Ferry</td>
+                                    <td className="border-2 border-black px-4 py-3">Scenic views & vibes</td>
+                                    <td className="border-2 border-black px-4 py-3 text-gray-600">Long lines in summer heat</td>
+                                  </tr>
+                                  <tr>
+                                    <td className="border-2 border-black px-4 py-3 font-bold">Car</td>
+                                    <td className="border-2 border-black px-4 py-3">Winter / Dawn Patrol</td>
+                                    <td className="border-2 border-black px-4 py-3 text-gray-600">Summer parking is a blood sport</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Long Beach Tabs */}
+                  {spot.name === "Long Beach" && (
+                    <>
+                      {activeTab === "when-to-go" && (
+                        <div className="bg-white border-2 border-black">
+                          {/* Header */}
+                          <div className="border-b-2 border-black p-6">
+                            <div className="flex items-center gap-3 mb-2">
+                              <span className="text-[10px] font-medium tracking-widest text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>SEASONAL GUIDE</span>
+                            </div>
+                            <h3 className="text-4xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.02em' }}>
+                              WHEN TO PADDLE OUT
+                            </h3>
+                            <p className="mt-3 text-base text-gray-700 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                              Long Beach follows the same seasonal patterns as the rest of Western Long Island. The difference? Pay-to-play access changes the calculus.
+                            </p>
+                          </div>
+
+                          {/* Season Cards */}
+                          <div className="divide-y-2 divide-black">
+                            {/* Prime Season */}
+                            <div className="p-6 bg-emerald-50">
+                              <div className="flex items-start gap-4">
+                                <div className="w-16 h-16 bg-emerald-600 flex items-center justify-center shrink-0">
+                                  <span className="text-white font-black text-sm leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>SEP-OCT</span>
+                                </div>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <h4 className="text-2xl font-black text-black uppercase" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>PRIME SEASON</h4>
+                                    <span className="text-[10px] font-medium tracking-widest bg-emerald-600 text-white px-2 py-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>GO</span>
+                                  </div>
+                                  <p className="text-sm text-gray-700 mb-4 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    Fall is the transition period where summer Southerlies fade and winter patterns emerge. Prime time for the "Magic Combo": <span className="font-bold">SE Swell + Northern Wind</span>.
+                                  </p>
+                                  <div className="grid md:grid-cols-2 gap-3">
+                                    <div className="bg-white border-2 border-black p-3">
+                                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>HURRICANE TRACKS</span>
+                                      <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Tropical systems pump SE swell. Cold fronts provide N/NW grooming winds.</p>
+                                    </div>
+                                    <div className="bg-white border-2 border-black p-3">
+                                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>IDEAL TRACK</span>
+                                      <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Cape Verde storm riding Bermuda High, recurving north. Bill '09, Larry '21, Lee '23.</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Secondary Season */}
+                            <div className="p-6 bg-amber-50">
+                              <div className="flex items-start gap-4">
+                                <div className="w-16 h-16 bg-amber-500 flex items-center justify-center shrink-0">
+                                  <span className="text-white font-black text-sm leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>DEC-MAR</span>
+                                </div>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <h4 className="text-2xl font-black text-black uppercase" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>SECONDARY SEASON</h4>
+                                    <span className="text-[10px] font-medium tracking-widest bg-amber-500 text-white px-2 py-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>MAYBE</span>
+                                  </div>
+                                  <p className="text-sm text-gray-700 mb-4 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    For hardcore surfers with 5mm wetsuits. Winter brings powerful lows, nor'easters, and offshore winds. All-time barrel potential, but windows are short-lived.
+                                  </p>
+                                  <div className="grid md:grid-cols-2 gap-3">
+                                    <div className="bg-white border-2 border-black p-3">
+                                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>THE REALITY</span>
+                                      <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>NJ often gets the better end as westerly winds prevail.</p>
+                                    </div>
+                                    <div className="bg-white border-2 border-black p-3">
+                                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>THE KEY</span>
+                                      <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Wait for the "backside"—N/NW winds after the low passes east.</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Off Season */}
+                            <div className="p-6 bg-red-50">
+                              <div className="flex items-start gap-4">
+                                <div className="w-16 h-16 bg-red-500 flex items-center justify-center shrink-0">
+                                  <span className="text-white font-black text-sm leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>JUN-AUG</span>
+                                </div>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <h4 className="text-2xl font-black text-black uppercase" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>OFF-SEASON</h4>
+                                    <span className="text-[10px] font-medium tracking-widest bg-red-500 text-white px-2 py-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>SKIP</span>
+                                  </div>
+                                  <p className="text-sm text-gray-700 mb-4 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    North Atlantic goes quiet. Small, weak pulses. S/SW sea breezes dominate afternoons—choppy, crumbly conditions better suited for longboards.
+                                  </p>
+                                  <div className="grid md:grid-cols-3 gap-3">
+                                    <div className="bg-white border-2 border-black p-3">
+                                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>THE MOVE</span>
+                                      <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Dawn patrol before 8 AM when winds are friendliest.</p>
+                                    </div>
+                                    <div className="bg-white border-2 border-black p-3">
+                                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>CROWDS</span>
+                                      <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>High-traffic. Lifeguard restrictions 9 AM – 6 PM.</p>
+                                    </div>
+                                    <div className="bg-white border-2 border-black p-3">
+                                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>ACCESS</span>
+                                      <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>~$15/day pass or seasonal permit required.</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {activeTab === "getting-there" && (
+                        <div className="bg-white border-2 border-black">
+                          {/* Header */}
+                          <div className="border-b-2 border-black p-6">
+                            <div className="flex items-center gap-3 mb-2">
+                              <span className="text-[10px] font-medium tracking-widest text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>TRANSIT GUIDE</span>
+                            </div>
+                            <h3 className="text-4xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.02em' }}>
+                              THE COMMUTER RAIL WAVE
+                            </h3>
+                            <p className="mt-3 text-base text-gray-700 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                              Long Beach is the "middle ground" of NY surfing. More refined than the Rockaway crawl but requires a bit more logistical planning. Here's how you get there.
+                            </p>
+                          </div>
+
+                          {/* Transport Options Grid */}
+                          <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-black border-b-2 border-black">
+                            {/* LIRR */}
+                            <div className="p-6">
+                              <div className="flex items-center gap-2 mb-3">
+                                <div className="w-8 h-8 bg-[#0039A6] flex items-center justify-center">
+                                  <Train className="w-4 h-4 text-white" />
+                                </div>
+                                <span className="text-xs font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>LIRR</span>
+                              </div>
+                              <h4 className="text-xl font-black text-black uppercase mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>THE STRESS-FREE STRIKE</h4>
+                              <p className="text-sm text-gray-700 mb-4 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                Unlike the subway-accessible Rockaways, Long Beach is serviced by the LIRR. Faster, cleaner, more reliable—but comes with a ticket price.
+                              </p>
+                              <div className="space-y-2 text-sm" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                <div className="flex gap-2">
+                                  <span className="text-[10px] font-medium tracking-wider text-gray-500 uppercase w-16 shrink-0 pt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>FROM</span>
+                                  <span className="text-gray-800">Penn Station, Grand Central, or Atlantic Terminal</span>
+                                </div>
+                                <div className="flex gap-2">
+                                  <span className="text-[10px] font-medium tracking-wider text-gray-500 uppercase w-16 shrink-0 pt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>TIME</span>
+                                  <span className="text-gray-800">~50 minutes. Beats Belt Parkway traffic every time.</span>
+                                </div>
+                                <div className="flex gap-2">
+                                  <span className="text-[10px] font-medium tracking-wider text-gray-500 uppercase w-16 shrink-0 pt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>WALK</span>
+                                  <span className="text-gray-800">Few blocks from station to boardwalk. Straight shot to sand.</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Driving */}
+                            <div className="p-6">
+                              <div className="flex items-center gap-2 mb-3">
+                                <div className="w-8 h-8 bg-black flex items-center justify-center">
+                                  <Car className="w-4 h-4 text-white" />
+                                </div>
+                                <span className="text-xs font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>DRIVING</span>
+                              </div>
+                              <h4 className="text-xl font-black text-black uppercase mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>THE PARKING PUZZLE</h4>
+                              <p className="text-sm text-gray-700 mb-4 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                ~45 minutes from the city on a perfect day. But the parking logistics are the real hurdle.
+                              </p>
+                              <div className="space-y-2 text-sm" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                <div className="flex gap-2">
+                                  <span className="text-[10px] font-medium tracking-wider text-gray-500 uppercase w-16 shrink-0 pt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>TRAP</span>
+                                  <span className="text-gray-800">Street parking near beach is residents-only. Enforcement is aggressive.</span>
+                                </div>
+                                <div className="flex gap-2">
+                                  <span className="text-[10px] font-medium tracking-wider text-gray-500 uppercase w-16 shrink-0 pt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>LOTS</span>
+                                  <span className="text-gray-800">Municipal lots fill by 8 AM in summer.</span>
+                                </div>
+                                <div className="flex gap-2">
+                                  <span className="text-[10px] font-medium tracking-wider text-gray-500 uppercase w-16 shrink-0 pt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>TIP</span>
+                                  <span className="text-gray-800">Not doing dawn patrol? Take the train.</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Beach Pass Info */}
+                          <div className="p-6 bg-amber-50 border-t-0">
+                            <div className="flex items-start gap-4">
+                              <div className="w-12 h-12 bg-black flex items-center justify-center shrink-0">
+                                <span className="text-white font-black text-xl" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>$</span>
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h4 className="text-xl font-black text-black uppercase" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>THE "HIDDEN" COST</h4>
+                                  <span className="text-[10px] font-medium tracking-widest bg-black text-white px-2 py-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>BEACH PASS</span>
+                                </div>
+                                <p className="text-sm text-gray-700 mb-3 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                  The biggest shift for Rockaway locals: Long Beach is "pay-to-play" during the season.
+                                </p>
+                                <div className="grid md:grid-cols-3 gap-4 text-sm" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                  <div>
+                                    <span className="text-[10px] font-medium tracking-wider text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>THE FEE</span>
+                                    <span className="text-gray-800">Memorial Day – Labor Day: ~$15/day for non-residents</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-[10px] font-medium tracking-wider text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>ENFORCEMENT</span>
+                                    <span className="text-gray-800">Checked strictly at every entrance during lifeguard hours</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-[10px] font-medium tracking-wider text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>THE WORKAROUND</span>
+                                    <span className="text-gray-800">Dawn Patrol before checkers arrive, or post-6 PM after they leave</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {activeTab === "wave-mechanics" && (
+                        <SpotInfoCard title="Wave Mechanics">
+                          <p className="text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                            Content coming soon...
+                          </p>
+                        </SpotInfoCard>
+                      )}
+
+                      {activeTab === "surf-culture" && (
+                        <SpotInfoCard title="Surf Culture">
+                          <p className="text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                            Content coming soon...
+                          </p>
                         </SpotInfoCard>
                       )}
                     </>
@@ -1867,63 +3970,6 @@ export default function SpotDetail() {
               </div>
             )}
 
-            {/* Crowd Report Section */}
-            <div className="bg-white border-2 border-black">
-              <div className="p-4 border-b-2 border-black">
-                <h2 className="text-2xl font-bold text-black uppercase tracking-tight flex items-center gap-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                  <Users className="h-6 w-6 text-black" />
-                  CROWD REPORT
-                </h2>
-              </div>
-              <div className="p-6">
-                <div className="mb-4 pb-4 border-b border-black">
-                  <p className="text-sm text-black uppercase tracking-wide" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                    {crowdQuery.data?.averageLevel
-                      ? `Current average: ${getCrowdLabel(crowdQuery.data.averageLevel).toUpperCase()} (${crowdQuery.data.reports.length} reports)`
-                      : "No recent reports. Be the first to report!"}
-                  </p>
-                </div>
-                {isAuthenticated ? (
-                  <div className="space-y-6">
-                    <div>
-                      <div className="flex justify-between mb-3">
-                        <span className="text-sm font-bold text-black uppercase tracking-wide" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>How crowded is it?</span>
-                        <span className="text-sm font-bold text-black uppercase" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>{getCrowdLabel(crowdLevel).toUpperCase()}</span>
-                      </div>
-                      <Slider
-                        value={[crowdLevel]}
-                        onValueChange={(v) => setCrowdLevel(v[0])}
-                        min={1}
-                        max={5}
-                        step={1}
-                        className="w-full"
-                      />
-                      <div className="flex justify-between mt-2 text-xs font-semibold text-black uppercase tracking-wide" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                        <span>Empty</span>
-                        <span>Packed</span>
-                      </div>
-                    </div>
-                    <Button
-                      onClick={() => submitCrowdMutation.mutate({ spotId, crowdLevel })}
-                      disabled={submitCrowdMutation.isPending}
-                      className="w-full bg-black hover:bg-gray-900 text-white border-2 border-black font-bold uppercase tracking-wide py-3"
-                      style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                    >
-                      {submitCrowdMutation.isPending ? "Submitting..." : "Submit Report"}
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="text-center py-4">
-                    <p className="text-black mb-4 font-semibold uppercase tracking-wide" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Sign in to submit crowd reports</p>
-                    <a href={getLoginUrl()}>
-                      <Button variant="outline" className="border-2 border-black text-black hover:bg-gray-100 font-bold uppercase tracking-wide" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                        Sign In
-                      </Button>
-                    </a>
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
         ) : (
           <Card className="bg-slate-800/50 border-slate-700">
@@ -1945,26 +3991,6 @@ export default function SpotDetail() {
       </main>
 
       <Footer />
-      
-      {/* Debug Button */}
-      {/* <button 
-        onClick={() => debugQuery.refetch()}
-        style={{
-          position: 'fixed',
-          bottom: '20px',
-          right: '20px',
-          background: 'red',
-          color: 'white',
-          padding: '12px 24px',
-          borderRadius: '8px',
-          border: 'none',
-          cursor: 'pointer',
-          zIndex: 9999,
-          fontWeight: 'bold'
-        }}
-      >
-        🐛 Debug
-      </button> */}
     </div>
   );
 }

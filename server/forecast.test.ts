@@ -10,7 +10,7 @@ describe("generateForecast", () => {
     latitude: "40.5884",
     longitude: "-73.6579",
     buoyId: "44025",
-    tideStationId: "8516945",
+    tideStationId: "8516601",
     bathymetryFactor: 6,
     idealSwellDirMin: 120,
     idealSwellDirMax: 200,

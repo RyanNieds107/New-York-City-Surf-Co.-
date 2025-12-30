@@ -6,10 +6,9 @@
  */
 
 import type { ForecastPoint } from '../../drizzle/schema';
-import { getSpotProfile, type SpotProfile } from './spotProfiles';
+import { getSpotProfile, type SpotProfile, calculateSpotMultiplier, getSpotKey } from './spotProfiles';
 import {
   calculateBreakingWaveHeight,
-  formatWaveHeight,
   getDominantSwell,
 } from './waveHeight';
 import {
@@ -19,8 +18,8 @@ import {
 
 export interface ForecastOutput {
   timestamp: string; // ISO 8601 local time string
-  breaking_wave_height: string; // "3-4ft"
-  quality_rating: string; // "Good", "Actually Fun", etc.
+  breakingWaveHeightFt: number; // Predicted breaking wave face height in feet (numeric)
+  quality_rating: string; // "Don't Bother", "Worth a Look", "Go Surf", "Firing", "All-Time"
   quality_score: number; // 0-100 (internal)
   raw_data: {
     swell_height_ft: number;
@@ -46,12 +45,14 @@ export interface ForecastOutput {
  * @param forecastPoint - Forecast point data from database
  * @param spotId - Spot identifier (name or key like "lido", "long-beach", "rockaway")
  * @param tideFt - Tide height in decimal feet
+ * @param tidePhase - Tide phase: 'high', 'low', 'rising', 'falling', or null
  * @returns Complete forecast output
  */
 export function generateForecastOutput(
   forecastPoint: ForecastPoint,
   spotId: string,
-  tideFt: number
+  tideFt: number,
+  tidePhase?: string | null
 ): ForecastOutput {
   console.log('🎯 [generateForecastOutput] START for spot:', spotId);
   
@@ -61,9 +62,10 @@ export function generateForecastOutput(
     throw new Error(`No profile found for spot: ${spotId}`);
   }
 
-  // Get dominant swell (highest energy)
-  const dominantSwell = getDominantSwell(forecastPoint);
-  
+  // Get dominant swell using H² × T energy formula
+  // Penalties (directional kill switch, wrap penalty) are applied AFTER selection
+  const dominantSwell = getDominantSwell(forecastPoint, profile, tidePhase);
+
   if (!dominantSwell) {
     console.log('❌ No dominant swell - returning default output');
     // Fallback to primary swell if no dominant swell found
@@ -76,15 +78,15 @@ export function generateForecastOutput(
       swellHeightFt,
       periodS,
       profile,
-      forecastPoint.waveDirectionDeg
+      forecastPoint.waveDirectionDeg,
+      tidePhase
     );
-    const breakingWaveHeight = formatWaveHeight(breakingHeightFt);
     
     // Return with minimal data
     return {
       timestamp: forecastPoint.forecastTimestamp.toISOString(),
-      breaking_wave_height: breakingWaveHeight,
-      quality_rating: "Flat",
+      breakingWaveHeightFt: breakingHeightFt,
+      quality_rating: "Don't Bother",
       quality_score: 0,
       raw_data: {
         swell_height_ft: swellHeightFt,
@@ -104,36 +106,38 @@ export function generateForecastOutput(
   }
 
   // Use dominant swell for calculations
+  // breaking_height is already calculated in getDominantSwell with all penalties applied
   const swellHeightFt = dominantSwell.height_ft;
   const periodS = dominantSwell.period_s;
   const swellDirectionDeg = dominantSwell.direction_deg;
+  const breakingHeightFt = dominantSwell.breaking_height;
 
-  console.log('🌊 Calling calculateBreakingWaveHeight with:', {
+  // Calculate spot multiplier for logging
+  const spotKey = getSpotKey(profile.name) || spotId;
+  const spotMultiplier = calculateSpotMultiplier(spotKey, swellHeightFt, periodS);
+
+  console.log('🌊 Using dominant swell (selected by H²×T energy, displayed with H×T/10×mult):', {
     height: swellHeightFt,
     period: periodS,
     direction: swellDirectionDeg,
-    spot: profile.name
+    energy: dominantSwell.energy?.toFixed(1),
+    breaking_height: breakingHeightFt,
+    formula: `${swellHeightFt.toFixed(1)} × ${(periodS/10).toFixed(2)} × ${spotMultiplier} = ${(swellHeightFt * (periodS/10) * spotMultiplier).toFixed(1)}ft (before penalties)`,
+    spot: profile.name,
+    spotMultiplier
   });
-
-  // Calculate breaking wave height (pass swell direction for east swell adjustment)
-  const breakingHeightFt = calculateBreakingWaveHeight(
-    swellHeightFt,
-    periodS,
-    profile,
-    swellDirectionDeg
-  );
-  const breakingWaveHeight = formatWaveHeight(breakingHeightFt);
-  
-  console.log('📏 Breaking wave height result:', breakingHeightFt);
-  console.log('📝 Formatted:', breakingWaveHeight);
 
   // Create a modified forecast point with dominant swell data for quality scoring
   // Quality scoring expects primary swell fields, so we map dominant swell to those
+  // IMPORTANT: Preserve wind data from original forecastPoint for quality scoring
   const modifiedForecastPoint = {
     ...forecastPoint,
     waveHeightFt: Math.round(swellHeightFt * 10), // Convert back to tenths for compatibility
     wavePeriodSec: periodS,
     waveDirectionDeg: swellDirectionDeg,
+    // Preserve wind data - critical for quality scoring
+    windSpeedKts: forecastPoint.windSpeedKts ?? null,
+    windDirectionDeg: forecastPoint.windDirectionDeg ?? null,
   };
 
   // Calculate quality score (pass profile to avoid circular dependency)
@@ -141,15 +145,32 @@ export function generateForecastOutput(
     modifiedForecastPoint,
     spotId,
     tideFt,
-    profile
+    profile,
+    tidePhase ?? null
   );
+
+  // Debug logging for quality score breakdown
+  console.log('📊 Quality Score Breakdown:', {
+    spot: profile.name,
+    timestamp: forecastPoint.forecastTimestamp.toISOString(),
+    swell_height_ft: swellHeightFt,
+    period_s: periodS,
+    direction_deg: swellDirectionDeg,
+    tide_ft: tideFt,
+    wind_speed_kt: forecastPoint.windSpeedKts,
+    wind_direction_deg: forecastPoint.windDirectionDeg,
+    breakdown: qualityResult.breakdown,
+    raw_score: qualityResult.breakdown.swell_quality + qualityResult.breakdown.direction + qualityResult.breakdown.tide + qualityResult.breakdown.wind,
+    final_score: qualityResult.score,
+    rating: qualityResult.rating,
+  });
 
   // Format timestamp (ISO 8601 local time)
   const timestamp = forecastPoint.forecastTimestamp.toISOString();
 
   return {
     timestamp,
-    breaking_wave_height: breakingWaveHeight,
+    breakingWaveHeightFt: breakingHeightFt,
     quality_rating: qualityResult.rating,
     quality_score: qualityResult.score,
     raw_data: {

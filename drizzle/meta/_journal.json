@@ -43,6 +43,27 @@
       "when": 1765833926851,
       "tag": "0005_nervous_sauron",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1765894822525,
+      "tag": "0006_woozy_ikaris",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1765907388639,
+      "tag": "0007_unique_nightshade",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1767117785449,
+      "tag": "0008_small_pyro",
+      "breakpoints": true
     }
   ]
 }
