@@ -2,6 +2,7 @@ import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, MapPin, Clock, Car, Train, ChevronDown, Users } from "lucide-react";
+import { SwellArrow, WindArrowBadge, Arrow } from "@/components/ui/arrow";
 import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import { Footer } from "@/components/Footer";
@@ -34,29 +35,14 @@ const formatSwellDirection = (deg: number | null | undefined): string => {
   return `${cardinal} ${Math.round(deg)}°`;
 };
 
-// Wind arrows point in the direction wind is GOING (opposite of where it comes from)
-const getWindArrow = (directionDeg: number): string => {
-  const goingTo = (directionDeg + 180) % 360;
-  if (goingTo >= 337.5 || goingTo < 22.5) return '↑';
-  if (goingTo >= 22.5 && goingTo < 67.5) return '↗';
-  if (goingTo >= 67.5 && goingTo < 112.5) return '→';
-  if (goingTo >= 112.5 && goingTo < 157.5) return '↘';
-  if (goingTo >= 157.5 && goingTo < 202.5) return '↓';
-  if (goingTo >= 202.5 && goingTo < 247.5) return '↙';
-  if (goingTo >= 247.5 && goingTo < 292.5) return '←';
-  return '↖'; // 292.5 to 337.5
-};
-
-// Swell arrows point in the direction swell is COMING FROM (same as direction value)
-const getSwellArrow = (directionDeg: number): string => {
-  if (directionDeg >= 337.5 || directionDeg < 22.5) return '↓';   // From N
-  if (directionDeg >= 22.5 && directionDeg < 67.5) return '↙';    // From NE
-  if (directionDeg >= 67.5 && directionDeg < 112.5) return '←';   // From E
-  if (directionDeg >= 112.5 && directionDeg < 157.5) return '↖';  // From SE
-  if (directionDeg >= 157.5 && directionDeg < 202.5) return '↑';  // From S
-  if (directionDeg >= 202.5 && directionDeg < 247.5) return '↗';  // From SW
-  if (directionDeg >= 247.5 && directionDeg < 292.5) return '→';  // From W
-  return '↘'; // From NW (292.5 to 337.5)
+// Helper to determine wind type for arrow badge coloring
+const getWindType = (windType: string | null | undefined): "offshore" | "onshore" | "cross" | "unknown" => {
+  if (!windType) return "unknown";
+  const lower = windType.toLowerCase();
+  if (lower.includes("offshore")) return "offshore";
+  if (lower.includes("onshore")) return "onshore";
+  if (lower.includes("cross") || lower.includes("side")) return "cross";
+  return "unknown";
 };
 
 const getCrowdLabel = (level: number): string => {
@@ -259,10 +245,7 @@ function SpotForecastCard({ spot, forecast, isExpanded, onToggleExpand, onNaviga
   const dominantSwell = getDominantSwellInfo();
   const swellPeriod = dominantSwell.period !== null ? `${dominantSwell.period.toFixed(0)}s` : '—';
   const swellDirection = dominantSwell.direction !== null ? formatSwellDirection(dominantSwell.direction) : '—';
-  const swellArrow = dominantSwell.direction !== null ? getSwellArrow(dominantSwell.direction) : '';
-  const swellInfo = dominantSwell.direction !== null
-    ? `${swellPeriod} ${swellDirection}${swellArrow}`
-    : `${swellPeriod} ${swellDirection}`;
+  const swellDirectionDeg = dominantSwell.direction;
 
   // Format wind info
   const windSpeed = currentPoint?.windSpeedMph !== null && currentPoint?.windSpeedMph !== undefined
@@ -271,12 +254,8 @@ function SpotForecastCard({ spot, forecast, isExpanded, onToggleExpand, onNaviga
   const windDirection = currentPoint?.windDirectionDeg !== null && currentPoint?.windDirectionDeg !== undefined
     ? formatSwellDirection(currentPoint.windDirectionDeg)
     : '—';
-  const windArrow = currentPoint?.windDirectionDeg !== null && currentPoint?.windDirectionDeg !== undefined
-    ? getWindArrow(currentPoint.windDirectionDeg)
-    : '';
-  const windInfo = currentPoint?.windDirectionDeg !== null && currentPoint?.windDirectionDeg !== undefined
-    ? `${windSpeed} ${windDirection}${windArrow}`
-    : `${windSpeed} ${windDirection}`;
+  const windDirectionDeg = currentPoint?.windDirectionDeg ?? null;
+  const windType = getWindType(currentPoint?.windType);
 
   // Get crowd info
   const crowdLevel = crowdQuery.data?.averageLevel ?? null;
@@ -382,11 +361,15 @@ function SpotForecastCard({ spot, forecast, isExpanded, onToggleExpand, onNaviga
               {buoyLoading ? (
                 <div className="h-4 w-16 bg-blue-200 rounded animate-pulse"></div>
               ) : (
-                <p className="text-sm font-bold text-black uppercase tracking-wider text-center leading-tight" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                  {buoyData
-                    ? `${buoyData.dominantPeriod.toFixed(0)}s ${buoyData.directionLabel} ${Math.round(buoyData.waveDirection)}°${getSwellArrow(buoyData.waveDirection)}`
-                    : swellPeriod}
-                </p>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-bold text-black uppercase tracking-wider text-center leading-tight" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    {buoyData
+                      ? `${buoyData.dominantPeriod.toFixed(0)}s ${buoyData.directionLabel}`
+                      : swellPeriod}
+                  </span>
+                  {buoyData && <SwellArrow directionDeg={buoyData.waveDirection} size={14} />}
+                  {!buoyData && swellDirectionDeg !== null && <SwellArrow directionDeg={swellDirectionDeg} size={14} />}
+                </div>
               )}
               <p className="text-[10px] text-blue-600 uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                 Period
@@ -398,9 +381,14 @@ function SpotForecastCard({ spot, forecast, isExpanded, onToggleExpand, onNaviga
               {buoyLoading ? (
                 <div className="h-4 w-10 bg-blue-200 rounded animate-pulse"></div>
               ) : (
-                <p className="text-sm font-bold text-black uppercase tracking-wider text-center leading-tight" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                  {windInfo}
-                </p>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-bold text-black uppercase tracking-wider text-center leading-tight" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    {windSpeed}
+                  </span>
+                  {windDirectionDeg !== null && (
+                    <WindArrowBadge directionDeg={windDirectionDeg} windType={windType} badgeSize="sm" />
+                  )}
+                </div>
               )}
               <p className="text-[10px] text-blue-600 uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                 Wind
@@ -1161,7 +1149,18 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
       };
     }
 
-    // Cross-shore making it difficult
+    // Period too short - wind swell (using buoy period)
+    // CHECK THIS BEFORE cross-shore: short period = no real surf regardless of wind
+    if (period !== null && period < 6) {
+      const windDir = buoyData?.windWaveDirection || buoyData?.directionLabel || 'Wind';
+      return {
+        headline: "STAY DRY",
+        description: `${windDir} chop, short period — check back later`,
+        reason: "wind_swell"
+      };
+    }
+
+    // Cross-shore making it difficult - only when there's actual swell (period >= 6s)
     if (isCrossShore && windSpeed >= 12) {
       return {
         headline: "CROSS-SHORE MESS",
@@ -1180,17 +1179,6 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
           ? `Buoy reading ${buoyWaveHeight?.toFixed(1)}ft @ ${buoyPeriod}s. Save your energy for a real swell.`
           : `Barely ankle-high (${waveHeight.toFixed(1)}ft). Save your energy for a real swell.`,
         reason: "too_small"
-      };
-    }
-
-    // Period too short - wind swell (using buoy period)
-    if (period !== null && period < 6) {
-      return {
-        headline: "WIND SWELL",
-        description: buoyData
-          ? `${buoyWaveHeight?.toFixed(1)}ft but only ${buoyPeriod}s period. Short-period wind swell won't produce rideable waves.`
-          : `Short period (${period}s) wind swell. Weak and disorganized.`,
-        reason: "wind_swell"
       };
     }
 

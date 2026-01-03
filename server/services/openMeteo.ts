@@ -163,6 +163,7 @@ export async function fetchOpenMeteoForecastForSpot(
     hourly: marineHourlyParams.join(','),
     timezone: "auto",
     forecast_days: forecastDays,
+    past_days: 1, // Include earlier hours of today (otherwise API only returns from current hour forward)
   };
 
   // 🌊 STEP 1: Open-Meteo Marine API Request
@@ -182,6 +183,7 @@ export async function fetchOpenMeteoForecastForSpot(
     hourly: 'wind_speed_10m,wind_direction_10m,temperature_2m',
     timezone: "auto",
     forecast_days: forecastDays,
+    past_days: 1, // Include earlier hours of today (otherwise API only returns from current hour forward)
   };
   const weatherFullUrl = `${weatherApiUrl}?latitude=${lat}&longitude=${lon}&hourly=wind_speed_10m,wind_direction_10m,temperature_2m&timezone=${weatherParams.timezone}&forecast_days=${weatherParams.forecast_days}`;
   console.log('[Open-Meteo] Full Weather request URL:', weatherFullUrl);

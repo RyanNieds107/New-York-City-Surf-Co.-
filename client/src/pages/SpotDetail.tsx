@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
+import { Arrow, TrendArrow, SwellArrow, WindArrowBadge, ExpandArrow } from "@/components/ui/arrow";
 import {
   RefreshCw,
   Waves,
@@ -302,9 +303,14 @@ export default function SpotDetail() {
     timelineQuery.data.timeline.forEach((point, index) => {
       // Create date from timestamp
       const date = new Date(point.forecastTimestamp);
-      
-      // Skip forecast points that are too far in the past (more than 1 hour old)
-      if (date.getTime() < cutoffTime.getTime()) {
+
+      // For "Today", show full day regardless of time
+      // For other days, filter out points older than 1 hour
+      const pointDate = new Date(date);
+      pointDate.setHours(0, 0, 0, 0);
+      const isPointFromToday = pointDate.getTime() === today.getTime();
+
+      if (!isPointFromToday && date.getTime() < cutoffTime.getTime()) {
         return;
       }
       
@@ -466,20 +472,14 @@ export default function SpotDetail() {
     return Math.min(100, Math.round((energy / 300) * 100));
   };
 
-  // Get wind arrow based on direction
-  const getWindArrow = (directionDeg: number): string => {
-    // Wind direction is where wind comes FROM
-    // Arrows point in the direction wind is going (opposite of direction)
-    const normalized = (directionDeg + 180) % 360;
-    
-    if (normalized >= 337.5 || normalized < 22.5) return '↓'; // N -> S
-    if (normalized >= 22.5 && normalized < 67.5) return '↙'; // NE -> SW
-    if (normalized >= 67.5 && normalized < 112.5) return '←'; // E -> W
-    if (normalized >= 112.5 && normalized < 157.5) return '↖'; // SE -> NW
-    if (normalized >= 157.5 && normalized < 202.5) return '↑'; // S -> N
-    if (normalized >= 202.5 && normalized < 247.5) return '↗'; // SW -> NE
-    if (normalized >= 247.5 && normalized < 292.5) return '→'; // W -> E
-    return '↘'; // NW -> SE
+  // Get wind type for badge coloring
+  const getWindBadgeType = (windType: string | null): "offshore" | "onshore" | "cross" | "unknown" => {
+    if (!windType) return "unknown";
+    const lower = windType.toLowerCase();
+    if (lower.includes("offshore")) return "offshore";
+    if (lower.includes("onshore")) return "onshore";
+    if (lower.includes("cross") || lower.includes("side")) return "cross";
+    return "unknown";
   };
 
   // Format wind type for display
@@ -555,28 +555,9 @@ export default function SpotDetail() {
     return "Double overhead+";
   };
 
-  const getDirectionArrowRotation = (degrees: number): number => {
-    // Convert from compass degrees (0=N, 90=E) to CSS rotation (0=top, clockwise)
-    // For arrows pointing in the direction the swell is going TOWARD (opposite of FROM)
-    // Add 180 degrees to flip the arrow direction
-    return (degrees + 180) % 360;
-  };
-
   const DirectionArrow = ({ degrees }: { degrees: number }) => {
-    const rotation = getDirectionArrowRotation(degrees);
-    return (
-      <span 
-        className="inline-block text-black"
-        style={{ 
-          transform: `rotate(${rotation}deg) scaleX(0.5) scaleY(1.5)`,
-          display: 'inline-block',
-          lineHeight: 1,
-          transformOrigin: 'center center'
-        }}
-      >
-        ▲
-      </span>
-    );
+    // Swell direction is where it comes FROM, add 180 to show direction of travel
+    return <SwellArrow directionDeg={degrees} size={14} />;
   };
 
   const getCrowdLabel = (level: number) => {
@@ -1422,7 +1403,7 @@ export default function SpotDetail() {
                               <text x="50" y="96" textAnchor="middle" className="text-[10px] font-bold fill-gray-400">S</text>
                               <text x="12" y="54" textAnchor="middle" className="text-[10px] font-bold fill-gray-400">W</text>
                               {/* Wind direction arrow - points where wind is coming FROM */}
-                              <g transform={`rotate(${currentConditions.windDirectionDeg}, 50, 50)`}>
+                              <g transform={`rotate(${currentConditions.windDirectionDeg + 180}, 50, 50)`}>
                                 <line x1="50" y1="20" x2="50" y2="55" stroke={
                                   currentConditions.windType === 'offshore' ? '#059669' :
                                   currentConditions.windType === 'onshore' ? '#ef4444' :
@@ -1692,8 +1673,9 @@ export default function SpotDetail() {
                     <span className="text-sm font-medium text-black uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                       {getRatingLabel(currentConditions?.quality_score ?? forecast.qualityScore ?? 0)}
                     </span>
-                    <span className="ml-2 text-xs text-gray-500 group-hover:text-black transition-colors" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      {showScoreBreakdown ? '▲ Hide breakdown' : '▼ Why this rating?'}
+                    <span className="ml-2 text-xs text-gray-500 group-hover:text-black transition-colors flex items-center gap-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      <ExpandArrow expanded={showScoreBreakdown} size={10} />
+                      {showScoreBreakdown ? 'Hide breakdown' : 'Why this rating?'}
                     </span>
                   </button>
 
@@ -1739,9 +1721,10 @@ export default function SpotDetail() {
                             currentConditions.tidePhase === 'rising' || currentConditions.tidePhase === 'falling' ? 'text-emerald-600' :
                             'text-amber-500'
                           }`} style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                            {currentConditions.tidePhase === 'rising' ? '↑' :
-                             currentConditions.tidePhase === 'falling' ? '↓' :
-                             currentConditions.tidePhase === 'high' ? '▲' : '▼'}
+                            <TrendArrow
+                              rising={currentConditions.tidePhase === 'rising' || currentConditions.tidePhase === 'high'}
+                              size={20}
+                            />
                           </div>
                           <div className="text-[10px] text-gray-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                             {currentConditions.tideHeightFt ? `${(currentConditions.tideHeightFt / 10).toFixed(1)}ft ${currentConditions.tidePhase ?? ''}` : '—'}
@@ -1980,7 +1963,7 @@ export default function SpotDetail() {
                               // Tide data
                               const tideHeight = point.tideHeightFt !== null ? point.tideHeightFt / 10 : null;
                               const tidePhase = point.tidePhase;
-                              const tideArrow = tidePhase === 'rising' ? '↗' : tidePhase === 'falling' ? '↘' : '';
+                              const tideIsRising = tidePhase === 'rising' || tidePhase === 'high';
                               
                               // Find next tide event
                               const currentTime = new Date(point.forecastTimestamp);
@@ -2093,35 +2076,169 @@ export default function SpotDetail() {
                                         WIND
                                       </div>
                                       {windDir !== null && windSpeed !== null ? (
-                                        <>
-                                          <div className="text-[#1e293b] mb-1.5" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '16px', fontWeight: 700 }}>
-                                            {getSwellDirectionLabel(windDir)} {Math.round(windDir)}° {getWindArrow(windDir)}
+                                        <div className="flex items-start gap-4">
+                                          {/* Wind Compass Rose */}
+                                          <div className="flex-shrink-0">
+                                            <svg width="56" height="56" viewBox="0 0 56 56">
+                                              {/* Outer circle */}
+                                              <circle cx="28" cy="28" r="26" fill="none" stroke="#e2e8f0" strokeWidth="1.5" />
+                                              {/* Inner circle */}
+                                              <circle cx="28" cy="28" r="18" fill="none" stroke="#e2e8f0" strokeWidth="1" strokeDasharray="2,2" />
+                                              {/* Cardinal direction markers */}
+                                              <text x="28" y="8" textAnchor="middle" fontSize="7" fill="#94a3b8" fontWeight="600" style={{ fontFamily: 'JetBrains Mono, monospace' }}>N</text>
+                                              <text x="50" y="31" textAnchor="middle" fontSize="7" fill="#94a3b8" fontWeight="600" style={{ fontFamily: 'JetBrains Mono, monospace' }}>E</text>
+                                              <text x="28" y="54" textAnchor="middle" fontSize="7" fill="#94a3b8" fontWeight="600" style={{ fontFamily: 'JetBrains Mono, monospace' }}>S</text>
+                                              <text x="6" y="31" textAnchor="middle" fontSize="7" fill="#94a3b8" fontWeight="600" style={{ fontFamily: 'JetBrains Mono, monospace' }}>W</text>
+                                              {/* Wind direction arrow - points FROM where wind is coming */}
+                                              <g transform={`rotate(${windDir + 180}, 28, 28)`}>
+                                                <line x1="28" y1="38" x2="28" y2="14" stroke={windType === 'offshore' ? '#059669' : windType === 'onshore' ? '#ef4444' : '#64748b'} strokeWidth="2.5" strokeLinecap="round" />
+                                                <polygon
+                                                  points="28,10 23,18 33,18"
+                                                  fill={windType === 'offshore' ? '#059669' : windType === 'onshore' ? '#ef4444' : '#64748b'}
+                                                />
+                                              </g>
+                                              {/* Center dot */}
+                                              <circle cx="28" cy="28" r="3" fill={windType === 'offshore' ? '#059669' : windType === 'onshore' ? '#ef4444' : '#64748b'} />
+                                            </svg>
                                           </div>
-                                          <div className="text-[#64748b]" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '14px', fontWeight: 600 }}>
-                                            {Math.round(windSpeed)}mph {windType ? formatWindType(windType) : ''}
+                                          {/* Wind Info */}
+                                          <div className="flex-1 min-w-0">
+                                            <div className="text-[#1e293b] mb-1.5" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '16px', fontWeight: 700 }}>
+                                              {getSwellDirectionLabel(windDir)} {Math.round(windDir)}°
+                                            </div>
+                                            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '14px', fontWeight: 600 }}>
+                                              <span className="text-[#64748b]">{Math.round(windSpeed)}mph </span>
+                                              {windType && (
+                                                <span style={{
+                                                  color: windType === 'offshore' ? '#059669' : windType === 'onshore' ? '#ef4444' : '#64748b',
+                                                  fontWeight: 700
+                                                }}>
+                                                  {formatWindType(windType)}
+                                                </span>
+                                              )}
+                                            </div>
                                           </div>
-                                        </>
+                                        </div>
                                       ) : (
                                         <div className="text-sm text-gray-500">—</div>
                                       )}
                                     </div>
 
-                                    {/* Tide Column */}
+                                    {/* Tide Column with Mini Sparkline */}
                                     <div className="p-5 md:border-b-0 md:border-r-0">
                                       <div className="uppercase mb-2" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', fontWeight: 700, color: '#64748b', letterSpacing: '0.5px' }}>
                                         TIDE
                                       </div>
                                       {tideHeight !== null ? (
-                                        <>
-                                          <div className="text-[#1e293b] mb-1.5" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '16px', fontWeight: 700 }}>
-                                            {tideHeight.toFixed(1)}ft {tideArrow} {tidePhase ? tidePhase.charAt(0).toUpperCase() + tidePhase.slice(1) : ''}
-                                          </div>
-                                          {nextTideTime && nextTideHeight !== null && (
-                                            <div className="text-[#64748b]" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '14px', fontWeight: 600 }}>
-                                              {nextTidePhase === 'high' ? 'High' : 'Low'} @ {nextTideTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })} ({nextTideHeight.toFixed(1)}ft)
+                                        <div className="flex items-start gap-4">
+                                          {/* Mini Tide Sparkline */}
+                                          {(() => {
+                                            // Get tide data for the selected day
+                                            const selectedDate = new Date(point.forecastTimestamp);
+                                            const dayStart = new Date(selectedDate);
+                                            dayStart.setHours(0, 0, 0, 0);
+                                            const dayEnd = new Date(selectedDate);
+                                            dayEnd.setHours(23, 59, 59, 999);
+
+                                            const dayTideData = (timelineQuery.data?.timeline ?? [])
+                                              .filter(p => {
+                                                const t = new Date(p.forecastTimestamp);
+                                                return t >= dayStart && t <= dayEnd && p.tideHeightFt !== null;
+                                              })
+                                              .map((p, idx) => ({
+                                                height: p.tideHeightFt! / 10,
+                                                time: new Date(p.forecastTimestamp),
+                                                index: idx
+                                              }));
+
+                                            if (dayTideData.length < 2) return null;
+
+                                            // Find current point index
+                                            const currentIdx = dayTideData.findIndex(d =>
+                                              Math.abs(d.time.getTime() - selectedDate.getTime()) < 60 * 60 * 1000
+                                            );
+
+                                            // SVG dimensions for sparkline
+                                            const sparkWidth = 120;
+                                            const sparkHeight = 48;
+                                            const padding = { top: 6, bottom: 6, left: 4, right: 4 };
+                                            const chartWidth = sparkWidth - padding.left - padding.right;
+                                            const chartHeight = sparkHeight - padding.top - padding.bottom;
+
+                                            const heights = dayTideData.map(d => d.height);
+                                            const minH = Math.min(...heights);
+                                            const maxH = Math.max(...heights);
+                                            const rangeH = (maxH - minH) || 1;
+
+                                            const getX = (idx: number) => padding.left + (idx / Math.max(dayTideData.length - 1, 1)) * chartWidth;
+                                            const getY = (h: number) => padding.top + chartHeight * (1 - (h - minH) / rangeH);
+
+                                            // Create smooth bezier curve
+                                            let pathD = `M ${getX(0)} ${getY(dayTideData[0].height)}`;
+                                            for (let i = 1; i < dayTideData.length; i++) {
+                                              const x0 = getX(i - 1);
+                                              const y0 = getY(dayTideData[i - 1].height);
+                                              const x1 = getX(i);
+                                              const y1 = getY(dayTideData[i].height);
+                                              const cpx = (x0 + x1) / 2;
+                                              pathD += ` C ${cpx} ${y0}, ${cpx} ${y1}, ${x1} ${y1}`;
+                                            }
+
+                                            // Fill path
+                                            const fillPathD = `${pathD} L ${getX(dayTideData.length - 1)} ${sparkHeight - padding.bottom} L ${padding.left} ${sparkHeight - padding.bottom} Z`;
+
+                                            return (
+                                              <div className="flex-shrink-0">
+                                                <svg width={sparkWidth} height={sparkHeight} viewBox={`0 0 ${sparkWidth} ${sparkHeight}`}>
+                                                  <defs>
+                                                    <linearGradient id="miniTideGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                                      <stop offset="0%" stopColor="#0ea5e9" stopOpacity="0.3" />
+                                                      <stop offset="100%" stopColor="#0ea5e9" stopOpacity="0.05" />
+                                                    </linearGradient>
+                                                  </defs>
+                                                  {/* Fill under curve */}
+                                                  <path d={fillPathD} fill="url(#miniTideGradient)" />
+                                                  {/* Main curve line */}
+                                                  <path d={pathD} fill="none" stroke="#0ea5e9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                                  {/* Current position marker */}
+                                                  {currentIdx >= 0 && (
+                                                    <g>
+                                                      <circle
+                                                        cx={getX(currentIdx)}
+                                                        cy={getY(dayTideData[currentIdx].height)}
+                                                        r="5"
+                                                        fill="#0ea5e9"
+                                                        stroke="white"
+                                                        strokeWidth="2"
+                                                      />
+                                                    </g>
+                                                  )}
+                                                </svg>
+                                                {/* Time labels */}
+                                                <div className="flex justify-between mt-0.5" style={{ width: sparkWidth }}>
+                                                  <span className="text-[8px] text-gray-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>6a</span>
+                                                  <span className="text-[8px] text-gray-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>12p</span>
+                                                  <span className="text-[8px] text-gray-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>6p</span>
+                                                </div>
+                                              </div>
+                                            );
+                                          })()}
+                                          {/* Tide Info */}
+                                          <div className="flex-1 min-w-0">
+                                            <div className="text-[#1e293b] mb-1.5 flex items-center gap-1" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '16px', fontWeight: 700 }}>
+                                              {tideHeight.toFixed(1)}ft
+                                              {(tidePhase === 'rising' || tidePhase === 'falling') && (
+                                                <TrendArrow rising={tideIsRising} size={14} />
+                                              )}
+                                              {tidePhase ? tidePhase.charAt(0).toUpperCase() + tidePhase.slice(1) : ''}
                                             </div>
-                                          )}
-                                        </>
+                                            {nextTideTime && nextTideHeight !== null && (
+                                              <div className="text-[#64748b]" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '14px', fontWeight: 600 }}>
+                                                {nextTidePhase === 'high' ? 'High' : 'Low'} @ {nextTideTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })} ({nextTideHeight.toFixed(1)}ft)
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
                                       ) : (
                                         <div className="text-sm text-gray-500">—</div>
                                       )}
@@ -2232,16 +2349,30 @@ export default function SpotDetail() {
                           // 0 is a valid value meaning flat conditions, so we use explicit null check
                           const heights = pointSet.map(p => p.breakingWaveHeightFt !== null ? p.breakingWaveHeightFt : (p.dominantSwellHeightFt ?? p.waveHeightFt)).filter(h => h !== null) as number[];
                           const periods = pointSet.map(p => p.dominantSwellPeriodS ?? p.wavePeriodSec).filter(p => p !== null && p > 0) as number[];
+                          const windSpeeds = pointSet.map(p => p.windSpeedMph).filter(s => s !== null) as number[];
+                          const windDirs = pointSet.map(p => p.windDirectionDeg).filter(d => d !== null) as number[];
 
                           if (heights.length === 0 || periods.length === 0) {
-                            return { heightStr: "N/A", periodStr: "N/A" };
+                            return { heightStr: "N/A", periodStr: "N/A", windStr: "N/A" };
                           }
 
                           // Use average height - formatSurfHeight already returns a range label like "3-4ft"
                           const avgHeight = heights.reduce((a, b) => a + b, 0) / heights.length;
                           const avgPeriod = (periods.reduce((a, b) => a + b, 0) / periods.length).toFixed(0);
 
-                          return { heightStr: formatSurfHeight(avgHeight), periodStr: `${avgPeriod}s` };
+                          // Calculate average wind
+                          let windStr = "N/A";
+                          if (windSpeeds.length > 0 && windDirs.length > 0) {
+                            const avgWindSpeed = Math.round(windSpeeds.reduce((a, b) => a + b, 0) / windSpeeds.length);
+                            // Average wind direction (handle 360° wrap-around)
+                            const sinSum = windDirs.reduce((sum, dir) => sum + Math.sin(dir * Math.PI / 180), 0);
+                            const cosSum = windDirs.reduce((sum, dir) => sum + Math.cos(dir * Math.PI / 180), 0);
+                            const avgWindDir = Math.round((Math.atan2(sinSum / windDirs.length, cosSum / windDirs.length) * 180 / Math.PI + 360) % 360);
+                            const windCardinal = formatDirection(avgWindDir);
+                            windStr = `${windCardinal?.cardinal || ''} ${avgWindSpeed}mph`;
+                          }
+
+                          return { heightStr: formatSurfHeight(avgHeight), periodStr: `${avgPeriod}s`, windStr };
                         };
                         
                         const amConditions = calculateConditions(amPoints);
@@ -2326,17 +2457,11 @@ export default function SpotDetail() {
                                     {avgWindSpeed !== null && windDirCardinal && (
                                       <>
                                         <span className="mx-2">•</span>
-                                        <span className="font-bold text-black">{windDirCardinal.cardinal} {(() => {
-                                          const goingTo = (windDirCardinal.degrees + 180) % 360;
-                                          if (goingTo >= 337.5 || goingTo < 22.5) return '↑';
-                                          if (goingTo >= 22.5 && goingTo < 67.5) return '↗';
-                                          if (goingTo >= 67.5 && goingTo < 112.5) return '→';
-                                          if (goingTo >= 112.5 && goingTo < 157.5) return '↘';
-                                          if (goingTo >= 157.5 && goingTo < 202.5) return '↓';
-                                          if (goingTo >= 202.5 && goingTo < 247.5) return '↙';
-                                          if (goingTo >= 247.5 && goingTo < 292.5) return '←';
-                                          return '↖';
-                                        })()} {avgWindSpeed}mph</span>
+                                        <span className="font-bold text-black inline-flex items-center gap-1">
+                                          {windDirCardinal.cardinal}
+                                          <Arrow degrees={(windDirCardinal.degrees + 180) % 360} size={12} color="#1e293b" />
+                                          {avgWindSpeed}mph
+                                        </span>
                                       </>
                                     )}
                                   </p>
@@ -2364,18 +2489,26 @@ export default function SpotDetail() {
                                 <div className="grid md:grid-cols-3 gap-3 mb-6">
                                   {/* CONDITIONS Box */}
                                   <div className="bg-white border-2 border-black p-3">
-                                    <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>CONDITIONS</span>
-                                    <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                                      {amConditions.heightStr !== "N/A" && pmConditions.heightStr !== "N/A" ? (
-                                        <><span className="font-semibold">AM:</span> {amConditions.heightStr} @ {amConditions.periodStr} <span className="font-semibold">·</span> <span className="font-semibold">PM:</span> {pmConditions.heightStr} @ {pmConditions.periodStr}</>
-                                      ) : amConditions.heightStr !== "N/A" ? (
-                                        <><span className="font-semibold">AM:</span> {amConditions.heightStr} @ {amConditions.periodStr}</>
-                                      ) : pmConditions.heightStr !== "N/A" ? (
-                                        <><span className="font-semibold">PM:</span> {pmConditions.heightStr} @ {pmConditions.periodStr}</>
-                                      ) : (
-                                        <>N/A</>
+                                    <span className="text-[10px] font-bold tracking-widest text-gray-500 uppercase block mb-2" style={{ fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.5px' }}>CONDITIONS</span>
+                                    <div className="space-y-1.5">
+                                      {amConditions.heightStr !== "N/A" && (
+                                        <div className="flex items-center justify-between text-[13px]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                          <span className="font-bold text-gray-900 w-8">AM</span>
+                                          <span className="text-gray-700 flex-1">{amConditions.heightStr} @ {amConditions.periodStr}</span>
+                                          <span className="text-gray-500 text-right">{amConditions.windStr}</span>
+                                        </div>
                                       )}
-                                    </p>
+                                      {pmConditions.heightStr !== "N/A" && (
+                                        <div className="flex items-center justify-between text-[13px]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                          <span className="font-bold text-gray-900 w-8">PM</span>
+                                          <span className="text-gray-700 flex-1">{pmConditions.heightStr} @ {pmConditions.periodStr}</span>
+                                          <span className="text-gray-500 text-right">{pmConditions.windStr}</span>
+                                        </div>
+                                      )}
+                                      {amConditions.heightStr === "N/A" && pmConditions.heightStr === "N/A" && (
+                                        <p className="text-sm text-gray-500">No data available</p>
+                                      )}
+                                    </div>
                                   </div>
 
                                   {/* BEST WINDOWS Box */}
@@ -2424,10 +2557,10 @@ export default function SpotDetail() {
 
                                   {/* TIDE FORECAST Box */}
                                   <div className="bg-white border-2 border-black p-3">
-                                    <span className="text-[10px] font-bold tracking-widest text-gray-500 uppercase block mb-2" style={{ fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.5px' }}>TIDE FORECAST</span>
+                                    <span className="text-[10px] font-bold tracking-widest text-gray-500 uppercase block mb-3" style={{ fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.5px' }}>TIDE FORECAST</span>
                                     {(() => {
                                       // Find high and low tide points for this day
-                                      const tideExtremes: { type: 'high' | 'low'; time: Date; height: number }[] = [];
+                                      const tideExtremes: { type: 'high' | 'low'; time: Date; height: number; index: number }[] = [];
 
                                       for (let i = 1; i < points.length - 1; i++) {
                                         const prev = points[i - 1];
@@ -2439,21 +2572,11 @@ export default function SpotDetail() {
                                         const nextHeight = next.tideHeightFt != null ? next.tideHeightFt / 10 : null;
 
                                         if (prevHeight !== null && currHeight !== null && nextHeight !== null) {
-                                          // Local maximum = high tide
                                           if (currHeight > prevHeight && currHeight > nextHeight) {
-                                            tideExtremes.push({
-                                              type: 'high',
-                                              time: new Date(curr.forecastTimestamp),
-                                              height: currHeight
-                                            });
+                                            tideExtremes.push({ type: 'high', time: new Date(curr.forecastTimestamp), height: currHeight, index: i });
                                           }
-                                          // Local minimum = low tide
                                           if (currHeight < prevHeight && currHeight < nextHeight) {
-                                            tideExtremes.push({
-                                              type: 'low',
-                                              time: new Date(curr.forecastTimestamp),
-                                              height: currHeight
-                                            });
+                                            tideExtremes.push({ type: 'low', time: new Date(curr.forecastTimestamp), height: currHeight, index: i });
                                           }
                                         }
                                       }
@@ -2463,19 +2586,139 @@ export default function SpotDetail() {
 
                                       const formatTideTime = (date: Date) => {
                                         const hours = date.getHours();
-                                        const minutes = date.getMinutes();
                                         const period = hours >= 12 ? 'pm' : 'am';
                                         const hour12 = hours % 12 || 12;
-                                        return minutes === 0 ? `${hour12}${period}` : `${hour12}:${minutes.toString().padStart(2, '0')}${period}`;
+                                        return `${hour12}${period}`;
                                       };
 
-                                      const highVal = highTide ? `${formatTideTime(highTide.time)} (${highTide.height.toFixed(1)}ft)` : 'N/A';
-                                      const lowVal = lowTide ? `${formatTideTime(lowTide.time)} (${lowTide.height.toFixed(1)}ft)` : 'N/A';
+                                      // Build tide curve data
+                                      const tideData = points.map((p, idx) => ({
+                                        height: p.tideHeightFt != null ? p.tideHeightFt / 10 : null,
+                                        hour: new Date(p.forecastTimestamp).getHours(),
+                                        index: idx
+                                      })).filter(d => d.height !== null) as { height: number; hour: number; index: number }[];
+
+                                      if (tideData.length === 0) {
+                                        return <p className="text-sm text-gray-500">No tide data available</p>;
+                                      }
+
+                                      // SVG dimensions - taller for better visibility
+                                      const svgWidth = 240;
+                                      const svgHeight = 70;
+                                      const padding = { top: 20, bottom: 18, left: 8, right: 8 };
+                                      const chartWidth = svgWidth - padding.left - padding.right;
+                                      const chartHeight = svgHeight - padding.top - padding.bottom;
+
+                                      // Find min/max for scaling with some padding
+                                      const heights = tideData.map(d => d.height);
+                                      const minHeight = Math.min(...heights);
+                                      const maxHeight = Math.max(...heights);
+                                      const heightRange = (maxHeight - minHeight) || 1;
+                                      const scalePadding = heightRange * 0.1;
+
+                                      const getX = (idx: number) => padding.left + (idx / Math.max(tideData.length - 1, 1)) * chartWidth;
+                                      const getY = (height: number) => {
+                                        const normalizedHeight = (height - minHeight + scalePadding) / (heightRange + scalePadding * 2);
+                                        return padding.top + chartHeight * (1 - normalizedHeight);
+                                      };
+
+                                      // Create smooth bezier curve
+                                      let pathD = `M ${getX(0)} ${getY(tideData[0].height)}`;
+                                      for (let i = 1; i < tideData.length; i++) {
+                                        const x0 = getX(i - 1);
+                                        const y0 = getY(tideData[i - 1].height);
+                                        const x1 = getX(i);
+                                        const y1 = getY(tideData[i].height);
+                                        const cpx = (x0 + x1) / 2;
+                                        pathD += ` C ${cpx} ${y0}, ${cpx} ${y1}, ${x1} ${y1}`;
+                                      }
+
+                                      // Create gradient fill path
+                                      const fillPathD = `${pathD} L ${getX(tideData.length - 1)} ${svgHeight - padding.bottom} L ${padding.left} ${svgHeight - padding.bottom} Z`;
 
                                       return (
-                                        <p className="text-[14px] text-gray-900" style={{ fontFamily: "'Inter', 'Roboto', sans-serif", lineHeight: '1.5' }}>
-                                          <span className="font-semibold">High:</span> {highVal} <span className="font-semibold">•</span> <span className="font-semibold">Low:</span> {lowVal}
-                                        </p>
+                                        <div>
+                                          {/* Tide Curve SVG */}
+                                          <svg
+                                            width="100%"
+                                            height={svgHeight}
+                                            viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+                                            preserveAspectRatio="xMidYMid meet"
+                                            className="block"
+                                          >
+                                            {/* Gradient definition */}
+                                            <defs>
+                                              <linearGradient id={`tideGradient-${dayKey}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                                                <stop offset="0%" stopColor="#0ea5e9" stopOpacity="0.3" />
+                                                <stop offset="100%" stopColor="#0ea5e9" stopOpacity="0.05" />
+                                              </linearGradient>
+                                            </defs>
+
+                                            {/* Subtle horizontal gridlines */}
+                                            <line x1={padding.left} y1={padding.top} x2={svgWidth - padding.right} y2={padding.top} stroke="#e5e7eb" strokeWidth="1" />
+                                            <line x1={padding.left} y1={padding.top + chartHeight / 2} x2={svgWidth - padding.right} y2={padding.top + chartHeight / 2} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="4,4" />
+                                            <line x1={padding.left} y1={svgHeight - padding.bottom} x2={svgWidth - padding.right} y2={svgHeight - padding.bottom} stroke="#d1d5db" strokeWidth="1" />
+
+                                            {/* Fill under curve */}
+                                            <path d={fillPathD} fill={`url(#tideGradient-${dayKey})`} />
+
+                                            {/* Main curve line */}
+                                            <path d={pathD} fill="none" stroke="#0ea5e9" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+
+                                            {/* High tide marker */}
+                                            {highTide && (() => {
+                                              const highIdx = tideData.findIndex(d => d.index === highTide.index);
+                                              if (highIdx === -1) return null;
+                                              const x = getX(highIdx);
+                                              const y = getY(highTide.height);
+                                              return (
+                                                <g>
+                                                  <circle cx={x} cy={y} r="5" fill="#0ea5e9" stroke="white" strokeWidth="2" />
+                                                  <text x={x} y={y - 8} textAnchor="middle" fontSize="9" fill="#0369a1" fontWeight="600" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+                                                    {formatTideTime(highTide.time)}
+                                                  </text>
+                                                </g>
+                                              );
+                                            })()}
+
+                                            {/* Low tide marker */}
+                                            {lowTide && (() => {
+                                              const lowIdx = tideData.findIndex(d => d.index === lowTide.index);
+                                              if (lowIdx === -1) return null;
+                                              const x = getX(lowIdx);
+                                              const y = getY(lowTide.height);
+                                              return (
+                                                <g>
+                                                  <circle cx={x} cy={y} r="5" fill="#0ea5e9" stroke="white" strokeWidth="2" />
+                                                  <text x={x} y={y - 8} textAnchor="middle" fontSize="9" fill="#0369a1" fontWeight="600" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+                                                    {formatTideTime(lowTide.time)}
+                                                  </text>
+                                                </g>
+                                              );
+                                            })()}
+
+                                            {/* Time axis labels */}
+                                            <text x={padding.left} y={svgHeight - 4} fontSize="8" fill="#9ca3af" textAnchor="start" style={{ fontFamily: 'JetBrains Mono, monospace' }}>6a</text>
+                                            <text x={svgWidth / 2} y={svgHeight - 4} fontSize="8" fill="#9ca3af" textAnchor="middle" style={{ fontFamily: 'JetBrains Mono, monospace' }}>12p</text>
+                                            <text x={svgWidth - padding.right} y={svgHeight - 4} fontSize="8" fill="#9ca3af" textAnchor="end" style={{ fontFamily: 'JetBrains Mono, monospace' }}>6p</text>
+                                          </svg>
+
+                                          {/* High/Low summary row */}
+                                          <div className="flex justify-between mt-2 pt-2 border-t border-gray-100">
+                                            <div className="flex items-center gap-1.5">
+                                              <div className="w-2 h-2 rounded-full bg-sky-500"></div>
+                                              <span className="text-[11px] text-gray-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                                <span className="font-semibold">High</span> {highTide ? `${highTide.height.toFixed(1)}ft` : 'N/A'}
+                                              </span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                              <div className="w-2 h-2 rounded-full bg-sky-500"></div>
+                                              <span className="text-[11px] text-gray-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                                <span className="font-semibold">Low</span> {lowTide ? `${lowTide.height.toFixed(1)}ft` : 'N/A'}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        </div>
                                       );
                                     })()}
                                   </div>
@@ -2489,31 +2732,20 @@ export default function SpotDetail() {
 
                                   {/* Table Header */}
                                   <div
-                                    className="grid gap-4 px-3 py-2 bg-gray-50 border-b border-gray-200 text-[10px] font-bold tracking-wide text-gray-500 uppercase"
-                                    style={{ gridTemplateColumns: '50px 100px 1fr 130px 80px', fontFamily: "'JetBrains Mono', monospace" }}
+                                    className="grid px-4 py-3 bg-gray-50 border-b border-gray-200 text-[10px] font-bold tracking-wide text-gray-500 uppercase"
+                                    style={{ gridTemplateColumns: '6% 9% 22% 22% 15% 15% 11%', width: '100%', fontFamily: "'JetBrains Mono', monospace" }}
                                   >
-                                    <div>Time</div>
+                                    <div></div>
+                                    <div>Surf</div>
+                                    <div>Primary Swell</div>
+                                    <div>Secondary Swell</div>
                                     <div>Wind</div>
-                                    <div>Swell</div>
-                                    <div>Quality</div>
                                     <div>Tide</div>
+                                    <div className="text-right">Quality</div>
                                   </div>
 
                                   <div>
                                     {(() => {
-                                      // Helper function to get wind arrow unicode based on direction (where wind GOES)
-                                      const getWindArrow = (degrees: number): string => {
-                                        // Wind direction is where it comes FROM, so add 180 to show where it GOES
-                                        const goingTo = (degrees + 180) % 360;
-                                        if (goingTo >= 337.5 || goingTo < 22.5) return '↑';
-                                        if (goingTo >= 22.5 && goingTo < 67.5) return '↗';
-                                        if (goingTo >= 67.5 && goingTo < 112.5) return '→';
-                                        if (goingTo >= 112.5 && goingTo < 157.5) return '↘';
-                                        if (goingTo >= 157.5 && goingTo < 202.5) return '↓';
-                                        if (goingTo >= 202.5 && goingTo < 247.5) return '↙';
-                                        if (goingTo >= 247.5 && goingTo < 292.5) return '←';
-                                        return '↖';
-                                      };
 
                                       // Helper function to get quality border color (matches rating labels)
                                       // Don't Bother (0-39): red, Worth a Look (40-59): yellow
@@ -2630,7 +2862,6 @@ export default function SpotDetail() {
                                         // Wind data
                                         const windSpeed = point.windSpeedMph !== null ? Math.round(point.windSpeedMph) : null;
                                         const windDir = point.windDirectionDeg !== null ? formatDirection(point.windDirectionDeg) : null;
-                                        const windArrow = point.windDirectionDeg !== null ? getWindArrow(point.windDirectionDeg) : '';
 
                                         // Primary swell data (dominant swell or fallback to primary)
                                         // Note: decimal fields from database come as strings, convert to numbers
@@ -2656,61 +2887,116 @@ export default function SpotDetail() {
                                         const starCount = getStarCount(qualityScore);
                                         const tideInfo = getTideInfo(point, index, uniquePoints);
 
+                                        // Calculate surf height range for display
+                                        const surfHeight = point.breakingWaveHeightFt !== null
+                                          ? point.breakingWaveHeightFt
+                                          : (primarySwellHeight ?? 0);
+                                        const formatSurfRange = (height: number): string => {
+                                          if (height < 0.5) return 'Flat';
+                                          if (height < 1) return '0-1';
+                                          const low = Math.floor(height);
+                                          const high = Math.ceil(height);
+                                          if (height >= 4) return `${low}-${high}+`;
+                                          return low === high ? `${low}` : `${low}-${high}`;
+                                        };
+
+
+                                        // Wind type for color coding
+                                        const windType = point.windType ?? null;
+                                        const windColor = windType === 'offshore' ? '#059669' : windType === 'onshore' ? '#ef4444' : '#64748b';
+
                                         return (
                                           <div
                                             key={`${point.forecastTimestamp}-${index}`}
                                             className={cn(
-                                              "grid gap-4 px-3 py-3.5 border-b border-gray-100 relative transition-colors",
+                                              "grid px-4 py-3.5 border-b border-gray-100 relative transition-colors items-center",
                                               isNight ? "bg-gray-100 hover:bg-gray-200" : "hover:bg-gray-50"
                                             )}
-                                            style={{ gridTemplateColumns: '50px 100px 1fr 130px 80px' }}
+                                            style={{ gridTemplateColumns: '6% 9% 22% 22% 15% 15% 11%', width: '100%' }}
                                           >
                                             {/* Quality indicator left border */}
                                             <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${getQualityBorderColor(qualityScore)}`} />
 
                                             {/* Time */}
-                                            <div className="flex items-center gap-1">
-                                              <span className="text-[15px] font-bold text-gray-900">{hour12}</span>
-                                              <span className="text-[11px] text-gray-400 font-medium">{period}</span>
+                                            <div className="flex items-center">
+                                              <span className="text-[14px] font-bold text-gray-800">{hour12}{period}</span>
                                             </div>
 
-                                            {/* Wind */}
-                                            <div className="flex items-center gap-1.5">
-                                              <span className="text-[15px] font-bold text-gray-900">{windDir?.cardinal ?? 'N/A'}</span>
-                                              <span className="text-gray-600">{windArrow}</span>
-                                              <span className="text-[13px] text-gray-500">{windSpeed !== null ? `${windSpeed}mph` : ''}</span>
-                                            </div>
-
-                                            {/* Swell */}
-                                            <div className="flex flex-col gap-1">
-                                              {/* Primary Swell */}
-                                              <div className="flex items-center gap-2">
-                                                <span className="text-[15px] font-bold text-gray-900 min-w-[45px]">
-                                                  {primarySwellHeight !== null ? `${primarySwellHeight.toFixed(1)}ft` : 'N/A'}
-                                                </span>
-                                                <span className="text-[13px] text-gray-500 flex items-center gap-1">
-                                                  {primarySwellDir?.cardinal ?? ''} <span className="text-gray-400">⤡</span>
-                                                  <span className="text-[12px] text-gray-400">{primarySwellPeriod !== null ? `${Math.round(primarySwellPeriod)}s` : ''}</span>
+                                            {/* Surf Height Pill */}
+                                            <div className="flex">
+                                              <div className="bg-gray-100 rounded-lg px-2.5 py-1 text-center">
+                                                <span className="text-[14px] font-bold text-gray-900">
+                                                  {formatSurfRange(surfHeight)}
                                                 </span>
                                               </div>
+                                            </div>
 
-                                              {/* Secondary Swell */}
-                                              {secondaryHeight !== null && secondaryHeight > 0 && (
-                                                <div className="flex items-center gap-2">
-                                                  <span className="text-[15px] font-bold text-gray-900 min-w-[45px]">
-                                                    {secondaryHeight.toFixed(1)}ft
-                                                  </span>
-                                                  <span className="text-[13px] text-gray-500 flex items-center gap-1">
-                                                    {secondaryDir?.cardinal ?? ''} <span className="text-gray-400">⤡</span>
-                                                    <span className="text-[12px] text-gray-400">{secondaryPeriod !== null ? `${Math.round(secondaryPeriod)}s` : ''}</span>
-                                                  </span>
-                                                </div>
+                                            {/* Primary Swell with SVG arrow */}
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-[14px] font-bold text-gray-900 min-w-[42px]">
+                                                {primarySwellHeight !== null ? `${primarySwellHeight.toFixed(1)}ft` : '—'}
+                                              </span>
+                                              <span className="text-[13px] font-semibold text-gray-600">
+                                                {primarySwellPeriod !== null ? `${Math.round(primarySwellPeriod)}s` : ''}
+                                              </span>
+                                              {primarySwellDeg !== null && (
+                                                <SwellArrow directionDeg={primarySwellDeg} size={18} />
                                               )}
                                             </div>
 
-                                            {/* Quality */}
+                                            {/* Secondary Swell with lighter styling */}
                                             <div className="flex items-center gap-2">
-                                              <span className="text-[18px] font-black text-gray-900 min-w-[28px]">{Math.round(qualityScore)}</span>
+                                              {secondaryHeight !== null && secondaryHeight > 0 ? (
+                                                <>
+                                                  <span className="text-[14px] font-semibold text-gray-500 min-w-[42px]">
+                                                    {secondaryHeight.toFixed(1)}ft
+                                                  </span>
+                                                  <span className="text-[13px] font-medium text-gray-400">
+                                                    {secondaryPeriod !== null ? `${Math.round(secondaryPeriod)}s` : ''}
+                                                  </span>
+                                                  {secondaryDeg !== null && (
+                                                    <SwellArrow directionDeg={secondaryDeg} size={16} secondary />
+                                                  )}
+                                                </>
+                                              ) : (
+                                                <span className="text-[13px] text-gray-300">—</span>
+                                              )}
+                                            </div>
+
+                                            {/* Wind with styled arrow box */}
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-[14px] font-bold text-gray-900">
+                                                {windSpeed !== null ? `${windSpeed}` : '—'}
+                                                <span className="text-[11px] font-medium text-gray-500">mph</span>
+                                              </span>
+                                              {point.windDirectionDeg !== null && (
+                                                <WindArrowBadge
+                                                  directionDeg={point.windDirectionDeg}
+                                                  windType={getWindBadgeType(windType)}
+                                                />
+                                              )}
+                                            </div>
+
+                                            {/* Tide */}
+                                            <div className="flex items-center">
+                                              {tideInfo.height !== null && tideInfo.state && (
+                                                <span className={`text-[13px] inline-flex items-center gap-0.5 ${
+                                                  tideInfo.state === 'high' || tideInfo.state === 'low'
+                                                    ? 'font-bold text-[#1e293b]'
+                                                    : 'font-semibold text-[#64748b]'
+                                                }`}>
+                                                  {tideInfo.height.toFixed(1)}ft
+                                                  {tideInfo.state === 'high' ? ' HIGH' :
+                                                   tideInfo.state === 'low' ? ' LOW' :
+                                                   (tideInfo.state === 'rising' || tideInfo.state === 'dropping') && (
+                                                     <TrendArrow rising={tideInfo.state === 'rising'} size={12} />
+                                                   )}
+                                                </span>
+                                              )}
+                                            </div>
+
+                                            {/* Quality - stars */}
+                                            <div className="flex items-center justify-end">
                                               <div className="flex gap-0.5">
                                                 {[1, 2, 3, 4, 5].map((star) => (
                                                   <span
@@ -2721,24 +3007,6 @@ export default function SpotDetail() {
                                                   </span>
                                                 ))}
                                               </div>
-                                            </div>
-
-                                            {/* Tide */}
-                                            <div className="flex items-center">
-                                              {tideInfo.height !== null && tideInfo.state && (
-                                                <span className={`text-[14px] ${
-                                                  tideInfo.state === 'high' || tideInfo.state === 'low' 
-                                                    ? 'font-bold text-[#1e293b]' 
-                                                    : 'font-semibold text-[#64748b]'
-                                                }`}>
-                                                  {tideInfo.height.toFixed(1)}ft {
-                                                    tideInfo.state === 'high' ? 'HIGH' :
-                                                    tideInfo.state === 'low' ? 'LOW' :
-                                                    tideInfo.state === 'rising' ? '↑' :
-                                                    tideInfo.state === 'dropping' ? '↓' : ''
-                                                  }
-                                                </span>
-                                              )}
                                             </div>
                                           </div>
                                         );

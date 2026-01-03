@@ -354,3 +354,153 @@ For comparison data like "The Cheat Sheet".
 
 ### Brand
 - MTA Blue: `#0039A6` - Transit badges
+
+---
+
+## Arrows & Directional Indicators
+
+Standard arrow style used throughout the application. **All arrows must use the SVG polygon arrow.**
+
+### The Standard Arrow
+
+A filled SVG polygon arrow used for ALL directional and trend indicators.
+
+```jsx
+// Base Arrow Component
+const Arrow = ({
+  degrees = 0,
+  color = '#1e293b',
+  size = 16
+}: {
+  degrees?: number;
+  color?: string;
+  size?: number;
+}) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 16 16"
+    style={{ transform: `rotate(${degrees}deg)` }}
+  >
+    <polygon points="8,2 13,14 8,11 3,14" fill={color} />
+  </svg>
+);
+```
+
+### Arrow Rotations
+
+| Direction | Degrees |
+|-----------|---------|
+| Up (↑) | `0` |
+| Up-Right (↗) | `45` |
+| Right (→) | `90` |
+| Down-Right (↘) | `135` |
+| Down (↓) | `180` |
+| Down-Left (↙) | `225` |
+| Left (←) | `270` |
+| Up-Left (↖) | `315` |
+
+---
+
+### 1. Trend Arrows (Rising/Falling)
+
+Used for swell trends and tide phases. Arrow points up for rising, down for falling.
+
+```jsx
+// Rising trend
+<Arrow degrees={0} color="#1e293b" size={14} />
+
+// Falling trend
+<Arrow degrees={180} color="#94a3b8" size={14} />
+```
+
+| State | Rotation | Color |
+|-------|----------|-------|
+| Rising | `0` (up) | `#1e293b` (slate-800) |
+| Falling | `180` (down) | `#94a3b8` (slate-400) |
+| High | `0` (up) | `#1e293b` (slate-800) |
+| Low | `180` (down) | `#94a3b8` (slate-400) |
+
+---
+
+### 2. Directional Arrow Badge (Wind Direction)
+
+Used for wind direction. The arrow is placed inside a rounded badge container with color coding.
+
+```jsx
+<div
+  className="w-7 h-7 rounded-lg flex items-center justify-center"
+  style={{ backgroundColor: badgeColor }}
+>
+  <Arrow degrees={rotation} color={arrowColor} size={16} />
+</div>
+```
+
+#### Badge Color by Wind Type
+| Wind Type | Badge Background | Arrow Fill |
+|-----------|-----------------|------------|
+| Offshore | `#d1fae5` (emerald-100) | `#059669` (emerald-600) |
+| Onshore | `#fee2e2` (red-100) | `#dc2626` (red-600) |
+| Cross/Side | `#e0f2fe` (sky-100) | `#64748b` (slate-500) |
+
+#### Rotation Logic
+```typescript
+// Wind direction: rotate to show where wind is GOING (add 180°)
+const rotation = (windDirectionDeg + 180) % 360;
+```
+
+---
+
+### 3. Swell Direction Arrow (Inline, No Badge)
+
+Used inline with swell data to show swell direction.
+
+```jsx
+<Arrow
+  degrees={(swellDirectionDeg + 180) % 360}
+  color="#1e293b"
+  size={16}
+/>
+```
+
+| Use Case | Fill Color |
+|----------|------------|
+| Primary swell | `#1e293b` (slate-800) |
+| Secondary swell | `#94a3b8` (slate-400) |
+
+---
+
+### 4. Expand/Collapse Arrows
+
+Used for toggleable sections.
+
+```jsx
+// Collapsed state (arrow points down)
+<Arrow degrees={180} color="#64748b" size={12} />
+
+// Expanded state (arrow points up)
+<Arrow degrees={0} color="#64748b" size={12} />
+```
+
+---
+
+### Arrow Usage Summary
+
+| Context | Badge? | Size | Example |
+|---------|--------|------|---------|
+| Swell trend | No | 14px | `0.6ft 5s` + up arrow |
+| Tide phase | No | 14px | `Rising` + up arrow |
+| Wind direction | Yes (rounded-lg) | 16px | Green badge + rotated arrow |
+| Swell direction | No | 16px | Inline rotated arrow |
+| Expand/collapse | No | 12px | Toggle arrow |
+
+---
+
+### DO NOT USE
+
+These arrow styles are **deprecated**:
+
+- Unicode triangles: `▲ ▼`
+- Unicode arrows: `↑ ↓ ← → ↗ ↘ ↙ ↖`
+- Double arrows: `⬆ ⬇`
+- Lucide icons for directional arrows

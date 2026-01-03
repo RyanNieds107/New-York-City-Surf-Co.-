@@ -2,7 +2,8 @@ import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RefreshCw, Waves, Wind, Clock, ArrowRight, Navigation, Droplets, ChevronRight } from "lucide-react";
+import { RefreshCw, Waves, Wind, Clock, ArrowRight, Droplets, ChevronRight } from "lucide-react";
+import { TrendArrow, WindArrowBadge } from "@/components/ui/arrow";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 import { SpotCard } from "@/components/SpotCard";
@@ -123,13 +124,13 @@ export default function Dashboard() {
   const getTidePhaseIcon = (phase: string | null) => {
     switch (phase) {
       case "rising":
-        return "↑";
+        return <TrendArrow rising={true} size={14} />;
       case "falling":
-        return "↓";
+        return <TrendArrow rising={false} size={14} />;
       case "high":
-        return "⬆";
+        return <TrendArrow rising={true} size={14} color="#1e293b" />;
       case "low":
-        return "⬇";
+        return <TrendArrow rising={false} size={14} color="#94a3b8" />;
       default:
         return "–";
     }
@@ -165,16 +166,15 @@ export default function Dashboard() {
     }
   };
 
-  const getWindDirectionArrow = (degrees: number | null) => {
+  const getWindDirectionArrow = (degrees: number | null, windType: string | null = null) => {
     if (degrees === null) return null;
-    // Wind direction is where wind comes FROM, so arrow points opposite
-    const rotation = (degrees + 180) % 360;
-    return (
-      <Navigation
-        className="h-4 w-4"
-        style={{ transform: `rotate(${rotation}deg)` }}
-      />
-    );
+    // Determine wind type for badge coloring
+    const badgeWindType: "offshore" | "onshore" | "cross" | "unknown" =
+      windType?.toLowerCase().includes("offshore") ? "offshore" :
+      windType?.toLowerCase().includes("onshore") ? "onshore" :
+      windType?.toLowerCase().includes("cross") ? "cross" : "unknown";
+
+    return <WindArrowBadge directionDeg={degrees} windType={badgeWindType} badgeSize="sm" />;
   };
 
   // Helper functions for SpotCard data mapping

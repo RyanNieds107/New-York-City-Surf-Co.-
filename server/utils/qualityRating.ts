@@ -98,11 +98,18 @@ export function scoreDirection(
   }
 
   // CHECK HARD BLOCKS FIRST (The "Deal Breakers")
-  
+
   // West Block (247.5° to 292.5°): Blocked by landmass, no real surf
   const isWestSwell = swellDirectionDeg >= 247.5 && swellDirectionDeg <= 292.5;
   if (isWestSwell) {
     return -20; // Max Penalty - West swells don't produce real surf
+  }
+
+  // NW Block (292.5° to 330°): Coming from behind/blocked on south-facing beaches
+  // These are typically wind-generated local chop, not real groundswell
+  const isNWSwell = swellDirectionDeg > 292.5 && swellDirectionDeg <= 330;
+  if (isNWSwell) {
+    return -18; // Major Penalty - NW swells don't wrap properly to south-facing beaches
   }
 
   // East Wrap (< 105°): Heavy wrap-around, lose power, often walled/inconsistent
@@ -608,10 +615,12 @@ function generateReason(
   // Direction (now penalty-only: -20 to 0)
   if (breakdown.direction === 0) {
     reasons.push('ideal direction');
-  } else if (breakdown.direction <= -15) {
+  } else if (breakdown.direction <= -18) {
     reasons.push('blocked direction');
+  } else if (breakdown.direction <= -15) {
+    reasons.push('poor wrap');
   } else if (breakdown.direction < 0) {
-    reasons.push('poor direction');
+    reasons.push('off-angle');
   }
 
   // Tide - context-aware messaging (updated to match new logic with 4.0ft threshold)
@@ -765,9 +774,10 @@ export function calculateQualityScoreWithProfile(
   const secondaryDirectionDeg = forecastPoint.secondarySwellDirectionDeg ?? null;
 
   // Check if dominant swell is short-period wind slop (< 7s) and secondary is organized (>= 8s)
+  // Secondary must be at least 1.5ft to provide any real surfable waves
   const isDominantWindSlop = periodS < 7;
   const hasOrganizedSecondary = secondaryHeightFt !== null &&
-                                 secondaryHeightFt >= 0.5 &&
+                                 secondaryHeightFt >= 1.5 &&
                                  secondaryPeriodS !== null &&
                                  secondaryPeriodS >= 8;
 
@@ -804,11 +814,12 @@ export function calculateQualityScoreWithProfile(
 
   // ============================================================================
   // WIND SLOP PENALTY
-  // When dominant swell period is very short (< 5s) and height is significant,
+  // When dominant swell period is short (<= 5s) and height is significant,
   // this is pure wind chop - apply additional penalty
+  // Periods of 5s or less are not real surf - just choppy mess
   // ============================================================================
-  if (periodS < 5 && swellHeightFt >= 2) {
-    const windSlopPenalty = -10;
+  if (periodS <= 5 && swellHeightFt >= 2) {
+    const windSlopPenalty = -15;
     rawScore += windSlopPenalty;
     console.log('💨 [Quality Score Debug] Wind slop penalty applied:', {
       dominantPeriodS: periodS,
@@ -858,6 +869,20 @@ export function calculateQualityScoreWithProfile(
     rawScore = Math.min(rawScore, 30);
     if (beforeClamp !== rawScore) {
       console.log('🔍 [Quality Score Debug] Size/period clamp applied:', beforeClamp, '→', rawScore);
+    }
+  }
+
+  // Hard clamp for blocked swell directions: W/NW swells can't produce good surf on south-facing beaches
+  // If swell direction is in the blocked range, cap score at 35 ("Don't Bother")
+  const swellDir = forecastPoint.waveDirectionDeg;
+  if (swellDir !== null) {
+    const isBlockedDirection = (swellDir >= 247.5 && swellDir <= 330) || swellDir < 105;
+    if (isBlockedDirection) {
+      const beforeClamp = rawScore;
+      rawScore = Math.min(rawScore, 35); // Hard cap: blocked directions can't exceed "Don't Bother"
+      if (beforeClamp !== rawScore) {
+        console.log('🔍 [Quality Score Debug] Blocked direction clamp applied:', beforeClamp, '→', rawScore);
+      }
     }
   }
 

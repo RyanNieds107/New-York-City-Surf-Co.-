@@ -8,6 +8,8 @@ import Dashboard from "./pages/Dashboard";
 import LandingPage from "./pages/LandingPage";
 import SpotDetail from "./pages/SpotDetail";
 import SurfAnalysis from "./pages/SurfAnalysis";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
 
 function Router() {
   return (
@@ -16,6 +18,8 @@ function Router() {
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/spot/:id" component={SpotDetail} />
       <Route path="/surf-analysis" component={SurfAnalysis} />
+      <Route path="/terms" component={Terms} />
+      <Route path="/privacy" component={Privacy} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
