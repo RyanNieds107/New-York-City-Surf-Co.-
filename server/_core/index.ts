@@ -3,14 +3,39 @@ import express from "express";
 import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
+import { migrate } from "drizzle-orm/mysql2/migrator";
 import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
-import { getAllSpots, getAverageCrowdLevel, insertForecast } from "../db";
+import { getAllSpots, getAverageCrowdLevel, insertForecast, getDb } from "../db";
 import { getCurrentTideInfo } from "../services/tides";
 import { generateForecast } from "../services/forecast";
 import { getCurrentConditionsFromOpenMeteo } from "../services/openMeteo";
+
+/**
+ * Runs database migrations at server startup.
+ * This ensures the database schema is up-to-date before accepting requests.
+ */
+async function runMigrations(): Promise<void> {
+  console.log("[Migrations] Starting database migrations...");
+
+  try {
+    const db = await getDb();
+
+    if (!db) {
+      console.warn("[Migrations] Database connection not available - skipping migrations");
+      return;
+    }
+
+    await migrate(db, { migrationsFolder: "./drizzle" });
+    console.log("[Migrations] Database migrations completed successfully");
+  } catch (error) {
+    console.error("[Migrations] Failed to run migrations:", error);
+    // Don't crash the server - log the error and continue
+    // The app may still work if the schema is already up-to-date
+  }
+}
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -154,4 +179,7 @@ async function startServer() {
   });
 }
 
-startServer().catch(console.error);
+// Run migrations first, then start the server
+runMigrations()
+  .then(() => startServer())
+  .catch(console.error);

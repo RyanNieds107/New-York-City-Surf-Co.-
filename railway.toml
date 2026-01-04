@@ -3,6 +3,6 @@ builder = "nixpacks"
 buildCommand = "pnpm install && pnpm run build"
 
 [deploy]
-startCommand = "pnpm run db:push && pnpm run start"
+startCommand = "pnpm run start"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
