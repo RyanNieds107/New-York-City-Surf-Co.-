@@ -35,6 +35,26 @@ const formatSwellDirection = (deg: number | null | undefined): string => {
   return `${cardinal} ${Math.round(deg)}°`;
 };
 
+// Convert cardinal direction string to approximate degrees
+const cardinalToDegrees = (cardinal: string | null | undefined): number | null => {
+  if (!cardinal) return null;
+  const cardinalMap: Record<string, number> = {
+    'N': 0, 'NNE': 22.5, 'NE': 45, 'ENE': 67.5,
+    'E': 90, 'ESE': 112.5, 'SE': 135, 'SSE': 157.5,
+    'S': 180, 'SSW': 202.5, 'SW': 225, 'WSW': 247.5,
+    'W': 270, 'WNW': 292.5, 'NW': 315, 'NNW': 337.5
+  };
+  return cardinalMap[cardinal.toUpperCase()] ?? null;
+};
+
+// Format cardinal direction with degrees
+const formatCardinalWithDegrees = (cardinal: string | null | undefined): string => {
+  if (!cardinal) return "N/A";
+  const deg = cardinalToDegrees(cardinal);
+  if (deg === null) return cardinal;
+  return `${cardinal} ${Math.round(deg)}°`;
+};
+
 // Helper to determine wind type for arrow badge coloring
 const getWindType = (windType: string | null | undefined): "offshore" | "onshore" | "cross" | "unknown" => {
   if (!windType) return "unknown";
@@ -396,83 +416,6 @@ function SpotForecastCard({ spot, forecast, isExpanded, onToggleExpand, onNaviga
             </div>
           </div>
 
-          {/* Condition Indicators - adapt based on sea state */}
-          {(() => {
-            // Determine sea state from NOAA spectral data
-            const hasSpectralData = buoyData?.windWaveHeight !== null && buoyData?.swellHeight !== null;
-
-            // Calculate which energy is dominant (H² × T)
-            const windWaveEnergy = hasSpectralData && buoyData?.windWavePeriod
-              ? (buoyData.windWaveHeight! ** 2) * buoyData.windWavePeriod
-              : 0;
-            const swellEnergy = hasSpectralData && buoyData?.swellPeriod
-              ? (buoyData.swellHeight! ** 2) * buoyData.swellPeriod
-              : 0;
-
-            const isWindDominant = windWaveEnergy > swellEnergy;
-            const dominantPeriod = buoyData?.windWavePeriod ?? buoyData?.dominantPeriod ?? dominantSwell.period;
-
-            // Conditions for each indicator
-            const isWindSlop = isWindDominant && dominantPeriod !== null && dominantPeriod < 6;
-            const hasBackgroundSwell = isWindDominant &&
-                                        buoyData?.swellHeight &&
-                                        buoyData.swellHeight >= 0.5 &&
-                                        buoyData.swellPeriod &&
-                                        buoyData.swellPeriod >= 8;
-            const isCleanSwell = !isWindDominant &&
-                                  buoyData?.swellPeriod &&
-                                  buoyData.swellPeriod >= 8;
-            const hasSteepConditions = buoyData?.steepness === "VERY_STEEP" || buoyData?.steepness === "STEEP";
-
-            return (
-              <>
-                {/* Wind Slop Warning - only when wind waves dominate with short period */}
-                {isWindSlop && (
-                  <div className="mt-2 border-2 border-amber-400 bg-amber-50 p-2 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-amber-600 text-sm">⚠️</span>
-                      <span className="text-[10px] text-amber-700 uppercase tracking-wider font-medium" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                        WIND SLOP
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-amber-700" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      Short period ({dominantPeriod?.toFixed(0)}s) = choppy, disorganized
-                    </span>
-                  </div>
-                )}
-
-                {/* Background Swell - only when there's organized swell hiding under wind chop */}
-                {hasBackgroundSwell && (
-                  <div className="mt-2 border-2 border-emerald-300 bg-emerald-50 p-2 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-                      <span className="text-[10px] text-emerald-700 uppercase tracking-wider font-medium" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                        BACKGROUND SWELL
-                      </span>
-                    </div>
-                    <span className="text-xs font-bold text-emerald-800" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      {buoyData!.swellHeight!.toFixed(1)}ft @ {buoyData!.swellPeriod}s {buoyData!.swellDirection || ''}
-                    </span>
-                  </div>
-                )}
-
-                {/* Clean Swell Day - when groundswell is the dominant energy */}
-                {isCleanSwell && !hasSteepConditions && (
-                  <div className="mt-2 border-2 border-blue-400 bg-blue-50 p-2 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-blue-600 text-sm">🌊</span>
-                      <span className="text-[10px] text-blue-700 uppercase tracking-wider font-medium" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                        CLEAN SWELL
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-blue-700" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      {buoyData!.swellPeriod}s period = organized waves
-                    </span>
-                  </div>
-                )}
-              </>
-            );
-          })()}
         </div>
 
         {/* Click to expand hint */}
@@ -510,7 +453,7 @@ function SpotForecastCard({ spot, forecast, isExpanded, onToggleExpand, onNaviga
                     {buoyData.windWaveHeight.toFixed(1)}ft @ {buoyData.windWavePeriod}s
                   </div>
                   <div className="text-xs text-black mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    {buoyData.windWaveDirection || 'N/A'}
+                    {formatCardinalWithDegrees(buoyData.windWaveDirection)}
                   </div>
                 </>
               ) : buoyData ? (
@@ -538,7 +481,7 @@ function SpotForecastCard({ spot, forecast, isExpanded, onToggleExpand, onNaviga
                     {buoyData.swellHeight.toFixed(1)}ft @ {buoyData.swellPeriod}s
                   </div>
                   <div className="text-xs text-black mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    {buoyData.swellDirection || 'N/A'}
+                    {formatCardinalWithDegrees(buoyData.swellDirection)}
                   </div>
                 </>
               ) : currentPoint?.secondarySwellHeightFt ? (

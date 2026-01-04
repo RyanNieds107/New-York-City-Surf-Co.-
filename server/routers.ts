@@ -78,6 +78,26 @@ export const appRouter = router({
         await createSpot(input);
         return { success: true };
       }),
+
+    // Seed initial spots (one-time setup endpoint)
+    seed: publicProcedure.mutation(async () => {
+      const existingSpots = await getAllSpots();
+      if (existingSpots.length > 0) {
+        return { success: true, message: "Spots already exist", count: existingSpots.length };
+      }
+
+      const spots = [
+        { name: "Lido Beach", latitude: "40.5892", longitude: "-73.6265", buoyId: "44065", tideStationId: "8518750" },
+        { name: "Rockaway Beach", latitude: "40.5830", longitude: "-73.8160", buoyId: "44065", tideStationId: "8518750" },
+        { name: "Long Beach", latitude: "40.5880", longitude: "-73.6580", buoyId: "44065", tideStationId: "8518750" },
+      ];
+
+      for (const spot of spots) {
+        await createSpot(spot);
+      }
+
+      return { success: true, message: "Seeded 3 spots", count: 3 };
+    }),
   }),
 
   // ==================== FORECASTS ROUTER ====================

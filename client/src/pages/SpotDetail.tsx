@@ -1683,19 +1683,28 @@ export default function SpotDetail() {
                   {showScoreBreakdown && currentConditions && (
                     <div className="mt-4 pt-4 border-t border-gray-200 animate-in slide-in-from-top-2 duration-200">
                       <div className="flex justify-center gap-8">
-                        {/* Swell Score */}
+                        {/* Swell Score - uses NOAA buoy data when available */}
                         <div className="text-center">
                           <div className="text-xs text-gray-500 uppercase tracking-wider mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Swell</div>
-                          <div className={`text-2xl font-black ${
-                            (currentConditions.dominantSwellHeightFt ?? 0) >= 3 ? 'text-emerald-600' :
-                            (currentConditions.dominantSwellHeightFt ?? 0) >= 2 ? 'text-amber-500' :
-                            'text-red-500'
-                          }`} style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                            {currentConditions.dominantSwellHeightFt ? `${Number(currentConditions.dominantSwellHeightFt).toFixed(1)}ft` : '—'}
-                          </div>
-                          <div className="text-[10px] text-gray-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                            {currentConditions.dominantSwellPeriodS ? `${Math.round(currentConditions.dominantSwellPeriodS)}s period` : ''}
-                          </div>
+                          {(() => {
+                            const buoyData = buoyQuery.data;
+                            const swellHeight = buoyData?.waveHeight ?? currentConditions.dominantSwellHeightFt ?? 0;
+                            const swellPeriod = buoyData?.dominantPeriod ?? currentConditions.dominantSwellPeriodS;
+                            return (
+                              <>
+                                <div className={`text-2xl font-black ${
+                                  swellHeight >= 3 ? 'text-emerald-600' :
+                                  swellHeight >= 2 ? 'text-amber-500' :
+                                  'text-red-500'
+                                }`} style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                                  {swellHeight > 0 ? `${Number(swellHeight).toFixed(1)}ft` : '—'}
+                                </div>
+                                <div className="text-[10px] text-gray-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                  {swellPeriod ? `${Math.round(swellPeriod)}s period` : ''}
+                                </div>
+                              </>
+                            );
+                          })()}
                         </div>
 
                         {/* Wind Score */}
@@ -2485,8 +2494,9 @@ export default function SpotDetail() {
                               }`}
                             >
                               <div className="px-6 pb-6">
-                                {/* Three White Boxes - CONDITIONS, BEST WINDOWS, and TIDE FORECAST */}
-                                <div className="grid md:grid-cols-3 gap-3 mb-6">
+                                {/* Two Row Layout - CONDITIONS & BEST WINDOWS on top, TIDE FORECAST below */}
+                                {/* Row 1: CONDITIONS and BEST WINDOWS */}
+                                <div className="grid md:grid-cols-2 gap-3 mb-3">
                                   {/* CONDITIONS Box */}
                                   <div className="bg-white border-2 border-black p-3">
                                     <span className="text-[10px] font-bold tracking-widest text-gray-500 uppercase block mb-2" style={{ fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.5px' }}>CONDITIONS</span>
@@ -2554,10 +2564,13 @@ export default function SpotDetail() {
                                       </div>
                                     )}
                                   </div>
+                                </div>
 
+                                {/* Row 2: TIDE FORECAST */}
+                                <div className="mb-6">
                                   {/* TIDE FORECAST Box */}
-                                  <div className="bg-white border-2 border-black p-3">
-                                    <span className="text-[10px] font-bold tracking-widest text-gray-500 uppercase block mb-3" style={{ fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.5px' }}>TIDE FORECAST</span>
+                                  <div className="bg-white border-2 border-black p-2">
+                                    <span className="text-[10px] font-bold tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.5px' }}>TIDE FORECAST</span>
                                     {(() => {
                                       // Find high and low tide points for this day
                                       const tideExtremes: { type: 'high' | 'low'; time: Date; height: number; index: number }[] = [];
@@ -2602,10 +2615,10 @@ export default function SpotDetail() {
                                         return <p className="text-sm text-gray-500">No tide data available</p>;
                                       }
 
-                                      // SVG dimensions - taller for better visibility
-                                      const svgWidth = 240;
-                                      const svgHeight = 70;
-                                      const padding = { top: 20, bottom: 18, left: 8, right: 8 };
+                                      // SVG dimensions - wider and compact for full-width panoramic layout
+                                      const svgWidth = 500;
+                                      const svgHeight = 40;
+                                      const padding = { top: 14, bottom: 14, left: 12, right: 12 };
                                       const chartWidth = svgWidth - padding.left - padding.right;
                                       const chartHeight = svgHeight - padding.top - padding.bottom;
 
@@ -2704,7 +2717,7 @@ export default function SpotDetail() {
                                           </svg>
 
                                           {/* High/Low summary row */}
-                                          <div className="flex justify-between mt-2 pt-2 border-t border-gray-100">
+                                          <div className="flex justify-between mt-1 pt-1 border-t border-gray-100">
                                             <div className="flex items-center gap-1.5">
                                               <div className="w-2 h-2 rounded-full bg-sky-500"></div>
                                               <span className="text-[11px] text-gray-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
