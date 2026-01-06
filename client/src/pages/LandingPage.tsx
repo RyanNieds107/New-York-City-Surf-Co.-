@@ -1403,8 +1403,8 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                {/* Tags */}
-                <div className="mt-auto pt-4">
+                {/* Tags - hidden on mobile */}
+                <div className="mt-auto pt-4 hidden sm:block">
                   <div className="border-t border-gray-300 pt-4">
                     <div className="flex flex-wrap gap-2">
                       <span className="px-2 py-1 border-2 border-black font-bold uppercase tracking-wider text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif", fontSize: '10px' }}>Proprietary Model</span>
@@ -1454,8 +1454,8 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                {/* Tags */}
-                <div className="mt-auto pt-4">
+                {/* Tags - hidden on mobile */}
+                <div className="mt-auto pt-4 hidden sm:block">
                   <div className="border-t border-gray-300 pt-4">
                     <div className="flex flex-wrap gap-2">
                       <span className="px-2 py-1 border-2 border-black font-bold uppercase tracking-wider text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif", fontSize: '10px' }}>Transit Guides</span>
@@ -1505,8 +1505,8 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                {/* Tags */}
-                <div className="mt-auto pt-4">
+                {/* Tags - hidden on mobile */}
+                <div className="mt-auto pt-4 hidden sm:block">
                   <div className="border-t border-gray-300 pt-4">
                     <div className="flex flex-wrap gap-2">
                       <span className="px-2 py-1 border-2 border-black font-bold uppercase tracking-wider text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif", fontSize: '10px' }}>Transparent</span>
