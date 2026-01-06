@@ -1273,8 +1273,8 @@ export default function SpotDetail() {
                       </div>
 
                       {/* Swell */}
-                      <div>
-                        <p className="text-xs font-medium text-black uppercase tracking-wider mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                      <div className="overflow-hidden">
+                        <p className="text-[10px] sm:text-xs font-medium text-black uppercase tracking-wider mb-2 sm:mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                           Swell
                         </p>
                         {(() => {
@@ -1353,28 +1353,30 @@ export default function SpotDetail() {
                           }
 
                           return (
-                            <div className="space-y-2">
+                            <div className="space-y-2 sm:space-y-3">
                               {swells.map((swell, i) => (
-                                <div key={i} className={`flex items-center gap-2 ${swell.isDominant ? 'bg-blue-50 p-2 -mx-2 rounded' : ''}`}>
-                                  <span className={`text-xs font-medium uppercase tracking-wider ${swell.isDominant ? 'text-blue-900' : 'text-black'}`} style={{ fontFamily: "'Inter', 'Roboto', sans-serif", minWidth: '110px' }}>
+                                <div key={i} className={`${swell.isDominant ? 'bg-blue-50 p-2 -mx-2 rounded' : ''}`}>
+                                  <div className={`text-[10px] sm:text-xs font-medium uppercase tracking-wider mb-1 ${swell.isDominant ? 'text-blue-900' : 'text-black'}`} style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                                     {swell.label}:
-                                  </span>
-                                  <span className={`text-sm font-black uppercase ${swell.isDominant ? 'text-blue-900' : 'text-black'}`} style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                                    {swell.height}ft
-                                  </span>
-                                  <span className={`text-sm font-normal ${swell.isDominant ? 'text-blue-800' : 'text-black'}`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                                    {swell.period}s
-                                  </span>
-                                  {swell.directionDeg !== null && swell.directionDeg !== undefined && (
-                                    <>
-                                      <DirectionArrow degrees={swell.directionDeg} />
-                                      {swell.direction && (
-                                        <span className={`text-sm font-normal ${swell.isDominant ? 'text-blue-800' : 'text-black'}`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                                          {swell.direction}
-                                        </span>
-                                      )}
-                                    </>
-                                  )}
+                                  </div>
+                                  <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+                                    <span className={`text-lg sm:text-xl font-black uppercase ${swell.isDominant ? 'text-blue-900' : 'text-black'}`} style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                                      {swell.height}ft
+                                    </span>
+                                    <span className={`text-sm sm:text-base font-normal ${swell.isDominant ? 'text-blue-800' : 'text-black'}`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                      {swell.period}s
+                                    </span>
+                                    {swell.directionDeg !== null && swell.directionDeg !== undefined && (
+                                      <>
+                                        <DirectionArrow degrees={swell.directionDeg} />
+                                        {swell.direction && (
+                                          <span className={`text-xs sm:text-sm font-normal ${swell.isDominant ? 'text-blue-800' : 'text-black'}`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                            {swell.direction}
+                                          </span>
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
                                 </div>
                               ))}
                             </div>
@@ -1384,16 +1386,16 @@ export default function SpotDetail() {
                     </div>
 
                     {/* Additional Sections: Wind, Tide, Temperature, Wetsuit, Crowd */}
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mt-8 pt-8 border-t-2 border-black">
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 sm:gap-6 md:gap-8 mt-6 sm:mt-8 pt-6 sm:pt-8 border-t-2 border-black">
                     {/* Wind */}
                     <div>
-                      <p className="text-xs font-medium text-black uppercase tracking-wider mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                      <p className="text-[10px] sm:text-xs font-medium text-black uppercase tracking-wider mb-2 sm:mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                         Wind
                       </p>
                       {currentConditions.windSpeedMph !== null && currentConditions.windDirectionDeg !== null ? (
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2 sm:gap-4">
                           {/* Wind Compass */}
-                          <div className="relative w-14 h-14 flex-shrink-0">
+                          <div className="relative w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0">
                             <svg viewBox="0 0 100 100" className="w-full h-full">
                               {/* Outer circle */}
                               <circle cx="50" cy="50" r="45" fill="none" stroke="#e5e7eb" strokeWidth="2" />
@@ -1421,7 +1423,7 @@ export default function SpotDetail() {
                           </div>
                           {/* Wind data */}
                           <div>
-                            <p className="text-3xl font-black text-black mb-1 leading-none uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                            <p className="text-xl sm:text-2xl md:text-3xl font-black text-black mb-1 leading-none uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                               {Math.round(currentConditions.windSpeedMph)}mph {(() => {
                                   const directions = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
                                   const index = Math.round(currentConditions.windDirectionDeg / 22.5) % 16;
@@ -1429,7 +1431,7 @@ export default function SpotDetail() {
                               })()}
                             </p>
                             {currentConditions.windType && (
-                              <p className={`text-sm font-semibold uppercase tracking-wider ${
+                              <p className={`text-xs sm:text-sm font-semibold uppercase tracking-wider ${
                                 currentConditions.windType === 'offshore' ? 'text-emerald-600' :
                                 currentConditions.windType === 'onshore' ? 'text-red-500' :
                                 'text-amber-500'
@@ -1445,25 +1447,25 @@ export default function SpotDetail() {
                     </div>
 
                     {/* Tide */}
-                    <div className="pl-8 md:pl-12">
-                      <p className="text-xs font-medium text-black uppercase tracking-wider mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                    <div>
+                      <p className="text-[10px] sm:text-xs font-medium text-black uppercase tracking-wider mb-2 sm:mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                         Tide
                       </p>
                       {currentConditions.tideHeightFt !== null ? (
                         <>
                           <div className="flex items-center gap-2 mb-1">
-                            <p className="text-3xl font-black text-black leading-none uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                            <p className="text-xl sm:text-2xl md:text-3xl font-black text-black leading-none uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                               {(currentConditions.tideHeightFt / 10).toFixed(1)}ft
                             </p>
                             {currentConditions.tidePhase === "rising" && (
-                              <ArrowUp className="h-4 w-4 text-black" />
+                              <ArrowUp className="h-3 w-3 sm:h-4 sm:w-4 text-black" />
                             )}
                             {currentConditions.tidePhase === "falling" && (
-                              <ArrowDown className="h-4 w-4 text-black" />
+                              <ArrowDown className="h-3 w-3 sm:h-4 sm:w-4 text-black" />
                             )}
                           </div>
                           {currentConditions.tidePhase && (
-                            <p className="text-sm font-normal text-black uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                            <p className="text-xs sm:text-sm font-normal text-black uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                               {currentConditions.tidePhase}
                             </p>
                           )}
@@ -1475,24 +1477,24 @@ export default function SpotDetail() {
 
                     {/* Temperature */}
                     <div>
-                      <p className="text-xs font-medium text-black uppercase tracking-wider mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                      <p className="text-[10px] sm:text-xs font-medium text-black uppercase tracking-wider mb-2 sm:mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                         Temperature
                       </p>
                       {currentConditions.waterTempF !== null || currentConditions.airTempF !== null ? (
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <Droplet className="h-5 w-5 text-black" />
-                            <p className="text-3xl font-black text-black leading-none uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                        <div className="space-y-1 sm:space-y-2">
+                          <div className="flex items-center gap-1 sm:gap-2">
+                            <Droplet className="h-4 w-4 sm:h-5 sm:w-5 text-black" />
+                            <p className="text-xl sm:text-2xl md:text-3xl font-black text-black leading-none uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                               {currentConditions.waterTempF !== null ? `${Math.round(currentConditions.waterTempF)}°F` : '—'}
                             </p>
-                            <span className="text-xs text-black uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>water</span>
+                            <span className="text-[10px] sm:text-xs text-black uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>water</span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Sun className="h-5 w-5 text-black" />
-                            <p className="text-3xl font-black text-black leading-none uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                          <div className="flex items-center gap-1 sm:gap-2">
+                            <Sun className="h-4 w-4 sm:h-5 sm:w-5 text-black" />
+                            <p className="text-xl sm:text-2xl md:text-3xl font-black text-black leading-none uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                               {currentConditions.airTempF !== null ? `${Math.round(currentConditions.airTempF)}°F` : '—'}
                             </p>
-                            <span className="text-xs text-black uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>air</span>
+                            <span className="text-[10px] sm:text-xs text-black uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>air</span>
                     </div>
                   </div>
                 ) : (
@@ -1502,7 +1504,7 @@ export default function SpotDetail() {
 
                     {/* Wetsuit Required */}
                     <div>
-                      <p className="text-xs font-medium text-black uppercase tracking-wider mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                      <p className="text-[10px] sm:text-xs font-medium text-black uppercase tracking-wider mb-2 sm:mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                         Wetsuit Required
                       </p>
                       {currentConditions.waterTempF !== null ? (
@@ -1510,12 +1512,12 @@ export default function SpotDetail() {
                           {(() => {
                             const { thickness, color } = getWetsuitRecommendation(currentConditions.waterTempF);
                             return (
-                              <p className={`text-2xl md:text-3xl font-black leading-none uppercase tracking-tight mb-2 ${color}`} style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                              <p className={`text-lg sm:text-xl md:text-2xl lg:text-3xl font-black leading-none uppercase tracking-tight mb-1 sm:mb-2 ${color}`} style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                                 {thickness}
                               </p>
                             );
                           })()}
-                          <p className="text-xs font-normal text-black uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                          <p className="text-[10px] sm:text-xs font-normal text-black uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                             {getWetsuitAccessories(currentConditions.waterTempF, currentConditions.airTempF)}
                           </p>
                         </>
@@ -1526,7 +1528,7 @@ export default function SpotDetail() {
 
                     {/* Crowd Level */}
                     <div>
-                      <p className="text-xs font-medium text-black uppercase tracking-wider mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                      <p className="text-[10px] sm:text-xs font-medium text-black uppercase tracking-wider mb-2 sm:mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                         Crowd Level
                       </p>
                       {crowdQuery.data?.averageLevel ? (
@@ -1535,20 +1537,20 @@ export default function SpotDetail() {
                           className="w-full text-left hover:opacity-80 transition-opacity"
                           disabled={!isAuthenticated}
                         >
-                          <div className="flex items-center gap-2 mb-2">
-                            <Users className="h-5 w-5 text-black" />
+                          <div className="flex items-center gap-1 sm:gap-2 mb-2">
+                            <Users className="h-4 w-4 sm:h-5 sm:w-5 text-black" />
                             <div className="flex-1">
-                              <p className="text-2xl font-black text-black leading-none uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                              <p className="text-lg sm:text-xl md:text-2xl font-black text-black leading-none uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                                 {getCrowdLabel(crowdQuery.data.averageLevel)}
                               </p>
-                              <p className="text-xs text-gray-600 uppercase tracking-wider mt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                              <p className="text-[10px] sm:text-xs text-gray-600 uppercase tracking-wider mt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                                 {crowdQuery.data.reports.length} {crowdQuery.data.reports.length === 1 ? 'report' : 'reports'}
                               </p>
                             </div>
-                            <div className={`w-3 h-3 rounded-full ${getCrowdColor(crowdQuery.data.averageLevel)}`} />
+                            <div className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full ${getCrowdColor(crowdQuery.data.averageLevel)}`} />
                           </div>
                           {isAuthenticated ? (
-                            <span className="text-xs font-bold text-black uppercase tracking-wider hover:underline" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                            <span className="text-[10px] sm:text-xs font-bold text-black uppercase tracking-wider hover:underline" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                               {showCrowdReport ? 'Hide' : 'Click to Report'}
                             </span>
                           ) : (
