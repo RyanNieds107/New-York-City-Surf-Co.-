@@ -1773,21 +1773,21 @@ export default function SpotDetail() {
 
             {/* Forecast Timeline - Multi-Day Forecast - NYC Grit Style */}
             <div className="bg-white border border-black">
-              <div className="p-6 border-b border-black">
+              <div className="p-4 md:p-6 border-b border-black">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-8 h-8 bg-black flex items-center justify-center">
-                        <Clock className="w-4 h-4 text-white" />
+                    <div className="flex items-center gap-2 md:gap-3 mb-2">
+                      <div className="w-6 h-6 md:w-8 md:h-8 bg-black flex items-center justify-center">
+                        <Clock className="w-3 h-3 md:w-4 md:h-4 text-white" />
                       </div>
-                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      <span className="text-[8px] md:text-[10px] font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                         MARINE FORECAST
                       </span>
                     </div>
-                    <h2 className="text-4xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.02em' }}>
+                    <h2 className="text-2xl md:text-4xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.02em' }}>
                       5-DAY FORECAST
                     </h2>
-                    <p className="mt-3 text-base text-gray-700 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                    <p className="mt-2 md:mt-3 text-sm md:text-base text-gray-700 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                       Quality scores and conditions for the next 5 days
                     </p>
                   </div>
@@ -1820,7 +1820,7 @@ export default function SpotDetail() {
                     <button
                       onClick={() => setForecastView("timeline")}
                       className={cn(
-                        "px-6 py-3 text-sm font-bold uppercase tracking-wide transition-all duration-200 border-2",
+                        "px-3 py-2 md:px-6 md:py-3 text-xs md:text-sm font-bold uppercase tracking-wide transition-all duration-200 border-2",
                         forecastView === "timeline"
                           ? "bg-black text-white border-black"
                           : "bg-white text-black border-black hover:bg-gray-100"
@@ -1832,7 +1832,7 @@ export default function SpotDetail() {
                     <button
                       onClick={() => setForecastView("chart")}
                       className={cn(
-                        "px-6 py-3 text-sm font-bold uppercase tracking-wide transition-all duration-200 border-2",
+                        "px-3 py-2 md:px-6 md:py-3 text-xs md:text-sm font-bold uppercase tracking-wide transition-all duration-200 border-2",
                         forecastView === "chart"
                           ? "bg-black text-white border-black"
                           : "bg-white text-black border-black hover:bg-gray-100"
@@ -1845,11 +1845,11 @@ export default function SpotDetail() {
                 )}
               </div>
               {timelineQuery.isLoading ? (
-                <div className="p-6">
-                  <div className="flex items-center justify-center py-12">
-                    <div className="flex items-center gap-3">
-                      <Loader2 className="h-6 w-6 animate-spin text-black" />
-                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                <div className="p-4 md:p-6">
+                  <div className="flex items-center justify-center py-8 md:py-12">
+                    <div className="flex items-center gap-2 md:gap-3">
+                      <Loader2 className="h-5 w-5 md:h-6 md:w-6 animate-spin text-black" />
+                      <span className="text-[8px] md:text-[10px] font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                         LOADING FORECAST DATA...
                       </span>
                     </div>
@@ -1924,18 +1924,18 @@ export default function SpotDetail() {
                           const bannerColors = getBannerColor(condition);
                           
                           return (
-                            <div className="mt-6 space-y-4">
+                            <div className="mt-4 md:mt-6 space-y-3 md:space-y-4">
                               {/* Conditions Summary Banner */}
-                              <div className={`${bannerColors.text} p-4 border border-black`} style={{ backgroundColor: bannerColors.bg }}>
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <span className="text-sm font-medium uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                              <div className={`${bannerColors.text} p-3 md:p-4 border border-black`} style={{ backgroundColor: bannerColors.bg }}>
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex-1 min-w-0">
+                                    <span className="text-xs md:text-sm font-medium uppercase tracking-wider break-words" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                                       Conditions are {formatSurfHeight(selectedChartPoint.timelinePoint.dominantSwellHeightFt ?? selectedChartPoint.timelinePoint.waveHeightFt ?? 0)} and {formatConditionLabel(condition)} at {new Date(selectedChartPoint.timelinePoint.forecastTimestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })} on {new Date(selectedChartPoint.timelinePoint.forecastTimestamp).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
                                     </span>
                                   </div>
                                   <button
                                     onClick={() => setSelectedChartPoint(null)}
-                                    className="text-white hover:text-gray-200 text-xl font-bold"
+                                    className="text-white hover:text-gray-200 text-lg md:text-xl font-bold flex-shrink-0"
                                     style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
                                   >
                                     ×
@@ -1992,89 +1992,90 @@ export default function SpotDetail() {
                                   {/* Row 1: Three Swell Columns */}
                                   <div className="grid grid-cols-1 md:grid-cols-3 border-b border-black">
                                     {/* Primary Swell */}
-                                    <div className="p-5 border-b md:border-b-0 md:border-r border-black">
-                                      <div className="uppercase mb-2" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', fontWeight: 700, color: '#64748b', letterSpacing: '0.5px' }}>
-                                        PRIMARY
+                                    <div className="p-3 md:p-5 border-b md:border-b-0 md:border-r border-black">
+                                      <div className="uppercase mb-1 md:mb-2" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', fontWeight: 700, color: '#64748b', letterSpacing: '0.5px' }}>
+                                        <span className="md:hidden">PRIMARY</span>
+                                        <span className="hidden md:inline">PRIMARY</span>
                                       </div>
                                       {point.dominantSwellHeightFt && point.dominantSwellPeriodS ? (
                                         <>
                                           {/* Energy Bar */}
-                                          <div className="flex items-center gap-2 mb-3">
+                                          <div className="flex items-center gap-1.5 md:gap-2 mb-2 md:mb-3">
                                             <div className="flex-1 h-2 bg-[#e2e8f0] relative" style={{ height: '8px' }}>
                                               <div 
                                                 className="h-full bg-[#3b82f6]" 
                                                 style={{ width: `${primaryEnergy}%` }}
                                               />
                                             </div>
-                                            <span className="text-xs font-semibold text-black" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', fontWeight: 600 }}>
+                                            <span className="text-[10px] md:text-xs font-semibold text-black" style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
                                               {primaryEnergy}%
                                             </span>
                                           </div>
                                           {/* Swell Info */}
-                                          <div className="text-[#1e293b]" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '14px', fontWeight: 600 }}>
+                                          <div className="text-[#1e293b] text-xs md:text-sm" style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
                                             {getSwellDirectionLabel(primaryDir)} {Math.round(primaryDir)}° | {Number(point.dominantSwellHeightFt).toFixed(1)}ft @ {Number(point.dominantSwellPeriodS).toFixed(0)}s
                                           </div>
                                         </>
                                       ) : (
-                                        <div className="text-sm text-gray-500">—</div>
+                                        <div className="text-xs md:text-sm text-gray-500">—</div>
                                       )}
                                     </div>
 
                                     {/* Secondary Swell */}
-                                    <div className="p-5 border-b md:border-b-0 md:border-r border-black">
-                                      <div className="uppercase mb-2" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', fontWeight: 700, color: '#64748b', letterSpacing: '0.5px' }}>
+                                    <div className="p-3 md:p-5 border-b md:border-b-0 md:border-r border-black">
+                                      <div className="uppercase mb-1 md:mb-2" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', fontWeight: 700, color: '#64748b', letterSpacing: '0.5px' }}>
                                         SECONDARY
                                       </div>
                                       {point.secondarySwellHeightFt && point.secondarySwellPeriodS ? (
                                         <>
                                           {/* Energy Bar */}
-                                          <div className="flex items-center gap-2 mb-3">
+                                          <div className="flex items-center gap-1.5 md:gap-2 mb-2 md:mb-3">
                                             <div className="flex-1 h-2 bg-[#e2e8f0] relative" style={{ height: '8px' }}>
                                               <div 
                                                 className="h-full bg-[#94a3b8]" 
                                                 style={{ width: `${secondaryEnergy}%` }}
                                               />
                                             </div>
-                                            <span className="text-xs font-semibold text-black" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', fontWeight: 600 }}>
+                                            <span className="text-[10px] md:text-xs font-semibold text-black" style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
                                               {secondaryEnergy}%
                                             </span>
                                           </div>
                                           {/* Swell Info */}
-                                          <div className="text-[#1e293b]" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '14px', fontWeight: 600 }}>
+                                          <div className="text-[#1e293b] text-xs md:text-sm" style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
                                             {getSwellDirectionLabel(secondaryDir)} {Math.round(secondaryDir)}° | {Number(point.secondarySwellHeightFt).toFixed(1)}ft @ {Number(point.secondarySwellPeriodS).toFixed(0)}s
                                           </div>
                                         </>
                                       ) : (
-                                        <div className="text-sm text-gray-500">—</div>
+                                        <div className="text-xs md:text-sm text-gray-500">—</div>
                                       )}
                                     </div>
 
                                     {/* Wind Swell */}
-                                    <div className="p-5 md:border-b-0 md:border-r-0">
-                                      <div className="uppercase mb-2" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', fontWeight: 700, color: '#64748b', letterSpacing: '0.5px' }}>
+                                    <div className="p-3 md:p-5 md:border-b-0 md:border-r-0">
+                                      <div className="uppercase mb-1 md:mb-2" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', fontWeight: 700, color: '#64748b', letterSpacing: '0.5px' }}>
                                         WIND SWELL
                                       </div>
                                       {point.windWaveHeightFt && point.windWavePeriodS ? (
                                         <>
                                           {/* Energy Bar */}
-                                          <div className="flex items-center gap-2 mb-3">
+                                          <div className="flex items-center gap-1.5 md:gap-2 mb-2 md:mb-3">
                                             <div className="flex-1 h-2 bg-[#e2e8f0] relative" style={{ height: '8px' }}>
                                               <div 
                                                 className="h-full bg-[#f97316]" 
                                                 style={{ width: `${windSwellEnergy}%` }}
                                               />
                                             </div>
-                                            <span className="text-xs font-semibold text-black" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', fontWeight: 600 }}>
+                                            <span className="text-[10px] md:text-xs font-semibold text-black" style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
                                               {windSwellEnergy}%
                                             </span>
                                           </div>
                                           {/* Swell Info */}
-                                          <div className="text-[#1e293b]" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '14px', fontWeight: 600 }}>
+                                          <div className="text-[#1e293b] text-xs md:text-sm" style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
                                             {getSwellDirectionLabel(windSwellDir)} {Math.round(windSwellDir)}° | {Number(point.windWaveHeightFt).toFixed(1)}ft @ {Number(point.windWavePeriodS).toFixed(0)}s
                                           </div>
                                         </>
                                       ) : (
-                                        <div className="text-sm text-gray-500">—</div>
+                                        <div className="text-xs md:text-sm text-gray-500">—</div>
                                       )}
                                     </div>
                                   </div>
@@ -2082,15 +2083,15 @@ export default function SpotDetail() {
                                   {/* Row 2: Wind and Tide */}
                                   <div className="grid grid-cols-1 md:grid-cols-[40%_60%]">
                                     {/* Wind Column */}
-                                    <div className="p-5 border-b md:border-b-0 md:border-r border-black">
-                                      <div className="uppercase mb-2" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', fontWeight: 700, color: '#64748b', letterSpacing: '0.5px' }}>
+                                    <div className="p-3 md:p-5 border-b md:border-b-0 md:border-r border-black">
+                                      <div className="uppercase mb-2" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', fontWeight: 700, color: '#64748b', letterSpacing: '0.5px' }}>
                                         WIND
                                       </div>
                                       {windDir !== null && windSpeed !== null ? (
-                                        <div className="flex items-start gap-4">
+                                        <div className="flex items-start gap-2 md:gap-4">
                                           {/* Wind Compass Rose */}
                                           <div className="flex-shrink-0">
-                                            <svg width="56" height="56" viewBox="0 0 56 56">
+                                            <svg className="w-12 h-12 md:w-14 md:h-14" viewBox="0 0 56 56">
                                               {/* Outer circle */}
                                               <circle cx="28" cy="28" r="26" fill="none" stroke="#e2e8f0" strokeWidth="1.5" />
                                               {/* Inner circle */}
@@ -2114,10 +2115,10 @@ export default function SpotDetail() {
                                           </div>
                                           {/* Wind Info */}
                                           <div className="flex-1 min-w-0">
-                                            <div className="text-[#1e293b] mb-1.5" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '16px', fontWeight: 700 }}>
+                                            <div className="text-[#1e293b] mb-1 md:mb-1.5 text-sm md:text-base" style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
                                               {getSwellDirectionLabel(windDir)} {Math.round(windDir)}°
                                             </div>
-                                            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '14px', fontWeight: 600 }}>
+                                            <div className="text-xs md:text-sm" style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
                                               <span className="text-[#64748b]">{Math.round(windSpeed)}mph </span>
                                               {windType && (
                                                 <span style={{
@@ -2131,13 +2132,13 @@ export default function SpotDetail() {
                                           </div>
                                         </div>
                                       ) : (
-                                        <div className="text-sm text-gray-500">—</div>
+                                        <div className="text-xs md:text-sm text-gray-500">—</div>
                                       )}
                                     </div>
 
                                     {/* Tide Column with Mini Sparkline */}
-                                    <div className="p-5 md:border-b-0 md:border-r-0">
-                                      <div className="uppercase mb-2" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', fontWeight: 700, color: '#64748b', letterSpacing: '0.5px' }}>
+                                    <div className="p-3 md:p-5 md:border-b-0 md:border-r-0">
+                                      <div className="uppercase mb-2" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', fontWeight: 700, color: '#64748b', letterSpacing: '0.5px' }}>
                                         TIDE
                                       </div>
                                       {tideHeight !== null ? (
@@ -2274,16 +2275,50 @@ export default function SpotDetail() {
                       const dayDate = new Date(year, month - 1, day);
                       dayDate.setHours(0, 0, 0, 0);
                       
-                      const isToday = dayDate.getTime() === today.getTime();
-                      const tomorrow = new Date(today);
-                      tomorrow.setDate(tomorrow.getDate() + 1);
-                      const isTomorrow = dayDate.getTime() === tomorrow.getTime();
+                        const isToday = dayDate.getTime() === today.getTime();
+                        const tomorrow = new Date(today);
+                        tomorrow.setDate(tomorrow.getDate() + 1);
+                        const isTomorrow = dayDate.getTime() === tomorrow.getTime();
                         
                         // Calculate day summary stats (prefer Day 1 MVP fields if available)
+                        // New logic: Prioritize daylight hours if at least 50% are surfable
+                        const spot = spotQuery.data;
+                        
+                        // Calculate validScores for all hours (used by bestScore calculation)
                         const validScores = points.map(p => p.quality_score !== null ? p.quality_score : p.probabilityScore).filter(s => s !== null);
-                        const avgScore = validScores.length > 0 
-                          ? Math.round(validScores.reduce((a, b) => a + b, 0) / validScores.length)
-                          : 0;
+                        let avgScore: number;
+                        
+                        if (spot) {
+                          // Filter points to daylight hours only
+                          const daylightPoints = points.filter(p => {
+                            return !isNighttime(p.forecastTimestamp, parseFloat(String(spot.latitude)), parseFloat(String(spot.longitude)));
+                          });
+                          
+                          // Get scores for daylight hours
+                          const daylightScores = daylightPoints.map(p => p.quality_score !== null ? p.quality_score : p.probabilityScore).filter(s => s !== null);
+                          
+                          // Check if at least 50% of daylight hours are surfable (score >= 40)
+                          const surfableDaylightHours = daylightScores.filter(s => s >= 40).length;
+                          const daylightSurfablePercentage = daylightScores.length > 0 ? surfableDaylightHours / daylightScores.length : 0;
+                          
+                          // Need at least 2 daylight hours to apply the 50% rule
+                          if (daylightScores.length >= 2 && daylightSurfablePercentage >= 0.5) {
+                            // Use average of all daylight hours
+                            avgScore = daylightScores.length > 0 
+                              ? Math.round(daylightScores.reduce((a, b) => a + b, 0) / daylightScores.length)
+                              : 0;
+                          } else {
+                            // Fall back to all hours average (current logic)
+                            avgScore = validScores.length > 0 
+                              ? Math.round(validScores.reduce((a, b) => a + b, 0) / validScores.length)
+                              : 0;
+                          }
+                        } else {
+                          // Fall back to all hours average if spot data not available
+                          avgScore = validScores.length > 0 
+                            ? Math.round(validScores.reduce((a, b) => a + b, 0) / validScores.length)
+                            : 0;
+                        }
                         const bestScore = validScores.length > 0 ? Math.max(...validScores) : 0;
                         
                         // Use breakingWaveHeightFt which accounts for period (3s wind chop != surfable waves)
@@ -2344,6 +2379,53 @@ export default function SpotDetail() {
                         // Calculate average quality rating for the day
                         const avgQualityRating = getRatingLabel(avgScore);
                         const verdictLabel = getVerdictLabel(avgQualityRating);
+                        
+                        // Calculate surfable daylight hours for callout with quality differentiation
+                        let surfableDaylightHoursCount = 0;
+                        let bestQualityRating: string | null = null;
+                        if (spot) {
+                          const daylightPoints = points.filter(p => {
+                            return !isNighttime(p.forecastTimestamp, parseFloat(String(spot.latitude)), parseFloat(String(spot.longitude)));
+                          });
+                          const daylightScores = daylightPoints.map(p => p.quality_score !== null ? p.quality_score : p.probabilityScore).filter(s => s !== null);
+                          const surfableScores = daylightScores.filter(s => s >= 40);
+                          surfableDaylightHoursCount = surfableScores.length;
+                          
+                          // Determine best quality rating among surfable hours
+                          if (surfableScores.length > 0) {
+                            const maxScore = Math.max(...surfableScores);
+                            if (maxScore >= 91) {
+                              bestQualityRating = "All-Time";
+                            } else if (maxScore >= 76) {
+                              bestQualityRating = "Firing";
+                            } else if (maxScore >= 60) {
+                              bestQualityRating = "Go Surf";
+                            } else {
+                              bestQualityRating = "Worth a Look";
+                            }
+                          }
+                        } else {
+                          // Fallback: count all hours if spot data unavailable
+                          const allScores = points.map(p => p.quality_score !== null ? p.quality_score : p.probabilityScore).filter(s => s !== null);
+                          const surfableScores = allScores.filter(s => s >= 40);
+                          surfableDaylightHoursCount = surfableScores.length;
+                          
+                          if (surfableScores.length > 0) {
+                            const maxScore = Math.max(...surfableScores);
+                            if (maxScore >= 91) {
+                              bestQualityRating = "All-Time";
+                            } else if (maxScore >= 76) {
+                              bestQualityRating = "Firing";
+                            } else if (maxScore >= 60) {
+                              bestQualityRating = "Go Surf";
+                            } else {
+                              bestQualityRating = "Worth a Look";
+                            }
+                          }
+                        }
+                        
+                        // Show callout if verdict is "Don't Bother" but there are surfable hours
+                        const showSurfableHoursCallout = verdictLabel === "DON'T BOTHER" && surfableDaylightHoursCount > 0;
                         
                         // Calculate wave height range (min-max) for AM and PM separately
                         const amPoints = points.filter(p => {
@@ -2430,7 +2512,7 @@ export default function SpotDetail() {
                         return (
                           <div
                             key={dayKey}
-                            className={`${getCardBackgroundColor(avgScore)} transition-all`}
+                            className={`${showSurfableHoursCallout ? 'bg-white' : getCardBackgroundColor(avgScore)} transition-all`}
                           >
                             {/* Day Summary Card - Secondary Season Format */}
                             <button
@@ -2443,31 +2525,41 @@ export default function SpotDetail() {
                                 }
                                 setExpandedDays(newExpanded);
                               }}
-                              className="w-full p-6 text-left"
+                              className="w-full p-3 md:p-4 text-left"
                             >
-                              <div className="flex items-start justify-between gap-4">
+                              <div className="flex items-start justify-between gap-2 md:gap-3">
                                 <div className="flex-1 min-w-0">
                                   {/* Main verdict line: DAY - VERDICT BADGE - CONFIDENCE */}
-                                  <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                    <h4 className="text-2xl font-black text-black uppercase" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                                  <div className="flex items-center gap-1 md:gap-1.5 flex-wrap">
+                                    <h4 className="text-xl md:text-2xl font-black text-black uppercase" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                                       {fullDayName}
                                     </h4>
-                                    <span className={`${getScoreBadgeColors(avgScore).bg} ${getScoreBadgeColors(avgScore).text} px-2 py-0.5 text-[10px] font-medium tracking-widest uppercase`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                    <span className={`${getScoreBadgeColors(avgScore).bg} ${getScoreBadgeColors(avgScore).text} px-1.5 py-0.5 md:px-2 md:py-0.5 text-[8px] md:text-[10px] font-medium tracking-widest uppercase`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                                       {verdictLabel.toUpperCase()}
                                     </span>
-                                    <span className="text-[10px] font-medium tracking-widest text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                    <span className="text-[8px] md:text-[10px] font-medium tracking-widest text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                                       {confidencePercentage}% CONFIDENCE
                                     </span>
                                   </div>
 
+                                  {/* Surfable hours callout - shows when day is "Don't Bother" but has some surfable hours */}
+                                  {showSurfableHoursCallout && (
+                                    <div className="my-1.5">
+                                      <span className="inline-flex items-center gap-1 text-[9px] md:text-[10px] font-medium tracking-wide text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                        <Clock className="h-3 w-3 md:h-3.5 md:w-3.5" />
+                                        {surfableDaylightHoursCount} {surfableDaylightHoursCount === 1 ? 'hour' : 'hours'} worth checking{bestQualityRating && (bestQualityRating === "Go Surf" || bestQualityRating === "Firing" || bestQualityRating === "All-Time") ? ` (${bestQualityRating})` : ''}
+                                      </span>
+                                    </div>
+                                  )}
+
                                   {/* Date + Stats line */}
-                                  <p className="text-xs text-gray-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                  <p className="text-[10px] md:text-xs text-gray-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                                     <span className="font-semibold">{dayDate.toLocaleDateString("en-US", { weekday: 'short', month: "short", day: "numeric" })}</span>
-                                    <span className="mx-2">•</span>
+                                    <span className="mx-1.5">•</span>
                                     <span className="font-bold text-black">{displayAvgHeight}</span>
                                     {avgWindSpeed !== null && windDirCardinal && (
                                       <>
-                                        <span className="mx-2">•</span>
+                                        <span className="mx-1.5">•</span>
                                         <span className="font-bold text-black inline-flex items-center gap-1">
                                           {windDirCardinal.cardinal}
                                           <Arrow degrees={(windDirCardinal.degrees + 180) % 360} size={12} color="#1e293b" />
@@ -2481,9 +2573,9 @@ export default function SpotDetail() {
                                 {/* Expand/Collapse Chevron */}
                                 <div className="flex-shrink-0 self-center">
                                   {isExpanded ? (
-                                    <ChevronUp className="h-6 w-6 text-black" />
+                                    <ChevronUp className="h-5 w-5 md:h-6 md:w-6 text-black" />
                                   ) : (
-                                    <ChevronDown className="h-6 w-6 text-black" />
+                                    <ChevronDown className="h-5 w-5 md:h-6 md:w-6 text-black" />
                                   )}
                                 </div>
                               </div>
@@ -2495,39 +2587,39 @@ export default function SpotDetail() {
                                 isExpanded ? "max-h-[5000px] opacity-100" : "max-h-0 opacity-0"
                               }`}
                             >
-                              <div className="px-6 pb-6">
+                              <div className="px-3 pb-3 md:px-4 md:pb-4">
                                 {/* Two Row Layout - CONDITIONS & BEST WINDOWS on top, TIDE FORECAST below */}
                                 {/* Row 1: CONDITIONS and BEST WINDOWS */}
-                                <div className="grid md:grid-cols-2 gap-3 mb-3">
+                                <div className="grid md:grid-cols-2 gap-2 md:gap-2 mb-2 md:mb-2">
                                   {/* CONDITIONS Box */}
-                                  <div className="bg-white border-2 border-black p-3">
-                                    <span className="text-[10px] font-bold tracking-widest text-gray-500 uppercase block mb-2" style={{ fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.5px' }}>CONDITIONS</span>
-                                    <div className="space-y-1.5">
+                                  <div className="bg-white border-2 border-black p-2 md:p-2.5">
+                                    <span className="text-[8px] md:text-[10px] font-bold tracking-widest text-gray-500 uppercase block mb-1 md:mb-1.5" style={{ fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.5px' }}>CONDITIONS</span>
+                                    <div className="space-y-1">
                                       {amConditions.heightStr !== "N/A" && (
-                                        <div className="flex items-center justify-between text-[13px]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                                          <span className="font-bold text-gray-900 w-8">AM</span>
-                                          <span className="text-gray-700 flex-1">{amConditions.heightStr} @ {amConditions.periodStr}</span>
-                                          <span className="text-gray-500 text-right">{amConditions.windStr}</span>
+                                        <div className="flex items-center justify-between text-[11px] md:text-[13px]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                          <span className="font-bold text-gray-900 w-6 md:w-8">AM</span>
+                                          <span className="text-gray-700 flex-1 text-[10px] md:text-[13px]">{amConditions.heightStr} @ {amConditions.periodStr}</span>
+                                          <span className="text-gray-500 text-right text-[9px] md:text-[13px]">{amConditions.windStr}</span>
                                         </div>
                                       )}
                                       {pmConditions.heightStr !== "N/A" && (
-                                        <div className="flex items-center justify-between text-[13px]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                                          <span className="font-bold text-gray-900 w-8">PM</span>
-                                          <span className="text-gray-700 flex-1">{pmConditions.heightStr} @ {pmConditions.periodStr}</span>
-                                          <span className="text-gray-500 text-right">{pmConditions.windStr}</span>
+                                        <div className="flex items-center justify-between text-[11px] md:text-[13px]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                          <span className="font-bold text-gray-900 w-6 md:w-8">PM</span>
+                                          <span className="text-gray-700 flex-1 text-[10px] md:text-[13px]">{pmConditions.heightStr} @ {pmConditions.periodStr}</span>
+                                          <span className="text-gray-500 text-right text-[9px] md:text-[13px]">{pmConditions.windStr}</span>
                                         </div>
                                       )}
                                       {amConditions.heightStr === "N/A" && pmConditions.heightStr === "N/A" && (
-                                        <p className="text-sm text-gray-500">No data available</p>
+                                        <p className="text-xs md:text-sm text-gray-500">No data available</p>
                                       )}
                                     </div>
                                   </div>
 
                                   {/* BEST WINDOWS Box */}
-                                  <div className="bg-white border-2 border-black p-3">
-                                    <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>BEST WINDOWS</span>
+                                  <div className="bg-white border-2 border-black p-2 md:p-2.5">
+                                    <span className="text-[8px] md:text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>BEST WINDOWS</span>
                                     {bestWindows.length === 0 ? (
-                                      <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                      <p className="text-xs md:text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                                         {(() => {
                                           const allScores = points.map(p => p.quality_score ?? p.probabilityScore ?? 0);
                                           const allBelow50 = allScores.every(s => s < 50);
@@ -2551,15 +2643,15 @@ export default function SpotDetail() {
                                         })()}
                                       </p>
                                     ) : (
-                                      <div className="space-y-2">
+                                      <div className="space-y-1.5 md:space-y-2">
                                         {bestWindows.map((window, idx) => (
-                                          <div key={idx} className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                          <div key={idx} className="text-xs md:text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                                             <p className="font-semibold">{window.label.toUpperCase()}: {window.timeRange}</p>
-                                            <p className="text-xs text-gray-600">Quality: {window.avgScore}/100 · {window.waveHeight}, {window.windDesc}, {window.tideDesc}</p>
+                                            <p className="text-[10px] md:text-xs text-gray-600">Quality: {window.avgScore}/100 · {window.waveHeight}, {window.windDesc}, {window.tideDesc}</p>
                                           </div>
                                         ))}
                                         {avoidWindows.length > 0 && avoidWindows.map((avoid, idx) => (
-                                          <p key={`avoid-${idx}`} className="text-xs text-red-600 font-medium" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                          <p key={`avoid-${idx}`} className="text-[9px] md:text-xs text-red-600 font-medium" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                                             AVOID: {avoid.timeRange} ({avoid.reason})
                                           </p>
                                         ))}
@@ -2569,10 +2661,10 @@ export default function SpotDetail() {
                                 </div>
 
                                 {/* Row 2: TIDE FORECAST */}
-                                <div className="mb-6">
+                                <div className="mb-4 md:mb-6">
                                   {/* TIDE FORECAST Box */}
                                   <div className="bg-white border-2 border-black p-2">
-                                    <span className="text-[10px] font-bold tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.5px' }}>TIDE FORECAST</span>
+                                    <span className="text-[8px] md:text-[10px] font-bold tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.5px' }}>TIDE FORECAST</span>
                                     {(() => {
                                       // Find high and low tide points for this day
                                       const tideExtremes: { type: 'high' | 'low'; time: Date; height: number; index: number }[] = [];
@@ -2720,15 +2812,15 @@ export default function SpotDetail() {
 
                                           {/* High/Low summary row */}
                                           <div className="flex justify-between mt-1 pt-1 border-t border-gray-100">
-                                            <div className="flex items-center gap-1.5">
-                                              <div className="w-2 h-2 rounded-full bg-sky-500"></div>
-                                              <span className="text-[11px] text-gray-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                            <div className="flex items-center gap-1 md:gap-1.5">
+                                              <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-sky-500"></div>
+                                              <span className="text-[9px] md:text-[11px] text-gray-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                                                 <span className="font-semibold">High</span> {highTide ? `${highTide.height.toFixed(1)}ft` : 'N/A'}
                                               </span>
                                             </div>
-                                            <div className="flex items-center gap-1.5">
-                                              <div className="w-2 h-2 rounded-full bg-sky-500"></div>
-                                              <span className="text-[11px] text-gray-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                            <div className="flex items-center gap-1 md:gap-1.5">
+                                              <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-sky-500"></div>
+                                              <span className="text-[9px] md:text-[11px] text-gray-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                                                 <span className="font-semibold">Low</span> {lowTide ? `${lowTide.height.toFixed(1)}ft` : 'N/A'}
                                               </span>
                                             </div>
@@ -2741,23 +2833,25 @@ export default function SpotDetail() {
 
                                 {/* Hourly Breakdown Section */}
                                 <div className="bg-white border-2 border-black">
-                                  <div className="px-6 py-4 border-b-2 border-black">
-                                    <span className="text-[11px] font-bold tracking-wide text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>HOURLY BREAKDOWN</span>
+                                  <div className="px-4 py-3 md:px-6 md:py-4 border-b-2 border-black">
+                                    <span className="text-[9px] md:text-[11px] font-bold tracking-wide text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>HOURLY BREAKDOWN</span>
                                   </div>
 
-                                  {/* Table Header */}
-                                  <div
-                                    className="grid px-4 py-3 bg-gray-50 border-b border-gray-200 text-[10px] font-bold tracking-wide text-gray-500 uppercase"
-                                    style={{ gridTemplateColumns: '6% 9% 22% 22% 15% 15% 11%', width: '100%', fontFamily: "'JetBrains Mono', monospace" }}
-                                  >
-                                    <div></div>
-                                    <div>Surf</div>
-                                    <div>Primary Swell</div>
-                                    <div>Secondary Swell</div>
-                                    <div>Wind</div>
-                                    <div>Tide</div>
-                                    <div className="text-right">Quality</div>
-                                  </div>
+                                  {/* Scrollable wrapper for mobile */}
+                                  <div className="overflow-x-auto md:overflow-x-visible">
+                                    {/* Table Header */}
+                                    <div
+                                      className="grid px-2 md:px-4 py-2 md:py-3 bg-gray-50 border-b border-gray-200 text-[8px] md:text-[10px] font-bold tracking-wide text-gray-500 uppercase"
+                                      style={{ gridTemplateColumns: '6% 9% 22% 22% 15% 15% 11%', width: '100%', minWidth: '640px', fontFamily: "'JetBrains Mono', monospace" }}
+                                    >
+                                      <div></div>
+                                      <div>Surf</div>
+                                      <div>Primary Swell</div>
+                                      <div>Secondary Swell</div>
+                                      <div>Wind</div>
+                                      <div>Tide</div>
+                                      <div className="text-right">Quality</div>
+                                    </div>
 
                                   <div>
                                     {(() => {
@@ -2924,65 +3018,65 @@ export default function SpotDetail() {
                                           <div
                                             key={`${point.forecastTimestamp}-${index}`}
                                             className={cn(
-                                              "grid px-4 py-3.5 border-b border-gray-100 relative transition-colors items-center",
+                                              "grid px-2 md:px-4 py-2 md:py-3.5 border-b border-gray-100 relative transition-colors items-center",
                                               isNight ? "bg-gray-100 hover:bg-gray-200" : "hover:bg-gray-50"
                                             )}
-                                            style={{ gridTemplateColumns: '6% 9% 22% 22% 15% 15% 11%', width: '100%' }}
+                                            style={{ gridTemplateColumns: '6% 9% 22% 22% 15% 15% 11%', width: '100%', minWidth: '640px' }}
                                           >
                                             {/* Quality indicator left border */}
-                                            <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${getQualityBorderColor(qualityScore)}`} />
+                                            <div className={`absolute left-0 top-0 bottom-0 w-[2px] md:w-[3px] ${getQualityBorderColor(qualityScore)}`} />
 
                                             {/* Time */}
                                             <div className="flex items-center">
-                                              <span className="text-[14px] font-bold text-gray-800">{hour12}{period}</span>
+                                              <span className="text-xs md:text-sm font-bold text-gray-800">{hour12}{period}</span>
                                             </div>
 
                                             {/* Surf Height Pill */}
                                             <div className="flex">
-                                              <div className="bg-gray-100 rounded-lg px-2.5 py-1 text-center">
-                                                <span className="text-[14px] font-bold text-gray-900">
+                                              <div className="bg-gray-100 rounded-lg px-1.5 md:px-2.5 py-0.5 md:py-1 text-center">
+                                                <span className="text-xs md:text-sm font-bold text-gray-900">
                                                   {formatSurfRange(surfHeight)}
                                                 </span>
                                               </div>
                                             </div>
 
                                             {/* Primary Swell with SVG arrow */}
-                                            <div className="flex items-center gap-2">
-                                              <span className="text-[14px] font-bold text-gray-900 min-w-[42px]">
+                                            <div className="flex items-center gap-1 md:gap-2">
+                                              <span className="text-xs md:text-sm font-bold text-gray-900 min-w-[32px] md:min-w-[42px]">
                                                 {primarySwellHeight !== null ? `${primarySwellHeight.toFixed(1)}ft` : '—'}
                                               </span>
-                                              <span className="text-[13px] font-semibold text-gray-600">
+                                              <span className="text-[10px] md:text-[13px] font-semibold text-gray-600">
                                                 {primarySwellPeriod !== null ? `${Math.round(primarySwellPeriod)}s` : ''}
                                               </span>
                                               {primarySwellDeg !== null && (
-                                                <SwellArrow directionDeg={primarySwellDeg} size={18} />
+                                                <SwellArrow directionDeg={primarySwellDeg} size={14} />
                                               )}
                                             </div>
 
                                             {/* Secondary Swell with lighter styling */}
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-1 md:gap-2">
                                               {secondaryHeight !== null && secondaryHeight > 0 ? (
                                                 <>
-                                                  <span className="text-[14px] font-semibold text-gray-500 min-w-[42px]">
+                                                  <span className="text-xs md:text-sm font-semibold text-gray-500 min-w-[32px] md:min-w-[42px]">
                                                     {secondaryHeight.toFixed(1)}ft
                                                   </span>
-                                                  <span className="text-[13px] font-medium text-gray-400">
+                                                  <span className="text-[10px] md:text-[13px] font-medium text-gray-400">
                                                     {secondaryPeriod !== null ? `${Math.round(secondaryPeriod)}s` : ''}
                                                   </span>
                                                   {secondaryDeg !== null && (
-                                                    <SwellArrow directionDeg={secondaryDeg} size={16} secondary />
+                                                    <SwellArrow directionDeg={secondaryDeg} size={12} secondary />
                                                   )}
                                                 </>
                                               ) : (
-                                                <span className="text-[13px] text-gray-300">—</span>
+                                                <span className="text-[10px] md:text-[13px] text-gray-300">—</span>
                                               )}
                                             </div>
 
                                             {/* Wind with styled arrow box */}
-                                            <div className="flex items-center gap-2">
-                                              <span className="text-[14px] font-bold text-gray-900">
+                                            <div className="flex items-center gap-1 md:gap-2">
+                                              <span className="text-xs md:text-sm font-bold text-gray-900">
                                                 {windSpeed !== null ? `${windSpeed}` : '—'}
-                                                <span className="text-[11px] font-medium text-gray-500">mph</span>
+                                                <span className="text-[9px] md:text-[11px] font-medium text-gray-500">mph</span>
                                               </span>
                                               {point.windDirectionDeg !== null && (
                                                 <WindArrowBadge
@@ -2995,7 +3089,7 @@ export default function SpotDetail() {
                                             {/* Tide */}
                                             <div className="flex items-center">
                                               {tideInfo.height !== null && tideInfo.state && (
-                                                <span className={`text-[13px] inline-flex items-center gap-0.5 ${
+                                                <span className={`text-[10px] md:text-[13px] inline-flex items-center gap-0.5 ${
                                                   tideInfo.state === 'high' || tideInfo.state === 'low'
                                                     ? 'font-bold text-[#1e293b]'
                                                     : 'font-semibold text-[#64748b]'
@@ -3004,7 +3098,7 @@ export default function SpotDetail() {
                                                   {tideInfo.state === 'high' ? ' HIGH' :
                                                    tideInfo.state === 'low' ? ' LOW' :
                                                    (tideInfo.state === 'rising' || tideInfo.state === 'dropping') && (
-                                                     <TrendArrow rising={tideInfo.state === 'rising'} size={12} />
+                                                     <TrendArrow rising={tideInfo.state === 'rising'} size={10} />
                                                    )}
                                                 </span>
                                               )}
@@ -3016,7 +3110,7 @@ export default function SpotDetail() {
                                                 {[1, 2, 3, 4, 5].map((star) => (
                                                   <span
                                                     key={star}
-                                                    className={`text-[14px] ${star <= starCount ? 'text-gray-900' : 'text-gray-200'}`}
+                                                    className={`text-xs md:text-sm ${star <= starCount ? 'text-gray-900' : 'text-gray-200'}`}
                                                   >
                                                     ★
                                                   </span>
@@ -3028,6 +3122,7 @@ export default function SpotDetail() {
                                       });
                                     })()}
                                   </div>
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -3037,13 +3132,13 @@ export default function SpotDetail() {
                 </div>
                 )
               ) : (
-                <div className="p-6">
-                  <div className="bg-gray-50 border-2 border-black p-6">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-8 h-8 bg-black flex items-center justify-center">
-                        <AlertCircle className="w-4 h-4 text-white" />
+                <div className="p-4 md:p-6">
+                  <div className="bg-gray-50 border-2 border-black p-4 md:p-6">
+                    <div className="flex items-center gap-2 mb-2 md:mb-3">
+                      <div className="w-6 h-6 md:w-8 md:h-8 bg-black flex items-center justify-center">
+                        <AlertCircle className="w-3 h-3 md:w-4 md:h-4 text-white" />
                       </div>
-                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      <span className="text-[8px] md:text-[10px] font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                         NO DATA
                       </span>
                     </div>
