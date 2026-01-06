@@ -20,16 +20,16 @@ interface SpotContextHeaderProps {
 export function SpotContextHeader({ headline, description }: SpotContextHeaderProps) {
   return (
     <div className="bg-gray-50 border-2 border-black">
-      <div className="p-6">
-        <div className="space-y-3 text-center">
+      <div className="p-4 sm:p-6">
+        <div className="space-y-2 sm:space-y-3 text-center">
           <p
-            className="text-3xl md:text-4xl font-black text-black leading-tight"
+            className="text-2xl sm:text-3xl md:text-4xl font-black text-black leading-tight"
             style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.02em' }}
           >
             {headline}
           </p>
           <p
-            className="text-lg md:text-base font-semibold text-gray-700 leading-relaxed text-left"
+            className="text-xs sm:text-sm md:text-base font-semibold text-gray-700 leading-relaxed text-left"
             style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
           >
             {description}
