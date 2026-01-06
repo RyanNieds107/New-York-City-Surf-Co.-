@@ -224,14 +224,7 @@ export default function Dashboard() {
 
   const [, setLocation] = useLocation();
 
-  // Map spot names for display (handles legacy database names)
-  const getDisplayName = (spotName: string): string => {
-    if (spotName === "Ditch Plains") return "Montauk";
-    if (spotName === "Lincoln Blvd") return "Belmar";
-    return spotName;
-  };
-
-  // Custom sort order for spots (using display names)
+  // Custom sort order for spots
   const spotOrder = [
     "Rockaway Beach",
     "Long Beach",
@@ -243,60 +236,53 @@ export default function Dashboard() {
 
   // Sort spots according to custom order
   const sortedSpots = spotsQuery.data ? [...spotsQuery.data].sort((a, b) => {
-    const displayNameA = getDisplayName(a.name);
-    const displayNameB = getDisplayName(b.name);
-    const indexA = spotOrder.indexOf(displayNameA);
-    const indexB = spotOrder.indexOf(displayNameB);
+    const indexA = spotOrder.indexOf(a.name);
+    const indexB = spotOrder.indexOf(b.name);
     // If both are in the order list, sort by their position
     if (indexA !== -1 && indexB !== -1) return indexA - indexB;
     // If only one is in the list, prioritize it
     if (indexA !== -1) return -1;
     if (indexB !== -1) return 1;
     // If neither is in the list, sort alphabetically
-    return displayNameA.localeCompare(displayNameB);
+    return a.name.localeCompare(b.name);
   }) : [];
 
   // Check if spot should show "Coming Soon"
   const isComingSoonSpot = (spotName: string) => {
-    const displayName = getDisplayName(spotName);
-    return displayName === "Gilgo Beach" || 
-           displayName === "Belmar" || 
-           displayName === "Montauk";
+    return spotName === "Gilgo Beach" ||
+           spotName === "Belmar" ||
+           spotName === "Montauk";
   };
 
   // Get image path for a spot
   const getSpotImagePath = (spotName: string): string => {
-    const displayName = getDisplayName(spotName);
-    if (displayName === "Rockaway Beach") return "/Rockaway.avif";
-    if (displayName === "Long Beach") return "/Long Beach.webp";
-    if (displayName === "Lido Beach") return "/Lido-beach.jpg";
-    if (displayName === "Gilgo Beach") return "/Gilgo Beach.jpg";
-    if (displayName === "Belmar") return "/Belmar.jpg";
-    if (displayName === "Montauk") return "/Montauk.jpg";
+    if (spotName === "Rockaway Beach") return "/Rockaway.avif";
+    if (spotName === "Long Beach") return "/Long Beach.webp";
+    if (spotName === "Lido Beach") return "/Lido-beach.jpg";
+    if (spotName === "Gilgo Beach") return "/Gilgo Beach.jpg";
+    if (spotName === "Belmar") return "/Belmar.jpg";
+    if (spotName === "Montauk") return "/Montauk.jpg";
     return "";
   };
 
   // Get region for a spot
   const getSpotRegion = (spotName: string): string => {
-    const displayName = getDisplayName(spotName);
-    if (displayName === "Rockaway Beach") return "Queens, NY";
-    if (displayName === "Long Beach") return "Nassau County, NY";
-    if (displayName === "Lido Beach") return "Nassau County, NY";
-    if (displayName === "Gilgo Beach") return "Suffolk County, NY";
-    if (displayName === "Belmar") return "Monmouth County, NJ";
-    if (displayName === "Montauk") return "Suffolk County, NY";
+    if (spotName === "Rockaway Beach") return "Queens, NY";
+    if (spotName === "Long Beach") return "Nassau County, NY";
+    if (spotName === "Lido Beach") return "Nassau County, NY";
+    if (spotName === "Gilgo Beach") return "Suffolk County, NY";
+    if (spotName === "Belmar") return "Monmouth County, NJ";
+    if (spotName === "Montauk") return "Suffolk County, NY";
     return "";
   };
 
   // Split spots into top 3 (photo cards) and bottom 3 (regular cards)
   const topThreeSpotNames = ["Rockaway Beach", "Long Beach", "Lido Beach"];
   const topThreeSpots = sortedSpots.filter((spot) => {
-    const displayName = getDisplayName(spot.name);
-    return topThreeSpotNames.includes(displayName);
+    return topThreeSpotNames.includes(spot.name);
   });
   const bottomThreeSpots = sortedSpots.filter((spot) => {
-    const displayName = getDisplayName(spot.name);
-    return !topThreeSpotNames.includes(displayName);
+    return !topThreeSpotNames.includes(spot.name);
   });
 
   return (
@@ -367,15 +353,14 @@ export default function Dashboard() {
             {topThreeSpots.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
                 {topThreeSpots.map((spot) => {
-                  const displayName = getDisplayName(spot.name);
                   const imagePath = getSpotImagePath(spot.name);
                   const region = getSpotRegion(spot.name);
-                  const spotDistance = distanceQuery.data?.[displayName] ?? null;
+                  const spotDistance = distanceQuery.data?.[spot.name] ?? null;
 
                   return (
                     <PhotoSpotCard
                       key={spot.id}
-                      name={displayName}
+                      name={spot.name}
                       region={region}
                       imageSrc={imagePath}
                       onClick={() => setLocation(`/spot/${spot.id}`)}
@@ -390,19 +375,18 @@ export default function Dashboard() {
 
             {/* Bottom 3 Spots - Photo Cards */}
             {bottomThreeSpots.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {bottomThreeSpots.map((spot) => {
                   const isComingSoon = isComingSoonSpot(spot.name);
-                  const displayName = getDisplayName(spot.name);
                   const imagePath = getSpotImagePath(spot.name);
                   const region = getSpotRegion(spot.name);
-                  const spotDistance = distanceQuery.data?.[displayName] ?? null;
+                  const spotDistance = distanceQuery.data?.[spot.name] ?? null;
 
-              return (
+                  return (
                     <div key={spot.id} className="relative">
                       <div className={isComingSoon ? "opacity-50" : ""}>
                         <PhotoSpotCard
-                          name={displayName}
+                          name={spot.name}
                           region={region}
                           imageSrc={imagePath}
                           onClick={isComingSoon ? undefined : () => setLocation(`/spot/${spot.id}`)}
@@ -413,9 +397,9 @@ export default function Dashboard() {
                       </div>
                       {isComingSoon && (
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                          <span 
+                          <span
                             className="text-sm font-bold text-white bg-black px-4 py-2 uppercase shadow-lg"
-                            style={{ 
+                            style={{
                               borderRadius: '2px',
                               fontFamily: "'JetBrains Mono', monospace",
                               fontWeight: 700,
