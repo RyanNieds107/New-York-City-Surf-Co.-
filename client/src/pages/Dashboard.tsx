@@ -338,17 +338,6 @@ export default function Dashboard() {
           </>
         ) : (
           <>
-            {/* Spots Header */}
-            <div className="mb-4 sm:mb-6 md:mb-8">
-              <div className="bg-gray-50 border-2 border-black">
-                <div className="py-3 px-4 sm:py-4 sm:px-6">
-                  <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-black uppercase tracking-tight text-center" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.02em' }}>
-                    Spots Tracked
-                  </h2>
-                </div>
-              </div>
-            </div>
-
             {/* Top 3 Spots - Photo Cards */}
             {topThreeSpots.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-4 sm:mb-6">

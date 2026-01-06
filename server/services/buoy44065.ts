@@ -11,8 +11,8 @@
 import axios from "axios";
 
 export interface BuoyReading {
-  waveHeight: number;        // in feet (converted from meters) - COMBINED significant wave height
-  waveHeightMeters: number;  // raw meters
+  waveHeight: number;        // in feet (converted from meters) - SWELL height (SwH), not combined WVHT
+  waveHeightMeters: number;  // raw meters - SWELL height (SwH)
   dominantPeriod: number;    // in seconds - period of dominant energy
   waveDirection: number;     // in degrees - mean wave direction
   directionLabel: string;    // e.g., "SSE"
@@ -117,9 +117,10 @@ export async function fetchBuoy44065(): Promise<BuoyReading | null> {
         const apd = parseValue(parts[13]);  // Average period in seconds
         const mwd = parseValue(parts[14]);  // Mean wave direction in degrees
 
-        // If critical wave data is missing, try the next line
-        if (wvht === null) {
-          console.log(`[Buoy 44065] Missing WVHT on line - trying next line`);
+        // If critical swell data is missing, try the next line
+        // We need SwH (swell height) and SwP (swell period) to be paired correctly
+        if (swH === null || swP === null) {
+          console.log(`[Buoy 44065] Missing SwH or SwP on line - trying next line`);
           continue;
         }
 
@@ -129,15 +130,16 @@ export async function fetchBuoy44065(): Promise<BuoyReading | null> {
         const isStale = dataAge > STALE_THRESHOLD_MS;
 
         // Convert meters to feet
-        const waveHeightFeet = wvht * 3.28084;
-        const swellHeightFeet = swH !== null ? swH * 3.28084 : null;
+        // Use SwH (swell height) for primary wave height - NOT WVHT (combined)
+        const waveHeightFeet = swH * 3.28084;
+        const swellHeightFeet = swH * 3.28084;
         const windWaveHeightFeet = wwH !== null ? wwH * 3.28084 : null;
 
-        // Determine dominant period - use wind wave period if it has more energy, otherwise swell period
-        // Energy comparison: H² × T
-        const swellEnergy = swH !== null && swP !== null ? (swH * swH * swP) : 0;
+        // Determine dominant period using energy comparison: H² × T
+        // Compare SwH (swell) vs WWH (wind waves) to pick the right period
+        const swellEnergy = swH * swH * swP;
         const windWaveEnergy = wwH !== null && wwP !== null ? (wwH * wwH * wwP) : 0;
-        const dominantPeriod = windWaveEnergy > swellEnergy ? (wwP ?? apd ?? 0) : (swP ?? apd ?? 0);
+        const dominantPeriod = windWaveEnergy > swellEnergy ? (wwP ?? swP) : swP;
 
         // Clean up cardinal directions (handle "MM" missing values)
         const cleanSwD = swD === "MM" || swD === "-" ? null : swD;
@@ -145,10 +147,12 @@ export async function fetchBuoy44065(): Promise<BuoyReading | null> {
         const cleanSteepness = steepness === "MM" || steepness === "-" ? null : steepness;
 
         console.log(`[Buoy 44065] Spectral data: WVHT=${wvht}m, SwH=${swH}m @ ${swP}s from ${swD}, WWH=${wwH}m @ ${wwP}s from ${wwD}, Steepness=${steepness}`);
+        console.log(`[Buoy 44065] Energy comparison: swell=${swellEnergy.toFixed(2)} vs wind=${windWaveEnergy.toFixed(2)} → using ${windWaveEnergy > swellEnergy ? 'WWP' : 'SwP'}=${dominantPeriod}s`);
+        console.log(`[Buoy 44065] Output: waveHeight=${waveHeightFeet.toFixed(1)}ft (SwH), dominantPeriod=${dominantPeriod}s`);
 
         return {
           waveHeight: waveHeightFeet,
-          waveHeightMeters: wvht,
+          waveHeightMeters: swH,
           dominantPeriod: dominantPeriod,
           waveDirection: mwd ?? 0,
           directionLabel: mwd !== null ? degreesToDirection(mwd) : "N/A",

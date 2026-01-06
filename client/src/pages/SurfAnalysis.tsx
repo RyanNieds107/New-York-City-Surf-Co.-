@@ -2,8 +2,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Calendar, TrendingUp, Waves, Wind, Sun, Snowflake, Leaf, Flower2, BarChart3, Target, Zap, Clock } from "lucide-react";
 import { Link } from "wouter";
 import { Footer } from "@/components/Footer";
+import { useEffect } from "react";
 
 export default function SurfAnalysis() {
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
