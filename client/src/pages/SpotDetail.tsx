@@ -44,11 +44,11 @@ function SpotInfoCard({ title, children }: { title: string; children: React.Reac
     <div className="bg-white rounded-none shadow-sm border-2 border-black relative overflow-hidden transition-all duration-200" style={{
       backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E")`,
     }}>
-      <div className="px-8 py-6 border-b-2 border-black">
-        <h3 className="text-3xl font-semibold text-black tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.01em' }}>{title.toUpperCase()}</h3>
+      <div className="px-4 sm:px-6 md:px-8 py-4 sm:py-5 md:py-6 border-b-2 border-black">
+        <h3 className="text-2xl sm:text-3xl font-semibold text-black tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.01em' }}>{title.toUpperCase()}</h3>
       </div>
-      <div className="px-8 py-10">
-        <div className="text-base text-black leading-relaxed space-y-4" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>{children}</div>
+      <div className="px-4 sm:px-6 md:px-8 py-6 sm:py-8 md:py-10">
+        <div className="text-sm sm:text-base text-black leading-relaxed space-y-3 sm:space-y-4" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>{children}</div>
       </div>
     </div>
   );
@@ -133,80 +133,80 @@ function SpotIdealConditions({ spotName }: { spotName: string }) {
   return (
     <div className="bg-white border-2 border-black">
       {/* Header */}
-      <div className="border-b-2 border-black p-6">
+      <div className="border-b-2 border-black p-4 sm:p-6">
         <div className="flex items-center gap-3 mb-2">
-          <span className="text-[10px] font-medium tracking-widest text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>CONDITIONS GUIDE</span>
+          <span className="text-[9px] sm:text-[10px] font-medium tracking-widest text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>CONDITIONS GUIDE</span>
         </div>
-        <h3 className="text-4xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.02em' }}>
+        <h3 className="text-2xl sm:text-3xl md:text-4xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.02em' }}>
           WHAT GOOD LOOKS LIKE
         </h3>
-        <p className="mt-3 text-base text-gray-700 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-          According to the locals... 
+        <p className="mt-2 sm:mt-3 text-sm sm:text-base text-gray-700 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+          According to the locals...
         </p>
       </div>
 
       {/* Conditions Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 divide-x-2 divide-y-2 md:divide-y-0 divide-black border-b-2 border-black">
         {/* Ideal Swell */}
-        <div className="p-6">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 bg-black flex items-center justify-center">
-              <Compass className="w-4 h-4 text-white" />
+        <div className="p-3 sm:p-4 md:p-6">
+          <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-black flex items-center justify-center">
+              <Compass className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
             </div>
-            <span className="text-xs font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>SWELL</span>
+            <span className="text-[10px] sm:text-xs font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>SWELL</span>
           </div>
-          <h4 className="text-lg font-black text-black uppercase mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>IDEAL DIRECTION</h4>
-          <p className="text-sm text-gray-800 font-semibold" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+          <h4 className="text-sm sm:text-base md:text-lg font-black text-black uppercase mb-1 sm:mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>IDEAL DIRECTION</h4>
+          <p className="text-xs sm:text-sm text-gray-800 font-semibold" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
             {idealConditions.swellDirection}
           </p>
         </div>
 
         {/* Ideal Size */}
-        <div className="p-6">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 bg-black flex items-center justify-center">
-              <Waves className="w-4 h-4 text-white" />
+        <div className="p-3 sm:p-4 md:p-6">
+          <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-black flex items-center justify-center">
+              <Waves className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
             </div>
-            <span className="text-xs font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>SIZE</span>
+            <span className="text-[10px] sm:text-xs font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>SIZE</span>
           </div>
-          <h4 className="text-lg font-black text-black uppercase mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>IDEAL HEIGHT</h4>
-          <p className="text-sm text-gray-800 font-semibold" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+          <h4 className="text-sm sm:text-base md:text-lg font-black text-black uppercase mb-1 sm:mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>IDEAL HEIGHT</h4>
+          <p className="text-xs sm:text-sm text-gray-800 font-semibold" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
             {idealConditions.waveHeight}
           </p>
         </div>
 
         {/* Ideal Wind */}
-        <div className="p-6">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 bg-black flex items-center justify-center">
-              <Wind className="w-4 h-4 text-white" />
+        <div className="p-3 sm:p-4 md:p-6">
+          <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-black flex items-center justify-center">
+              <Wind className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
             </div>
-            <span className="text-xs font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>WIND</span>
+            <span className="text-[10px] sm:text-xs font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>WIND</span>
           </div>
-          <h4 className="text-lg font-black text-black uppercase mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>IDEAL DIRECTION</h4>
-          <p className="text-sm text-gray-800 font-semibold" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+          <h4 className="text-sm sm:text-base md:text-lg font-black text-black uppercase mb-1 sm:mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>IDEAL DIRECTION</h4>
+          <p className="text-xs sm:text-sm text-gray-800 font-semibold" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
             {idealConditions.windDirection}
           </p>
         </div>
 
         {/* Ideal Tide */}
-        <div className="p-6">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 bg-black flex items-center justify-center">
-              <Droplet className="w-4 h-4 text-white" />
+        <div className="p-3 sm:p-4 md:p-6">
+          <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-black flex items-center justify-center">
+              <Droplet className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
             </div>
-            <span className="text-xs font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>TIDE</span>
+            <span className="text-[10px] sm:text-xs font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>TIDE</span>
           </div>
-          <h4 className="text-lg font-black text-black uppercase mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>IDEAL PHASE</h4>
-          <p className="text-sm text-gray-800 font-semibold" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+          <h4 className="text-sm sm:text-base md:text-lg font-black text-black uppercase mb-1 sm:mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>IDEAL PHASE</h4>
+          <p className="text-xs sm:text-sm text-gray-800 font-semibold" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
             {idealConditions.tide}
           </p>
         </div>
       </div>
 
       {/* Note */}
-      <div className="p-4 bg-gray-50">
-        <p className="text-[10px] text-gray-500 text-center tracking-wide" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+      <div className="p-3 sm:p-4 bg-gray-50">
+        <p className="text-[9px] sm:text-[10px] text-gray-500 text-center tracking-wide" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
           Based on analysis of the 100 best days at {spotName} over the last 10 years.
         </p>
       </div>
@@ -941,8 +941,8 @@ export default function SpotDetail() {
             </div>
           </div>
         </header>
-        <main className="container max-w-5xl py-8">
-          <div className="space-y-6">
+        <main className="container max-w-5xl py-4 sm:py-6 md:py-8 px-3 sm:px-4">
+          <div className="space-y-4 sm:space-y-6">
             <Card className="bg-white border-black">
               <CardContent className="pt-6">
                 <div className="flex items-center gap-4">
@@ -951,8 +951,8 @@ export default function SpotDetail() {
                 </div>
               </CardContent>
             </Card>
-            <Skeleton className="h-64 w-full bg-gray-100" />
-            <Skeleton className="h-48 w-full bg-gray-100" />
+            <Skeleton className="h-48 sm:h-64 w-full bg-gray-100" />
+            <Skeleton className="h-36 sm:h-48 w-full bg-gray-100" />
           </div>
         </main>
       </div>
@@ -975,11 +975,11 @@ export default function SpotDetail() {
             </div>
         </div>
         </header>
-        <main className="container max-w-5xl py-8">
+        <main className="container max-w-5xl py-4 sm:py-6 md:py-8 px-3 sm:px-4">
           <Card className="bg-white border-black">
-            <CardContent className="py-12 text-center">
-              <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-black mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>Error Loading Forecast</h3>
+            <CardContent className="py-8 sm:py-12 text-center">
+              <AlertCircle className="h-10 w-10 sm:h-12 sm:w-12 text-red-500 mx-auto mb-4" />
+              <h3 className="text-lg sm:text-xl font-semibold text-black mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>Error Loading Forecast</h3>
               <p className="text-black mb-6">
                 {spotQuery.error?.message || forecastQuery.error?.message || "Failed to load forecast data"}
               </p>
@@ -1004,11 +1004,11 @@ export default function SpotDetail() {
   if (!spot) {
     return (
       <div className="min-h-screen bg-white">
-        <main className="container max-w-5xl py-8">
+        <main className="container max-w-5xl py-4 sm:py-6 md:py-8 px-3 sm:px-4">
           <div className="text-center">
-            <Waves className="h-16 w-16 text-black mx-auto mb-4" />
-            <h1 className="text-3xl font-bold text-black mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>Spot Not Found</h1>
-            <p className="text-black mb-6">The surf spot you're looking for doesn't exist.</p>
+            <Waves className="h-12 w-12 sm:h-16 sm:w-16 text-black mx-auto mb-4" />
+            <h1 className="text-2xl sm:text-3xl font-bold text-black mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>Spot Not Found</h1>
+            <p className="text-sm sm:text-base text-black mb-6">The surf spot you're looking for doesn't exist.</p>
             <Link href="/dashboard">
               <Button variant="outline" className="border-black text-black">
               <ArrowLeft className="h-4 w-4 mr-2" />
@@ -1212,9 +1212,9 @@ export default function SpotDetail() {
       )}
 
       {/* Main Content */}
-      <main className="container max-w-5xl py-8">
+      <main className="container max-w-5xl py-4 sm:py-6 md:py-8 px-3 sm:px-4">
         {forecast ? (
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* Spot Context Header */}
             {spot?.name && SPOT_CONTEXT[spot.name] && (
               <SpotContextHeader
@@ -1222,33 +1222,33 @@ export default function SpotDetail() {
                 description={SPOT_CONTEXT[spot.name].description}
               />
             )}
-            
+
             {/* Conditions - NYC Style 3-Column Stat Row */}
             <div className="bg-white border-2 border-black rounded-none">
-              <div className="px-6 py-4 border-b-2 border-black">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-3xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+              <div className="px-4 sm:px-6 py-3 sm:py-4 border-b-2 border-black">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h2 className="text-2xl sm:text-3xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                     Conditions
                   </h2>
                   {conditionsAsOf && (
-                    <div className="flex items-center gap-2 text-xs text-black uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-black uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                       <span className="relative flex h-2 w-2">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                       </span>
-                      <Clock className="h-3.5 w-3.5" />
+                      <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                       <span>As of {formatAbsoluteTime(conditionsAsOf)}</span>
                     </div>
                   )}
                 </div>
               </div>
-              <div className="p-8">
+              <div className="p-4 sm:p-6 md:p-8">
                 {currentConditions ? (
                   <>
-                    <div className="grid grid-cols-2 gap-12">
+                    <div className="grid grid-cols-2 gap-6 sm:gap-8 md:gap-12">
                       {/* Surf Height - calculated from buoy data using spot-specific algorithm */}
                       <div>
-                        <p className="text-xs font-medium text-black uppercase tracking-wider mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                        <p className="text-[10px] sm:text-xs font-medium text-black uppercase tracking-wider mb-2 sm:mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                           Surf Height
                         </p>
                         {(() => {
@@ -1259,11 +1259,11 @@ export default function SpotDetail() {
 
                           return (
                             <>
-                              <p className="text-6xl font-black text-black mb-2 leading-none uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                              <p className="text-4xl sm:text-5xl md:text-6xl font-black text-black mb-1 sm:mb-2 leading-none uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                                 {formatSurfHeight(displayHeight)}
                               </p>
                               {description && (
-                                <p className="text-sm font-normal text-black uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                <p className="text-xs sm:text-sm font-normal text-black uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                                   {description}
                                 </p>
                               )}

@@ -304,105 +304,107 @@ function SpotForecastCard({ spot, forecast, isExpanded, onToggleExpand, onNaviga
 
       {/* Compact View */}
       <div
-        className="p-8 cursor-pointer"
+        className="p-4 sm:p-6 md:p-8 cursor-pointer"
         onClick={onToggleExpand}
       >
-        <div className="grid grid-cols-[1fr_auto] gap-6 items-start">
+        <div className="grid grid-cols-[1fr_auto] gap-3 sm:gap-4 md:gap-6 items-start">
           {/* Left: Spot name + surf height */}
           <div className="space-y-3">
             <div>
-              <h3 className="text-2xl md:text-3xl font-black text-black uppercase tracking-tight leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.02em' }}>
+              <h3 className="text-xl sm:text-2xl md:text-3xl font-black text-black uppercase tracking-tight leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.02em' }}>
                 {spot.name}
               </h3>
               <div className="mt-1">
                 <DistanceDisplay spotName={spot.name} mode={travelMode} />
               </div>
             </div>
-            <span className="text-5xl md:text-6xl font-black text-black leading-none block" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.03em' }}>
+            <span className="text-4xl sm:text-5xl md:text-6xl font-black text-black leading-none block" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.03em' }}>
               {surfHeight}
             </span>
           </div>
 
           {/* Right: Score badge + rating */}
-          <div className="flex flex-col items-end gap-2">
+          <div className="flex flex-col items-end gap-1 sm:gap-2">
             {/* Clean square score badge with label */}
             <div className="flex flex-col items-center">
-              <span className="text-[9px] text-gray-600 uppercase tracking-wider mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              <span className="text-[8px] sm:text-[9px] text-gray-600 uppercase tracking-wider mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                 SCORE
               </span>
               <div
-                className="w-16 h-16 flex items-center justify-center transition-all duration-300 border-2 border-black"
+                className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 flex items-center justify-center transition-all duration-300 border-2 border-black"
                 style={{
                   backgroundColor: getScoreBadgeHexColor(score),
                 }}
               >
-                <span className="text-2xl font-black leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", color: getScoreBadgeTextHexColor(score) }}>
+                <span className="text-xl sm:text-2xl font-black leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", color: getScoreBadgeTextHexColor(score) }}>
                   {score}
                 </span>
               </div>
             </div>
-            <span className="text-[10px] font-medium text-black uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+            <span className="text-[9px] sm:text-[10px] font-medium text-black uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
               {ratingLabel}
             </span>
           </div>
         </div>
 
         {/* NOAA Buoy Data Section */}
-        <div className="mt-6">
+        <div className="mt-4 sm:mt-6">
           {/* Buoy Label with Indicator */}
           <div className="flex items-center gap-2 mb-2">
             <div className="relative flex items-center justify-center">
               <div className="absolute w-1.5 h-1.5 bg-blue-500 rounded-full animate-ping opacity-75"></div>
               <div className="relative w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
             </div>
-            <span className="text-[10px] text-gray-600 uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-              BUOY 44065 (15NM OFFSHORE)
+            <span className="text-[9px] sm:text-[10px] text-gray-600 uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              <span className="hidden sm:inline">BUOY 44065 (15NM OFFSHORE)</span>
+              <span className="sm:hidden">BUOY 44065</span>
             </span>
           </div>
 
           {/* 3-Card Info Grid - Always blue styled */}
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-1 sm:gap-2">
             {/* Swell Height - use buoy data if available, otherwise forecast */}
-            <div className="border-2 border-blue-300 bg-blue-50 p-3 flex flex-col items-center justify-center gap-1.5">
+            <div className="border-2 border-blue-300 bg-blue-50 p-2 sm:p-3 flex flex-col items-center justify-center gap-1 sm:gap-1.5">
               {buoyLoading ? (
                 <div className="h-4 w-12 bg-blue-200 rounded animate-pulse"></div>
               ) : (
-                <p className="text-sm font-bold text-black uppercase tracking-wider text-center leading-tight" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                <p className="text-xs sm:text-sm font-bold text-black uppercase tracking-wider text-center leading-tight" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                   {buoyData ? `${buoyData.waveHeight.toFixed(1)}ft` : surfHeight}
                 </p>
               )}
-              <p className="text-[10px] text-blue-600 uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                Swell Height
+              <p className="text-[8px] sm:text-[10px] text-blue-600 uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                <span className="hidden sm:inline">Swell Height</span>
+                <span className="sm:hidden">Height</span>
               </p>
             </div>
 
             {/* Period + Direction - use buoy data if available, otherwise forecast */}
-            <div className="border-2 border-blue-300 bg-blue-50 p-3 flex flex-col items-center justify-center gap-1.5">
+            <div className="border-2 border-blue-300 bg-blue-50 p-2 sm:p-3 flex flex-col items-center justify-center gap-1 sm:gap-1.5">
               {buoyLoading ? (
                 <div className="h-4 w-16 bg-blue-200 rounded animate-pulse"></div>
               ) : (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-bold text-black uppercase tracking-wider text-center leading-tight" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                <div className="flex items-center gap-1 sm:gap-1.5">
+                  <span className="text-xs sm:text-sm font-bold text-black uppercase tracking-wider text-center leading-tight" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                     {buoyData
                       ? `${buoyData.dominantPeriod.toFixed(0)}s ${buoyData.directionLabel}`
                       : swellPeriod}
                   </span>
-                  {buoyData && <SwellArrow directionDeg={buoyData.waveDirection} size={14} />}
-                  {!buoyData && swellDirectionDeg !== null && <SwellArrow directionDeg={swellDirectionDeg} size={14} />}
+                  {buoyData && <SwellArrow directionDeg={buoyData.waveDirection} size={12} />}
+                  {!buoyData && swellDirectionDeg !== null && <SwellArrow directionDeg={swellDirectionDeg} size={12} />}
                 </div>
               )}
-              <p className="text-[10px] text-blue-600 uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              <p className="text-[8px] sm:text-[10px] text-blue-600 uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                 Period
               </p>
             </div>
 
             {/* Wind - always from forecast */}
-            <div className="border-2 border-blue-300 bg-blue-50 p-3 flex flex-col items-center justify-center gap-1.5">
+            <div className="border-2 border-blue-300 bg-blue-50 p-2 sm:p-3 flex flex-col items-center justify-center gap-1 sm:gap-1.5">
               {buoyLoading ? (
                 <div className="h-4 w-10 bg-blue-200 rounded animate-pulse"></div>
               ) : (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-bold text-black uppercase tracking-wider text-center leading-tight" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                <div className="flex items-center gap-1 sm:gap-1.5">
+                  <span className="text-xs sm:text-sm font-bold text-black uppercase tracking-wider text-center leading-tight" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                     {windSpeed}
                   </span>
                   {windDirectionDeg !== null && (
@@ -410,7 +412,7 @@ function SpotForecastCard({ spot, forecast, isExpanded, onToggleExpand, onNaviga
                   )}
                 </div>
               )}
-              <p className="text-[10px] text-blue-600 uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              <p className="text-[8px] sm:text-[10px] text-blue-600 uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                 Wind
               </p>
             </div>
@@ -419,8 +421,8 @@ function SpotForecastCard({ spot, forecast, isExpanded, onToggleExpand, onNaviga
         </div>
 
         {/* Click to expand hint */}
-        <div className="mt-6 pt-4 border-t-2 border-black flex items-center justify-between">
-          <div className="text-xs text-gray-600 uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+        <div className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t-2 border-black flex items-center justify-between">
+          <div className="text-[10px] sm:text-xs text-gray-600 uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
             {isExpanded ? 'Click to collapse' : 'Click for details'}
           </div>
           <ChevronDown
@@ -1361,8 +1363,8 @@ export default function LandingPage() {
 
       {/* Three Phase Sections - Interactive Expandable Cards */}
       <section className="w-full bg-white">
-        <div className="max-w-8xl mx-auto px-6 pt-16 pb-8">
-          <div className="grid gap-6 md:grid-cols-3 items-stretch">
+        <div className="max-w-8xl mx-auto px-4 sm:px-6 pt-8 sm:pt-12 md:pt-16 pb-6 sm:pb-8">
+          <div className="grid gap-4 sm:gap-6 md:grid-cols-3 items-stretch">
             {/* Phase 1 — Forecasting */}
             <div
               className={cn(
@@ -1377,10 +1379,10 @@ export default function LandingPage() {
             >
               {/* Black top border on hover */}
               <div className="absolute top-0 left-0 right-0 h-0.5 bg-black transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" style={{ transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)" }}></div>
-              
-              <div className="p-6 flex-1 flex flex-col">
-                <div className="mb-4">
-                  <h3 className="text-4xl font-black uppercase mb-1 text-black tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>Forecasting</h3>
+
+              <div className="p-4 sm:p-6 flex-1 flex flex-col">
+                <div className="mb-3 sm:mb-4">
+                  <h3 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase mb-1 text-black tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>Forecasting</h3>
                   <p className="text-xs text-gray-600 uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                     Spot-tuned for the NYC surf scene.
                   </p>
@@ -1428,10 +1430,10 @@ export default function LandingPage() {
             >
               {/* Black top border on hover */}
               <div className="absolute top-0 left-0 right-0 h-0.5 bg-black transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" style={{ transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)" }}></div>
-              
-              <div className="p-6 flex-1 flex flex-col">
-                <div className="mb-4">
-                  <h3 className="text-4xl font-black uppercase mb-1 text-black tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>Culture + Guides</h3>
+
+              <div className="p-4 sm:p-6 flex-1 flex flex-col">
+                <div className="mb-3 sm:mb-4">
+                  <h3 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase mb-1 text-black tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>Culture + Guides</h3>
                   <p className="text-xs text-gray-600 uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                     From those who've been doing it their whole lives.
                   </p>
@@ -1479,10 +1481,10 @@ export default function LandingPage() {
             >
               {/* Black top border on hover */}
               <div className="absolute top-0 left-0 right-0 h-0.5 bg-black transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" style={{ transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)" }}></div>
-              
-              <div className="p-6 flex-1 flex flex-col">
-                <div className="mb-4">
-                  <h3 className="text-4xl font-black uppercase mb-1 text-black tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>Community</h3>
+
+              <div className="p-4 sm:p-6 flex-1 flex flex-col">
+                <div className="mb-3 sm:mb-4">
+                  <h3 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase mb-1 text-black tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>Community</h3>
                   <p className="text-xs text-gray-600 uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                     The scene, centralized.
                   </p>
@@ -1522,22 +1524,22 @@ export default function LandingPage() {
       {/* Today's NYC Surf at a Glance - Professional Dark Design */}
       <section
         id="featured-spots"
-        className="w-full pt-14 pb-16 px-4 md:px-8 relative bg-white"
+        className="w-full pt-8 sm:pt-10 md:pt-14 pb-10 sm:pb-12 md:pb-16 px-4 md:px-8 relative bg-white"
       >
         {/* Header */}
         <div className="max-w-7xl mx-auto mb-1 relative">
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-4 sm:gap-6">
             {/* Status bar */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 <div className="relative flex items-center justify-center">
                   <div className="absolute w-2 h-2 bg-black rounded-full animate-ping opacity-75"></div>
                   <div className="relative w-2 h-2 bg-black rounded-full"></div>
                 </div>
-                <span className="text-xs font-semibold text-black uppercase tracking-wider">LIVE</span>
+                <span className="text-[10px] sm:text-xs font-semibold text-black uppercase tracking-wider">LIVE</span>
               </div>
               <span className="text-gray-500">•</span>
-              <div className="flex items-center gap-1.5 text-xs text-gray-600">
+              <div className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs text-gray-600">
                 <Clock className="h-3 w-3" />
                 <span>
                   {forecastsQuery.data?.[0]?.currentConditions?.createdAt
@@ -1549,41 +1551,43 @@ export default function LandingPage() {
 
             {/* Main title */}
             <div>
-              <h2 className="text-5xl md:text-7xl font-black text-black uppercase tracking-tighter leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.03em' }}>
+              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-black text-black uppercase tracking-tighter leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.03em' }}>
                 Today's NYC Surf
               </h2>
-              <p className="text-gray-600 text-sm mt-1 tracking-wide" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                Real-time conditions across Long Island's south shore
+              <p className="text-gray-600 text-xs sm:text-sm mt-1 tracking-wide" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                <span className="hidden sm:inline">Real-time conditions across Long Island's south shore</span>
+                <span className="sm:hidden">Live conditions on Long Island</span>
               </p>
             </div>
           </div>
         </div>
 
         {/* Travel Mode Toggle */}
-        <div className="max-w-7xl mx-auto flex items-center justify-end mb-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-end mb-3 sm:mb-4">
           <div className="flex items-center border-2 border-black">
             <button
               onClick={() => setTravelMode("driving")}
-              className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors ${
+              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium transition-colors ${
                 travelMode === "driving"
                   ? "bg-black text-white"
                   : "bg-white text-black hover:bg-gray-50"
               }`}
               style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
             >
-              <Car className="h-4 w-4" />
-              Driving
+              <Car className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Driving</span>
+              <span className="sm:hidden">Drive</span>
             </button>
             <button
               onClick={() => setTravelMode("transit")}
-              className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors border-l-2 border-black ${
+              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium transition-colors border-l-2 border-black ${
                 travelMode === "transit"
                   ? "bg-black text-white"
                   : "bg-white text-black hover:bg-gray-50"
               }`}
               style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
             >
-              <Train className="h-4 w-4" />
+              <Train className="h-3 w-3 sm:h-4 sm:w-4" />
               Transit
             </button>
           </div>
