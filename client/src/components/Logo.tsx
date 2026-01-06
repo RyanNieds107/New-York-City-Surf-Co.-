@@ -9,8 +9,8 @@ interface LogoProps {
   className?: string;
 }
 
-export function Logo({ 
-  logoSize = "h-32 w-32", 
+export function Logo({
+  logoSize = "h-32",
   textSize = "text-2xl",
   textColor = "text-black",
   showLink = false,
@@ -18,10 +18,9 @@ export function Logo({
 }: LogoProps) {
   // Determine if we need white version based on textColor prop
   const isWhite = textColor?.includes("white") || textColor === "text-white";
-  
-  // Extract height from logoSize and use w-auto for width
-  const heightClass = logoSize.split(' ').find(cls => cls.startsWith('h-')) || 'h-10';
-  const logoClassName = `${heightClass} w-auto`;
+
+  // Pass through logoSize directly to support responsive classes like "h-10 sm:h-12 md:h-14"
+  const logoClassName = `${logoSize} w-auto`;
   
   const logoContent = (
     <div className={`flex items-center gap-0 ${className}`} style={{ lineHeight: 0, margin: 0 }}>

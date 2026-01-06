@@ -1239,26 +1239,27 @@ export default function LandingPage() {
     <div className="min-h-screen bg-white">
       {/* Header - Fixed overlay that stays visible when scrolling */}
       <header className="fixed top-0 left-0 w-full z-50 bg-transparent">
-        <div className="container py-3">
-          <div className="flex items-start justify-between">
-            <Logo 
-              logoSize="h-14"
-              textSize="text-4xl"
+        <div className="container py-2 sm:py-3">
+          <div className="flex items-center justify-between gap-2">
+            <Logo
+              logoSize="h-10 sm:h-12 md:h-14"
+              textSize="text-xl sm:text-2xl md:text-3xl lg:text-4xl"
               textColor="text-white hover:text-white/80"
               showLink={true}
             />
-            <div className="flex items-start gap-3">
+            <div className="flex items-center">
               <Button
                 onClick={() => {
                   setLocation("/dashboard");
                   window.scrollTo(0, 0);
                 }}
                 variant="outline"
-                className="border-2 border-white text-white hover:bg-white/20 hover:border-white/80 bg-transparent text-sm md:text-base px-4 py-2"
+                className="border-2 border-white text-white hover:bg-white/20 hover:border-white/80 bg-transparent text-[10px] sm:text-xs md:text-sm px-2 py-1.5 sm:px-3 sm:py-2 md:px-4 md:py-2"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
-                View All Spots
-                <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5" />
+                <span className="hidden sm:inline">View All Spots</span>
+                <span className="sm:hidden">All Spots</span>
+                <ArrowRight className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5" />
               </Button>
             </div>
           </div>
@@ -1334,20 +1335,18 @@ export default function LandingPage() {
         
         {/* Content container */}
         <div className="relative z-10 w-full max-w-7xl mx-auto text-center px-4">
-          <h1 className="text-[6rem] md:text-[7.5rem] font-black text-white mb-8 uppercase tracking-tight leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+          <h1 className="text-[2.5rem] sm:text-[3.5rem] md:text-[5rem] lg:text-[6rem] xl:text-[7.5rem] font-black text-white mb-4 sm:mb-6 md:mb-8 uppercase tracking-tight leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
             New York City Surf Co.
           </h1>
-          <p className="text-2xl md:text-2xl text-white font-light mb-12">
+          <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-white font-light mb-8 sm:mb-10 md:mb-12">
             Your guide to surfing just outside NYC
           </p>
           <div className="flex justify-center">
             <button
               onClick={scrollToFeatured}
-              className="!border-2 !border-white bg-black text-white hover:bg-white hover:text-black rounded-none uppercase transition-all duration-300 hover:-translate-y-0.5 group flex items-center gap-2"
-              style={{ 
+              className="!border-2 !border-white bg-black text-white hover:bg-white hover:text-black rounded-none uppercase transition-all duration-300 hover:-translate-y-0.5 group flex items-center gap-2 px-6 py-3 sm:px-8 sm:py-4 md:px-10 md:py-[18px] text-xs sm:text-sm md:text-[0.95rem]"
+              style={{
                 fontFamily: "'JetBrains Mono', monospace",
-                padding: '18px 40px',
-                fontSize: '0.95rem',
                 fontWeight: 700,
                 letterSpacing: '1px'
               }}
