@@ -6,11 +6,11 @@ export function Footer() {
   return (
     <footer className="bg-white border-t-2 border-black mt-auto">
       {/* Main Footer Content */}
-      <div className="container py-6">
+      <div className="container py-4 md:py-6">
         <div className="flex flex-col md:flex-row justify-between items-start gap-8">
 
-          {/* Brand Column */}
-          <div>
+          {/* Brand Column - Hidden on mobile */}
+          <div className="hidden md:block">
             <div className="flex flex-col gap-4">
               <Logo
                 logoSize="h-14"
@@ -31,25 +31,25 @@ export function Footer() {
           </div>
 
           {/* Right-aligned columns */}
-          <div className="flex flex-col md:flex-row gap-8 md:gap-12">
+          <div className="flex flex-row gap-3 md:gap-12 w-full md:w-auto justify-between md:justify-start">
             {/* Quick Links */}
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-6 h-6 bg-black flex items-center justify-center">
-                  <Compass className="w-3 h-3 text-white" />
+              <div className="flex items-center gap-1 md:gap-2 mb-2 md:mb-4">
+                <div className="w-5 h-5 md:w-6 md:h-6 bg-black flex items-center justify-center">
+                  <Compass className="w-2.5 h-2.5 md:w-3 md:h-3 text-white" />
                 </div>
                 <span
-                  className="text-[10px] font-medium tracking-widest text-gray-500 uppercase"
+                  className="text-[8px] md:text-[10px] font-medium tracking-widest text-gray-500 uppercase"
                   style={{ fontFamily: "'JetBrains Mono', monospace" }}
                 >
                   Navigate
                 </span>
               </div>
-              <ul className="space-y-2">
+              <ul className="space-y-1 md:space-y-2">
                 <li>
                   <Link
                     href="/Our Mission"
-                    className="text-sm text-black hover:bg-black hover:text-white px-2 py-1 -ml-2 transition-colors inline-block font-medium"
+                    className="text-xs md:text-sm text-black hover:bg-black hover:text-white px-1 py-0.5 md:px-2 md:py-1 -ml-1 md:-ml-2 transition-colors inline-block font-medium"
                     style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
                   >
                     Our Mission
@@ -58,7 +58,7 @@ export function Footer() {
                 <li>
                   <Link
                     href="/about"
-                    className="text-sm text-black hover:bg-black hover:text-white px-2 py-1 -ml-2 transition-colors inline-block font-medium"
+                    className="text-xs md:text-sm text-black hover:bg-black hover:text-white px-1 py-0.5 md:px-2 md:py-1 -ml-1 md:-ml-2 transition-colors inline-block font-medium"
                     style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
                   >
                     About
@@ -67,7 +67,7 @@ export function Footer() {
                 <li>
                   <Link
                     href="/sign-in"
-                    className="text-sm text-black hover:bg-black hover:text-white px-2 py-1 -ml-2 transition-colors inline-block font-medium"
+                    className="text-xs md:text-sm text-black hover:bg-black hover:text-white px-1 py-0.5 md:px-2 md:py-1 -ml-1 md:-ml-2 transition-colors inline-block font-medium"
                     style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
                   >
                     Sign In
@@ -78,27 +78,27 @@ export function Footer() {
 
             {/* Social */}
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-6 h-6 bg-black flex items-center justify-center">
-                  <Share2 className="w-3 h-3 text-white" />
+              <div className="flex items-center gap-1 md:gap-2 mb-2 md:mb-4">
+                <div className="w-5 h-5 md:w-6 md:h-6 bg-black flex items-center justify-center">
+                  <Share2 className="w-2.5 h-2.5 md:w-3 md:h-3 text-white" />
                 </div>
                 <span
-                  className="text-[10px] font-medium tracking-widest text-gray-500 uppercase"
+                  className="text-[8px] md:text-[10px] font-medium tracking-widest text-gray-500 uppercase"
                   style={{ fontFamily: "'JetBrains Mono', monospace" }}
                 >
                   Connect
                 </span>
               </div>
-              <ul className="space-y-2">
+              <ul className="space-y-1 md:space-y-2">
                 <li>
                   <a
                     href="https://instagram.com"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-black hover:bg-black hover:text-white px-2 py-1 -ml-2 transition-colors font-medium"
+                    className="flex items-center gap-1 md:gap-2 text-xs md:text-sm text-black hover:bg-black hover:text-white px-1 py-0.5 md:px-2 md:py-1 -ml-1 md:-ml-2 transition-colors font-medium"
                     style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
                   >
-                    <Instagram className="h-4 w-4" />
+                    <Instagram className="h-3 w-3 md:h-4 md:w-4" />
                     Instagram
                   </a>
                 </li>
@@ -107,10 +107,10 @@ export function Footer() {
                     href="https://facebook.com"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-black hover:bg-black hover:text-white px-2 py-1 -ml-2 transition-colors font-medium"
+                    className="flex items-center gap-1 md:gap-2 text-xs md:text-sm text-black hover:bg-black hover:text-white px-1 py-0.5 md:px-2 md:py-1 -ml-1 md:-ml-2 transition-colors font-medium"
                     style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
                   >
-                    <Facebook className="h-4 w-4" />
+                    <Facebook className="h-3 w-3 md:h-4 md:w-4" />
                     Facebook
                   </a>
                 </li>
@@ -119,10 +119,10 @@ export function Footer() {
                     href="https://tiktok.com"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-black hover:bg-black hover:text-white px-2 py-1 -ml-2 transition-colors font-medium"
+                    className="flex items-center gap-1 md:gap-2 text-xs md:text-sm text-black hover:bg-black hover:text-white px-1 py-0.5 md:px-2 md:py-1 -ml-1 md:-ml-2 transition-colors font-medium"
                     style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
                   >
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                    <svg className="h-3 w-3 md:h-4 md:w-4" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
                     </svg>
                     TikTok
@@ -133,22 +133,22 @@ export function Footer() {
 
             {/* Legal */}
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-6 h-6 bg-black flex items-center justify-center">
-                  <FileText className="w-3 h-3 text-white" />
+              <div className="flex items-center gap-1 md:gap-2 mb-2 md:mb-4">
+                <div className="w-5 h-5 md:w-6 md:h-6 bg-black flex items-center justify-center">
+                  <FileText className="w-2.5 h-2.5 md:w-3 md:h-3 text-white" />
                 </div>
                 <span
-                  className="text-[10px] font-medium tracking-widest text-gray-500 uppercase"
+                  className="text-[8px] md:text-[10px] font-medium tracking-widest text-gray-500 uppercase"
                   style={{ fontFamily: "'JetBrains Mono', monospace" }}
                 >
                   Legal
                 </span>
               </div>
-              <ul className="space-y-2">
+              <ul className="space-y-1 md:space-y-2">
                 <li>
                   <Link
                     href="/terms"
-                    className="text-sm text-black hover:bg-black hover:text-white px-2 py-1 -ml-2 transition-colors inline-block font-medium"
+                    className="text-xs md:text-sm text-black hover:bg-black hover:text-white px-1 py-0.5 md:px-2 md:py-1 -ml-1 md:-ml-2 transition-colors inline-block font-medium"
                     style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
                   >
                     Terms
@@ -157,7 +157,7 @@ export function Footer() {
                 <li>
                   <Link
                     href="/privacy"
-                    className="text-sm text-black hover:bg-black hover:text-white px-2 py-1 -ml-2 transition-colors inline-block font-medium"
+                    className="text-xs md:text-sm text-black hover:bg-black hover:text-white px-1 py-0.5 md:px-2 md:py-1 -ml-1 md:-ml-2 transition-colors inline-block font-medium"
                     style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
                   >
                     Privacy
