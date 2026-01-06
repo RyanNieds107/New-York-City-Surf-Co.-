@@ -1608,21 +1608,22 @@ export default function LandingPage() {
             </div>
           </div>
         ) : (
-          <div className="max-w-7xl mx-auto grid gap-4 md:grid-cols-3 relative">
+          <div className="max-w-7xl mx-auto flex md:grid gap-4 md:grid-cols-3 relative overflow-x-auto md:overflow-x-visible snap-x snap-mandatory md:snap-none scrollbar-hide">
             {featuredSpots.map(({ spot, forecast }) => (
-              <SpotForecastCard
-                key={spot.id}
-                spot={spot}
-                forecast={forecast}
-                isExpanded={expandedSpot === spot.id}
-                onToggleExpand={() => setExpandedSpot(expandedSpot === spot.id ? null : spot.id)}
-                onNavigate={setLocation}
-                travelMode={travelMode}
-                useNeutralBackground={true}
-                buoyBasedHeight={buoyBreakingHeightsQuery.data?.[spot.name] ?? null}
-                buoyData={buoyQuery.data}
-                buoyLoading={buoyQuery.isLoading}
-              />
+              <div key={spot.id} className="flex-shrink-0 w-[calc(100vw-5rem)] md:w-auto snap-center md:snap-none">
+                <SpotForecastCard
+                  spot={spot}
+                  forecast={forecast}
+                  isExpanded={expandedSpot === spot.id}
+                  onToggleExpand={() => setExpandedSpot(expandedSpot === spot.id ? null : spot.id)}
+                  onNavigate={setLocation}
+                  travelMode={travelMode}
+                  useNeutralBackground={true}
+                  buoyBasedHeight={buoyBreakingHeightsQuery.data?.[spot.name] ?? null}
+                  buoyData={buoyQuery.data}
+                  buoyLoading={buoyQuery.isLoading}
+                />
+              </div>
             ))}
           </div>
         )}
