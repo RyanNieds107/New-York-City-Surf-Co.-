@@ -20,7 +20,7 @@ import { getCurrentTideInfo } from "./services/tides";
 import { getCurrentConditionsFromOpenMeteo } from "./services/openMeteo";
 import { generateForecast, generateForecastTimeline } from "./services/forecast";
 import { makeRequest, type DistanceMatrixResult, type TravelMode } from "./_core/map";
-import { getSpotProfile, SPOT_PROFILES } from "./utils/spotProfiles";
+import { getSpotProfile, getSpotKey, SPOT_PROFILES } from "./utils/spotProfiles";
 import { getDominantSwell, calculateBreakingWaveHeight, formatWaveHeight } from "./utils/waveHeight";
 import { generateForecastOutput } from "./utils/forecastOutput";
 import { forecastPoints, conditionsLog } from "../drizzle/schema";
@@ -128,10 +128,17 @@ export const appRouter = router({
     }),
 
     // Get current conditions for all spots using timeline data (fresh, calculated)
+    // Uses NOAA buoy wind for current quality score, Open-Meteo for forecast
     getCurrentConditionsForAll: publicProcedure.query(async () => {
       const spots = await getAllSpots();
       const { getForecastTimeline, isForecastDataStale, getAverageCrowdLevel } = await import("./db");
       const { generateForecastTimeline } = await import("./services/forecast");
+      const { fetchBuoy44065Cached } = await import("./services/buoy44065");
+      const { calculateQualityScoreWithProfile } = await import("./utils/qualityRating");
+      const { getSpotProfile, getSpotKey } = await import("./utils/spotProfiles");
+
+      // Fetch buoy data once for all spots (they share the same buoy)
+      const buoyData = await fetchBuoy44065Cached();
       
       // Helper function to select current timeline point (same logic as frontend)
       const selectCurrentTimelinePoint = <T extends { forecastTimestamp: Date | string }>(
@@ -218,16 +225,80 @@ export const appRouter = router({
               };
             }
 
+            // Calculate quality score using NOAA buoy data if available
+            let qualityScore = currentPoint.quality_score ?? currentPoint.probabilityScore;
+            let windSpeedMph = currentPoint.windSpeedMph;
+            let windDirectionDeg = currentPoint.windDirectionDeg;
+            let breakingWaveHeightFt = currentPoint.breakingWaveHeightFt;
+
+            // Override with buoy data if available and not stale
+            if (buoyData && !buoyData.isStale) {
+              // Use buoy wind data
+              if (buoyData.windSpeedKts !== null && buoyData.windDirectionDeg !== null) {
+                windSpeedMph = Math.round(buoyData.windSpeedKts * 1.15078);
+                windDirectionDeg = buoyData.windDirectionDeg;
+              }
+
+              // Recalculate quality score with buoy wave and wind data
+              const spotKey = getSpotKey(spot.name);
+              const profile = spotKey ? getSpotProfile(spotKey) : null;
+
+              if (profile && currentPoint.tideHeightFt !== null && buoyData.waveHeight !== null && buoyData.dominantPeriod !== null) {
+                try {
+                  // Use buoy wave data (more accurate for current conditions)
+                  const buoyWaveHeightFt = buoyData.waveHeight;
+                  const buoyPeriodS = buoyData.dominantPeriod;
+                  const buoyWaveDirectionDeg = buoyData.waveDirection ?? currentPoint.dominantSwellDirectionDeg;
+
+                  // Create a forecast point structure for quality calculation using buoy data
+                  const forecastPointLike = {
+                    waveHeightFt: Math.round(buoyWaveHeightFt * 10), // Convert to tenths
+                    wavePeriodSec: buoyPeriodS,
+                    waveDirectionDeg: buoyWaveDirectionDeg,
+                    windSpeedKts: buoyData.windSpeedKts ?? null,
+                    windDirectionDeg: buoyData.windDirectionDeg ?? null,
+                    secondarySwellHeightFt: null,
+                    secondarySwellPeriodS: null,
+                    secondarySwellDirectionDeg: null,
+                  } as any;
+
+                  const tideFt = currentPoint.tideHeightFt / 10; // Convert from tenths
+                  const qualityResult = calculateQualityScoreWithProfile(
+                    forecastPointLike,
+                    spot.name,
+                    tideFt,
+                    profile,
+                    currentPoint.tidePhase ?? null
+                  );
+                  qualityScore = qualityResult.score;
+
+                  // Also recalculate breaking height using buoy data
+                  breakingWaveHeightFt = calculateBreakingWaveHeight(
+                    buoyWaveHeightFt,
+                    buoyPeriodS,
+                    profile,
+                    buoyWaveDirectionDeg,
+                    tideFt,
+                    currentPoint.tidePhase ?? null
+                  );
+
+                  console.log(`[getCurrentConditionsForAll] ${spot.name}: Recalculated with buoy data (wave: ${buoyWaveHeightFt.toFixed(1)}ft @ ${buoyPeriodS}s, wind: ${buoyData.windDirectionDeg}° @ ${buoyData.windSpeedKts?.toFixed(1)}kts) → breaking: ${breakingWaveHeightFt.toFixed(1)}ft, score: ${qualityScore}`);
+                } catch (error) {
+                  console.warn(`[getCurrentConditionsForAll] Failed to recalculate quality for ${spot.name}:`, error);
+                }
+              }
+            }
+
             // Return in a format compatible with Dashboard expectations
             return {
               spotId: spot.id,
               spot,
               currentConditions: {
                 // Map timeline fields to forecast-like structure for compatibility
-                qualityScore: currentPoint.quality_score ?? currentPoint.probabilityScore,
+                qualityScore,
                 probabilityScore: currentPoint.probabilityScore,
                 waveHeightTenthsFt: currentPoint.waveHeightFt !== null ? Math.round(currentPoint.waveHeightFt * 10) : 0,
-                breakingWaveHeightFt: currentPoint.breakingWaveHeightFt,
+                breakingWaveHeightFt: breakingWaveHeightFt,
                 // Dominant swell (highest energy using H² × T formula)
                 dominantSwellHeightFt: currentPoint.dominantSwellHeightFt,
                 dominantSwellPeriodS: currentPoint.dominantSwellPeriodS,
@@ -236,8 +307,8 @@ export const appRouter = router({
                 confidenceBand: currentPoint.confidenceBand,
                 usabilityIntermediate: currentPoint.usabilityIntermediate,
                 usabilityAdvanced: currentPoint.usabilityAdvanced,
-                windSpeedMph: currentPoint.windSpeedMph,
-                windDirectionDeg: currentPoint.windDirectionDeg,
+                windSpeedMph,
+                windDirectionDeg,
                 windType: currentPoint.windType,
                 tideHeightFt: currentPoint.tideHeightFt,
                 tidePhase: currentPoint.tidePhase,
@@ -763,19 +834,43 @@ export const appRouter = router({
       const featuredSpotNames = ["Rockaway Beach", "Long Beach", "Lido Beach"];
       const results: Record<string, number> = {};
 
+      // Get all spots to access tide station IDs
+      const allSpots = await getAllSpots();
+
       for (const spotName of featuredSpotNames) {
         const profile = getSpotProfile(spotName);
         if (!profile) continue;
+
+        // Find the spot to get tide station ID
+        const spot = allSpots.find(s => s.name === spotName);
+        if (!spot) {
+          console.warn(`[Buoy Breaking Heights] Spot not found: ${spotName}`);
+          continue;
+        }
+
+        // Get current tide info for this spot
+        let tideHeightFt: number | null = null;
+        let tidePhase: string | null = null;
+        try {
+          const tideInfo = await getCurrentTideInfo(spot.tideStationId);
+          if (tideInfo) {
+            tideHeightFt = tideInfo.currentHeightFt;
+            tidePhase = tideInfo.tidePhase;
+          }
+        } catch (error) {
+          console.warn(`[Buoy Breaking Heights] Failed to get tide info for ${spotName}:`, error);
+        }
 
         const breakingHeight = calculateBreakingWaveHeight(
           waveHeight,
           dominantPeriod,
           profile,
           waveDirection,
-          null // tidePhase - not needed for breaking height calculation
+          tideHeightFt, // Include tide data for accurate calculation
+          tidePhase
         );
 
-        console.log(`[Buoy Breaking Heights] ${spotName}: ${waveHeight.toFixed(1)}ft offshore → ${breakingHeight.toFixed(1)}ft breaking`);
+        console.log(`[Buoy Breaking Heights] ${spotName}: ${waveHeight.toFixed(1)}ft offshore → ${breakingHeight.toFixed(1)}ft breaking (tide: ${tideHeightFt?.toFixed(1) ?? 'N/A'}ft ${tidePhase ?? ''})`);
         results[spotName] = breakingHeight;
       }
 

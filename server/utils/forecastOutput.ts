@@ -63,8 +63,8 @@ export function generateForecastOutput(
   }
 
   // Get dominant swell using H² × T energy formula
-  // Penalties (directional kill switch, wrap penalty) are applied AFTER selection
-  const dominantSwell = getDominantSwell(forecastPoint, profile, tidePhase);
+  // Blocked directions filtered out BEFORE selection, wrap penalties applied AFTER
+  const dominantSwell = getDominantSwell(forecastPoint, profile, tideFt, tidePhase);
 
   if (!dominantSwell) {
     console.log('❌ No dominant swell - returning default output');
@@ -79,6 +79,7 @@ export function generateForecastOutput(
       periodS,
       profile,
       forecastPoint.waveDirectionDeg,
+      tideFt,
       tidePhase
     );
     

@@ -9,6 +9,7 @@ import { Footer } from "@/components/Footer";
 import { Logo } from "@/components/Logo";
 import { selectCurrentTimelinePoint, formatSurfHeight } from "@/lib/forecastUtils";
 import { getScoreBadgeHexColor, getScoreBadgeTextHexColor } from "@/lib/ratingColors";
+import { isNighttime, calculateSunset } from "@/lib/sunTimes";
 
 // Helper functions for NYC grit forecast display
 // Rule: <1ft = Don't Bother (no surf), otherwise score-based labels
@@ -444,61 +445,75 @@ function SpotForecastCard({ spot, forecast, isExpanded, onToggleExpand, onNaviga
         <div className="p-8 space-y-6">
           {/* Swell Data Row - uses NOAA Buoy spectral data when available */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {/* Wind Wave (Dominant) - from NOAA Buoy 44065 spectral data */}
-            <div>
-              <div className="text-[10px] text-gray-600 uppercase tracking-wider mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>WIND WAVE (DOMINANT)</div>
-              {buoyLoading ? (
-                <div className="h-8 w-24 bg-gray-200 rounded animate-pulse"></div>
-              ) : buoyData?.windWaveHeight ? (
+            {(() => {
+              // Determine primary vs secondary based on size
+              // Get wind wave height (from buoy spectral data or fallback)
+              const windWaveHeight = buoyData?.windWaveHeight ?? (buoyData?.waveHeight ?? 0);
+              const windWavePeriod = buoyData?.windWavePeriod ?? (buoyData?.dominantPeriod ?? null);
+              const windWaveDirection = buoyData?.windWaveDirection 
+                ? formatCardinalWithDegrees(buoyData.windWaveDirection)
+                : (buoyData?.directionLabel ? `${buoyData.directionLabel} ${Math.round(buoyData.waveDirection)}°` : null);
+              
+              // Get swell height (from buoy spectral data or forecast)
+              const swellHeight = buoyData?.swellHeight ?? (currentPoint?.secondarySwellHeightFt ? Number(currentPoint.secondarySwellHeightFt) : 0);
+              const swellPeriod = buoyData?.swellPeriod ?? (currentPoint?.secondarySwellPeriodS ?? null);
+              const swellDirection = buoyData?.swellDirection 
+                ? formatCardinalWithDegrees(buoyData.swellDirection)
+                : (currentPoint?.secondarySwellDirectionDeg ? formatSwellDirection(currentPoint.secondarySwellDirectionDeg) : null);
+              
+              // Determine which is larger (primary = larger, secondary = smaller)
+              const isSwellPrimary = swellHeight >= windWaveHeight;
+              
+              const primaryHeight = isSwellPrimary ? swellHeight : windWaveHeight;
+              const primaryPeriod = isSwellPrimary ? swellPeriod : windWavePeriod;
+              const primaryDirection = isSwellPrimary ? swellDirection : windWaveDirection;
+              
+              const secondaryHeight = isSwellPrimary ? windWaveHeight : swellHeight;
+              const secondaryPeriod = isSwellPrimary ? windWavePeriod : swellPeriod;
+              const secondaryDirection = isSwellPrimary ? windWaveDirection : swellDirection;
+              
+              return (
                 <>
-                  <div className="text-2xl text-black font-bold" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.01em' }}>
-                    {buoyData.windWaveHeight.toFixed(1)}ft @ {buoyData.windWavePeriod}s
+                  {/* Primary Swell - the larger of wind wave or background swell */}
+                  <div>
+                    <div className="text-[10px] text-gray-600 uppercase tracking-wider mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>PRIMARY SWELL</div>
+                    {buoyLoading ? (
+                      <div className="h-8 w-24 bg-gray-200 rounded animate-pulse"></div>
+                    ) : primaryHeight > 0 ? (
+                      <>
+                        <div className="text-2xl text-black font-bold" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.01em' }}>
+                          {primaryHeight.toFixed(1)}ft @ {primaryPeriod ? (typeof primaryPeriod === 'number' ? primaryPeriod.toFixed(0) : primaryPeriod) : 'N/A'}s
+                        </div>
+                        <div className="text-xs text-black mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                          {primaryDirection || 'N/A'}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-sm text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>—</div>
+                    )}
                   </div>
-                  <div className="text-xs text-black mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    {formatCardinalWithDegrees(buoyData.windWaveDirection)}
-                  </div>
-                </>
-              ) : buoyData ? (
-                <>
-                  <div className="text-2xl text-black font-bold" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.01em' }}>
-                    {buoyData.waveHeight.toFixed(1)}ft @ {buoyData.dominantPeriod.toFixed(0)}s
-                  </div>
-                  <div className="text-xs text-black mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    {buoyData.directionLabel} {Math.round(buoyData.waveDirection)}°
-                  </div>
-                </>
-              ) : (
-                <div className="text-sm text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>—</div>
-              )}
-            </div>
 
-            {/* Background Swell - from NOAA Buoy spectral data (SwH/SwP/SwD) */}
-            <div>
-              <div className="text-[10px] text-gray-600 uppercase tracking-wider mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>BACKGROUND SWELL</div>
-              {buoyLoading ? (
-                <div className="h-8 w-24 bg-gray-200 rounded animate-pulse"></div>
-              ) : buoyData?.swellHeight ? (
-                <>
-                  <div className="text-2xl text-black font-bold" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.01em' }}>
-                    {buoyData.swellHeight.toFixed(1)}ft @ {buoyData.swellPeriod}s
-                  </div>
-                  <div className="text-xs text-black mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    {formatCardinalWithDegrees(buoyData.swellDirection)}
-                  </div>
-                </>
-              ) : currentPoint?.secondarySwellHeightFt ? (
-                <>
-                  <div className="text-2xl text-black font-bold" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.01em' }}>
-                    {Number(currentPoint.secondarySwellHeightFt).toFixed(1)}ft @ {currentPoint.secondarySwellPeriodS || 'N/A'}s
-                  </div>
-                  <div className="text-xs text-black mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    {formatSwellDirection(currentPoint.secondarySwellDirectionDeg)}
+                  {/* Secondary Swell - the smaller of wind wave or background swell */}
+                  <div>
+                    <div className="text-[10px] text-gray-600 uppercase tracking-wider mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>SECONDARY SWELL</div>
+                    {buoyLoading ? (
+                      <div className="h-8 w-24 bg-gray-200 rounded animate-pulse"></div>
+                    ) : secondaryHeight > 0 ? (
+                      <>
+                        <div className="text-2xl text-black font-bold" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.01em' }}>
+                          {secondaryHeight.toFixed(1)}ft @ {secondaryPeriod ? (typeof secondaryPeriod === 'number' ? secondaryPeriod.toFixed(0) : secondaryPeriod) : 'N/A'}s
+                        </div>
+                        <div className="text-xs text-black mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                          {secondaryDirection || 'N/A'}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-sm text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>—</div>
+                    )}
                   </div>
                 </>
-              ) : (
-                <div className="text-sm text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>—</div>
-              )}
-            </div>
+              );
+            })()}
 
             {/* Tertiary Swell - only show when there's a third swell component */}
             <div>
@@ -737,7 +752,7 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
     { name: "Lido Beach", timeline: lidoTimeline.data?.timeline },
   ];
 
-  // Find current best spot (score >= 60 = "Go Surf" or better)
+  // Find current best spot (score >= 40 = "Worth a Look" or better)
   const now = Date.now();
   const currentConditions = allTimelines.map(({ name, timeline }) => {
     if (!timeline || timeline.length === 0) return null;
@@ -754,12 +769,15 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
     return { name, score, waveHeight, windType, windSpeed, current };
   }).filter(Boolean) as Array<{ name: string; score: number; waveHeight: number; windType: string; windSpeed: number; current: any }>;
 
-  // Find the best current spot
+  // Find all surfable spots (score >= 40)
+  const surfableSpots = currentConditions.filter(spot => spot.score >= 40);
+  
+  // Find the best current spot (for display details and buttons)
   const bestSpot = currentConditions.length > 0
     ? currentConditions.reduce((best, spot) => spot.score > best.score ? spot : best)
     : null;
 
-  const isSurfable = bestSpot && bestSpot.score >= 60;
+  const isSurfable = surfableSpots.length > 0;
 
   // Log conditions for pattern matching (once per hour)
   useEffect(() => {
@@ -793,7 +811,7 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
       else if (isOnshore && windSpeed >= 15) unsurfableReason = "blown_out";
       else if (isOnshore && windSpeed >= 8) unsurfableReason = "choppy";
       else if (windSpeed >= 30) unsurfableReason = "too_windy";
-      else if (isCrossShore && windSpeed >= 12) unsurfableReason = "cross_shore";
+      else if (isCrossShore && windSpeed > 15) unsurfableReason = "cross_shore";
       else if (waveHeight < 2) unsurfableReason = "too_small";
       else if (period !== null && period < 6) unsurfableReason = "wind_swell";
       else unsurfableReason = "poor";
@@ -841,19 +859,41 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
     for (const { name, timeline } of allTimelines) {
       if (!timeline) continue;
 
+      // Get spot coordinates for nighttime check
+      const coords = spotCoordinates[name];
+      if (!coords) continue; // Skip if no coordinates
+      const [lat, lng] = coords.split(',').map(Number);
+
       let windowStart: Date | null = null;
       let windowScore = 0;
+      let lastDaylightTime: Date | null = null;
 
       for (const point of timeline) {
         const pointTime = new Date(point.forecastTimestamp);
         if (pointTime.getTime() <= now) continue; // Skip past times
+        
+        const isNight = isNighttime(pointTime, lat, lng);
+        
+        // If we hit nighttime and have an open window, close it at the last daylight hour
+        if (isNight && windowStart && lastDaylightTime) {
+          futureWindows.push({ name, time: windowStart, score: windowScore, endTime: lastDaylightTime });
+          windowStart = null;
+          lastDaylightTime = null;
+          continue;
+        }
+        
+        // Skip nighttime hours
+        if (isNight) continue;
+        
+        // Track last daylight time for window ending
+        lastDaylightTime = pointTime;
 
         const score = point.quality_score ?? point.probabilityScore ?? 0;
 
-        if (score >= 60 && !windowStart) {
+        if (score >= 50 && !windowStart) {
           windowStart = pointTime;
           windowScore = score;
-        } else if (score < 60 && windowStart) {
+        } else if (score < 50 && windowStart) {
           futureWindows.push({ name, time: windowStart, score: windowScore, endTime: pointTime });
           windowStart = null;
         }
@@ -909,6 +949,19 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
     return `${low}-${high}ft`;
   };
 
+  // Format wave height as surf height description
+  const formatSurfHeight = (ft: number): string => {
+    if (ft < 1) return "Ankle high";
+    if (ft < 2) return "Knee to Waist high";
+    if (ft < 3) return "Waist high";
+    if (ft < 4) return "Waist to Shoulder high";
+    if (ft < 5) return "Shoulder to Head high";
+    if (ft < 6) return "Head high";
+    if (ft < 8) return "Overhead";
+    if (ft < 10) return "Double overhead";
+    return "Well overhead";
+  };
+
   // Generate directions URL
   const getDirectionsUrl = (spotName: string) => {
     const destination = spotCoordinates[spotName];
@@ -924,13 +977,29 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
     const spotTimeline = allTimelines.find(t => t.name === bestSpot.name)?.timeline;
     if (!spotTimeline) return null;
 
-    // Find when score drops below 60
+    // Get spot coordinates for sunset calculation
+    const coords = spotCoordinates[bestSpot.name];
+    if (!coords) return null;
+    const [lat, lng] = coords.split(',').map(Number);
+
+    // Find when score drops below 40 (Worth a Look threshold)
     for (const point of spotTimeline) {
       const pointTime = new Date(point.forecastTimestamp);
       if (pointTime.getTime() <= now) continue;
 
       const score = point.quality_score ?? point.probabilityScore ?? 0;
-      if (score < 60) {
+      if (score < 40) {
+        // Calculate sunset for the date of the degradation time
+        const sunset = calculateSunset(lat, lng, pointTime);
+        
+        // Get the hour of the degradation time (in local time)
+        const degradationHour = pointTime.getHours();
+        
+        // Check if degradation time is after sunset OR if it's after 6pm (evening/night)
+        // If so, return "sunset" instead of the specific time
+        if (pointTime.getTime() > sunset.getTime() || degradationHour >= 18) {
+          return "sunset";
+        }
         return pointTime.toLocaleTimeString("en-US", { hour: "numeric", hour12: true }).replace(" ", "").toLowerCase();
       }
     }
@@ -960,6 +1029,37 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
     const bannerBackground = getScoreBackgroundTint(bestSpot.score);
     const indicatorColor = getIndicatorColor(bestSpot.score);
 
+    // Determine the banner headline based on number of surfable spots and score
+    const getBannerHeadline = (surfableSpots: Array<{ name: string; score: number }>, bestScore: number): string => {
+      const s = Math.round(bestScore);
+      const getStatusText = () => {
+        if (s >= 76) return "FIRING";
+        if (s >= 60) return "GO SURF";
+        return "WORTH A LOOK";
+      };
+
+      const statusText = getStatusText();
+      
+      if (surfableSpots.length === 1) {
+        const spotName = surfableSpots[0].name.toUpperCase();
+        return `${spotName} ${statusText}`;
+      } else if (surfableSpots.length === 2) {
+        const spotNames = surfableSpots
+          .map(spot => spot.name)
+          .join(" and ");
+        return `${spotNames} ${statusText.toLowerCase()}`;
+      } else if (surfableSpots.length >= 3) {
+        return `ALL SPOTS ${statusText.toLowerCase()}`;
+      }
+      
+      // Fallback (shouldn't happen)
+      return statusText;
+    };
+
+    const bannerHeadline = getBannerHeadline(surfableSpots, bestSpot.score);
+    const shareTitle = bestSpot.score >= 76 ? 'firing' : bestSpot.score >= 60 ? 'good' : 'worth checking';
+    const shareText = bestSpot.score >= 76 ? 'firing!' : bestSpot.score >= 60 ? 'good!' : 'worth checking!';
+
     return (
       <div className={cn("border-2 border-black mb-4", bannerBackground)}>
         <div className="p-5">
@@ -970,11 +1070,11 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-2xl md:text-3xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                    {bestSpot.name.toUpperCase().replace(" BEACH", "")} FIRING
+                    {bannerHeadline}
                   </span>
                   <span className="text-xl md:text-2xl text-gray-600" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>•</span>
                   <span className="text-xl md:text-2xl font-bold text-black" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                    {formatHeight(bestSpot.waveHeight)} {windLabel}
+                    {formatSurfHeight(bestSpot.waveHeight)} {windLabel}
                   </span>
                 </div>
                 {endTimeLabel && (
@@ -991,7 +1091,7 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
                 href={getDirectionsUrl(bestSpot.name)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 px-4 py-2 bg-black text-white text-sm font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors"
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-black text-white text-sm font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors w-full md:w-auto h-10 md:h-auto"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
                 <MapPin className="h-4 w-4" />
@@ -999,18 +1099,21 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
               </a>
               <button
                 onClick={() => {
+                  const spotNames = surfableSpots.length === 1 
+                    ? bestSpot.name
+                    : surfableSpots.map(s => s.name).join(" and ");
                   if (navigator.share) {
                     navigator.share({
-                      title: `${bestSpot.name} is firing!`,
-                      text: `${formatHeight(bestSpot.waveHeight)} ${windLabel} at ${bestSpot.name} right now!`,
+                      title: `${spotNames} ${shareTitle}!`,
+                      text: `${formatSurfHeight(bestSpot.waveHeight)} ${windLabel} at ${spotNames} right now!`,
                       url: window.location.href
                     });
                   } else {
-                    navigator.clipboard.writeText(`${bestSpot.name} is firing! ${formatHeight(bestSpot.waveHeight)} ${windLabel}. ${window.location.href}`);
+                    navigator.clipboard.writeText(`${spotNames} ${shareText} ${formatSurfHeight(bestSpot.waveHeight)} ${windLabel}. ${window.location.href}`);
                     alert("Link copied to clipboard!");
                   }
                 }}
-                className="flex items-center gap-2 px-4 py-2 border-2 border-black bg-white text-black text-sm font-bold uppercase tracking-wider hover:bg-gray-100 transition-colors"
+                className="flex items-center justify-center gap-2 px-4 py-2 border-2 border-black bg-white text-black text-sm font-bold uppercase tracking-wider hover:bg-gray-100 transition-colors w-full md:w-auto h-10 md:h-auto"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
                 <Users className="h-4 w-4" />
@@ -1106,7 +1209,7 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
     }
 
     // Cross-shore making it difficult - only when there's actual swell (period >= 6s)
-    if (isCrossShore && windSpeed >= 12) {
+    if (isCrossShore && windSpeed > 15) {
       return {
         headline: "CROSS-SHORE MESS",
         description: buoyData
@@ -1130,7 +1233,7 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
     // Default poor conditions
     return {
       headline: "POOR CONDITIONS",
-      description: "Conditions aren't lining up. Check back tomorrow morning for updated forecasts.",
+      description: "",  // Empty - header and next window are enough
       reason: "poor"
     };
   };
@@ -1151,14 +1254,16 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
                 <>
                   <span className="text-xl md:text-2xl text-gray-400" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>•</span>
                   <span className="text-xl md:text-2xl text-gray-700" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                    Next window: {formatWindowTime(nextWindow.time, nextWindow.endTime)} {nextWindow.name.replace(" Beach", "")}
+                    Next window: {formatWindowTime(nextWindow.time, nextWindow.endTime)}
                   </span>
                 </>
               )}
             </div>
-            <p className="text-sm text-gray-600 mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-              {unsurfableInfo.description}
-            </p>
+            {unsurfableInfo.description && (
+              <p className="text-sm text-gray-600 mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                {unsurfableInfo.description}
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -1533,8 +1638,8 @@ export default function LandingPage() {
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <div className="relative flex items-center justify-center">
-                  <div className="absolute w-2 h-2 bg-black rounded-full animate-ping opacity-75"></div>
-                  <div className="relative w-2 h-2 bg-black rounded-full"></div>
+                  <div className="absolute w-2 h-2 bg-green-500 rounded-full animate-ping opacity-75"></div>
+                  <div className="relative w-2 h-2 bg-green-500 rounded-full"></div>
                 </div>
                 <span className="text-[10px] sm:text-xs font-semibold text-black uppercase tracking-wider">LIVE</span>
               </div>

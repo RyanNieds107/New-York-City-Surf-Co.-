@@ -22,10 +22,15 @@ export interface BuoyReading {
   swellHeight: number | null;      // SwH in feet - background groundswell
   swellPeriod: number | null;      // SwP in seconds
   swellDirection: string | null;   // SwD cardinal direction (e.g., "SE")
+  swellDirectionDeg: number | null; // SwD in degrees (converted from cardinal)
   windWaveHeight: number | null;   // WWH in feet - local wind chop
   windWavePeriod: number | null;   // WWP in seconds
   windWaveDirection: string | null; // WWD cardinal direction (e.g., "WNW")
+  windWaveDirectionDeg: number | null; // WWD in degrees (converted from cardinal)
   steepness: string | null;        // STEEPNESS classification
+  // Meteorological wind data (from .txt file)
+  windSpeedKts: number | null;     // WSPD in knots (converted from m/s)
+  windDirectionDeg: number | null; // WDIR in degrees
 }
 
 const BUOY_ID = "44065";
@@ -41,6 +46,21 @@ function degreesToDirection(degrees: number): string {
                       'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
   const index = Math.round(degrees / 22.5) % 16;
   return directions[index];
+}
+
+/**
+ * Converts cardinal direction to degrees (16-point compass)
+ * Returns null if the cardinal direction is not recognized
+ */
+function cardinalToDegrees(cardinal: string | null): number | null {
+  if (!cardinal) return null;
+  const directionMap: Record<string, number> = {
+    'N': 0, 'NNE': 22.5, 'NE': 45, 'ENE': 67.5,
+    'E': 90, 'ESE': 112.5, 'SE': 135, 'SSE': 157.5,
+    'S': 180, 'SSW': 202.5, 'SW': 225, 'WSW': 247.5,
+    'W': 270, 'WNW': 292.5, 'NW': 315, 'NNW': 337.5
+  };
+  return directionMap[cardinal.toUpperCase()] ?? null;
 }
 
 /**
@@ -76,15 +96,41 @@ function parseValue(val: string): number | null {
  */
 export async function fetchBuoy44065(): Promise<BuoyReading | null> {
   try {
-    // Fetch spectral data which includes separated swell and wind wave components
-    const response = await axios.get(BUOY_SPEC_URL, {
-      timeout: 10000,
-      headers: {
-        'User-Agent': 'NYCSurfCo/1.0 (surf forecast application)'
-      }
-    });
+    // Fetch both spectral and standard data in parallel
+    const [specResponse, txtResponse] = await Promise.all([
+      axios.get(BUOY_SPEC_URL, {
+        timeout: 10000,
+        headers: { 'User-Agent': 'NYCSurfCo/1.0 (surf forecast application)' }
+      }),
+      axios.get(BUOY_URL, {
+        timeout: 10000,
+        headers: { 'User-Agent': 'NYCSurfCo/1.0 (surf forecast application)' }
+      }).catch(() => null) // Don't fail if txt fetch fails
+    ]);
 
-    const lines: string[] = response.data.split("\n");
+    // Parse wind data from .txt file
+    // Format: #YY  MM DD hh mm WDIR WSPD GST  WVHT   DPD   APD MWD   PRES  ATMP  WTMP  DEWP  VIS PTDY  TIDE
+    let windSpeedKts: number | null = null;
+    let windDirectionDeg: number | null = null;
+
+    if (txtResponse?.data) {
+      const txtLines: string[] = txtResponse.data.split("\n");
+      for (const line of txtLines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#")) continue;
+        const parts = trimmed.split(/\s+/);
+        if (parts.length >= 7) {
+          const wdir = parseValue(parts[5]); // Wind direction in degrees
+          const wspd = parseValue(parts[6]); // Wind speed in m/s
+          if (wdir !== null) windDirectionDeg = wdir;
+          if (wspd !== null) windSpeedKts = wspd * 1.94384; // m/s to knots
+          console.log(`[Buoy 44065] Wind from .txt: ${windSpeedKts?.toFixed(1)}kts from ${windDirectionDeg}°`);
+          break; // Only need first (most recent) line
+        }
+      }
+    }
+
+    const lines: string[] = specResponse.data.split("\n");
 
     // Skip header lines, parse first valid data line (most recent reading)
     for (const line of lines) {
@@ -162,10 +208,15 @@ export async function fetchBuoy44065(): Promise<BuoyReading | null> {
           swellHeight: swellHeightFeet,
           swellPeriod: swP,
           swellDirection: cleanSwD,
+          swellDirectionDeg: cardinalToDegrees(cleanSwD),
           windWaveHeight: windWaveHeightFeet,
           windWavePeriod: wwP,
           windWaveDirection: cleanWwD,
+          windWaveDirectionDeg: cardinalToDegrees(cleanWwD),
           steepness: cleanSteepness,
+          // Meteorological wind data
+          windSpeedKts,
+          windDirectionDeg,
         };
       } catch (parseError) {
         console.error(`[Buoy 44065] Failed to parse line: ${line}`, parseError);

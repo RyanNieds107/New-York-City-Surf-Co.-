@@ -463,6 +463,32 @@ export default function SpotDetail() {
     return cardinals[index];
   };
 
+  /**
+   * Validates Open-Meteo forecast components against NOAA buoy observations
+   * Uses RSS (Root Sum Square: sqrt(h1² + h2² + h3²)) to calculate total wave height
+   * Returns true if forecast is reasonable (within 30% of observed total)
+   */
+  const validateForecastAgainstBuoy = (
+    forecastComponents: Array<{ height: number }>,
+    buoyTotalHeight: number
+  ): { isValid: boolean; ratio: number } => {
+    if (buoyTotalHeight <= 0 || forecastComponents.length === 0) {
+      return { isValid: false, ratio: 0 };
+    }
+
+    // Calculate total wave height from forecast components using RSS
+    const forecastTotal = Math.sqrt(
+      forecastComponents.reduce((sum, comp) => sum + (comp.height ** 2), 0)
+    );
+
+    const ratio = forecastTotal / buoyTotalHeight;
+
+    // Valid if within 70-130% of buoy observation (30% tolerance)
+    const isValid = ratio >= 0.7 && ratio <= 1.3;
+
+    return { isValid, ratio };
+  };
+
   // Calculate energy percentage (H² × T formula, normalized to 0-100)
   const calculateEnergyPercentage = (heightFt: number | null, periodS: number | null): number => {
     if (heightFt === null || periodS === null || heightFt <= 0 || periodS <= 0) return 0;
@@ -476,6 +502,7 @@ export default function SpotDetail() {
   const getWindBadgeType = (windType: string | null): "offshore" | "onshore" | "cross" | "unknown" => {
     if (!windType) return "unknown";
     const lower = windType.toLowerCase();
+    if (lower === "cross-offshore") return "cross"; // Treat cross-offshore as cross for badge
     if (lower.includes("offshore")) return "offshore";
     if (lower.includes("onshore")) return "onshore";
     if (lower.includes("cross") || lower.includes("side")) return "cross";
@@ -485,6 +512,7 @@ export default function SpotDetail() {
   // Format wind type for display
   const formatWindType = (windType: string | null): string => {
     if (!windType) return '';
+    if (windType === 'cross-offshore') return 'Cross-Offshore';
     const capitalized = windType.charAt(0).toUpperCase() + windType.slice(1);
     return capitalized.replace('-', '-');
   };
@@ -1280,7 +1308,7 @@ export default function SpotDetail() {
                         {(() => {
                           const buoyData = buoyQuery.data;
 
-                          // Build swells array - DOMINANT SWELL from buoy, SECONDARY and WIND SWELL from forecast
+                          // Build swells array with validation against buoy observations
                           const swells: Array<{
                             label: string;
                             height: string;
@@ -1290,19 +1318,181 @@ export default function SpotDetail() {
                             isDominant: boolean;
                           }> = [];
 
-                          // DOMINANT SWELL - from NOAA Buoy 44065
-                          if (buoyData) {
+                          // VALIDATION MODE: Use buoy to validate Open-Meteo forecast
+                          const useBuoyValidation = buoyData && !buoyData.isStale;
+
+                          if (useBuoyValidation) {
+                            // Collect Open-Meteo components for current conditions
+                            const forecastComponents: Array<{
+                              label: string;
+                              height: number;
+                              heightStr: string;
+                              period: string;
+                              direction: string | null;
+                              directionDeg: number | null | undefined;
+                              isDominant: boolean;
+                            }> = [];
+
+                            // Primary swell from forecast
+                            if (currentConditions.waveHeightFt !== null && currentConditions.waveHeightFt > 0 &&
+                                currentConditions.wavePeriodSec !== null) {
+                              const heightNum = typeof currentConditions.waveHeightFt === 'string'
+                                ? parseFloat(currentConditions.waveHeightFt)
+                                : currentConditions.waveHeightFt;
+                              const periodNum = typeof currentConditions.wavePeriodSec === 'string'
+                                ? parseFloat(currentConditions.wavePeriodSec)
+                                : currentConditions.wavePeriodSec;
+
+                              if (!isNaN(heightNum) && !isNaN(periodNum) && heightNum > 0) {
+                                forecastComponents.push({
+                                  label: 'DOMINANT SWELL',
+                                  height: heightNum,
+                                  heightStr: heightNum.toFixed(1),
+                                  period: periodNum.toFixed(0),
+                                  direction: currentConditions.waveDirectionDeg !== null
+                                    ? formatSwellDirection(currentConditions.waveDirectionDeg)
+                                    : null,
+                                  directionDeg: currentConditions.waveDirectionDeg,
+                                  isDominant: true,
+                                });
+                              }
+                            }
+
+                            // Secondary swell from forecast
+                            if (currentConditions.secondarySwellHeightFt !== null &&
+                                currentConditions.secondarySwellPeriodS !== null) {
+                              const heightNum = typeof currentConditions.secondarySwellHeightFt === 'string'
+                                ? parseFloat(currentConditions.secondarySwellHeightFt)
+                                : currentConditions.secondarySwellHeightFt;
+                              const periodNum = typeof currentConditions.secondarySwellPeriodS === 'string'
+                                ? parseFloat(currentConditions.secondarySwellPeriodS)
+                                : currentConditions.secondarySwellPeriodS;
+
+                              if (!isNaN(heightNum) && !isNaN(periodNum) && heightNum > 0) {
+                                forecastComponents.push({
+                                  label: 'SECONDARY',
+                                  height: heightNum,
+                                  heightStr: heightNum.toFixed(1),
+                                  period: periodNum.toFixed(0),
+                                  direction: currentConditions.secondarySwellDirectionDeg !== null
+                                    ? formatSwellDirection(currentConditions.secondarySwellDirectionDeg)
+                                    : null,
+                                  directionDeg: currentConditions.secondarySwellDirectionDeg,
+                                  isDominant: false,
+                                });
+                              }
+                            }
+
+                            // Wind waves from forecast
+                            if (currentConditions.windWaveHeightFt !== null &&
+                                currentConditions.windWavePeriodS !== null) {
+                              const heightNum = typeof currentConditions.windWaveHeightFt === 'string'
+                                ? parseFloat(currentConditions.windWaveHeightFt)
+                                : currentConditions.windWaveHeightFt;
+                              const periodNum = typeof currentConditions.windWavePeriodS === 'string'
+                                ? parseFloat(currentConditions.windWavePeriodS)
+                                : currentConditions.windWavePeriodS;
+
+                              if (!isNaN(heightNum) && !isNaN(periodNum) && heightNum > 0) {
+                                forecastComponents.push({
+                                  label: 'WIND SWELL',
+                                  height: heightNum,
+                                  heightStr: heightNum.toFixed(1),
+                                  period: periodNum.toFixed(0),
+                                  direction: currentConditions.windWaveDirectionDeg !== null
+                                    ? formatSwellDirection(currentConditions.windWaveDirectionDeg)
+                                    : null,
+                                  directionDeg: currentConditions.windWaveDirectionDeg,
+                                  isDominant: false,
+                                });
+                              }
+                            }
+
+                            // Validate against buoy
+                            const validation = validateForecastAgainstBuoy(
+                              forecastComponents,
+                              buoyData.waveHeight
+                            );
+
+                            if (validation.isValid) {
+                              // Forecast matches observations - use Open-Meteo breakdown
+                              swells.push(...forecastComponents.map(c => ({
+                                label: c.label,
+                                height: c.heightStr,
+                                period: c.period,
+                                direction: c.direction,
+                                directionDeg: c.directionDeg,
+                                isDominant: c.isDominant,
+                              })));
+
+                              const forecastTotal = Math.sqrt(
+                                forecastComponents.reduce((sum, c) => sum + (c.height ** 2), 0)
+                              );
+                              console.log(`[Validation] Forecast valid: ${(validation.ratio * 100).toFixed(0)}% of buoy (${forecastTotal.toFixed(1)}ft forecast RSS vs ${buoyData.waveHeight.toFixed(1)}ft observed)`);
+                            } else {
+                              // Forecast diverges from observations - fall back to buoy-only
+                              const forecastTotal = Math.sqrt(
+                                forecastComponents.reduce((sum, c) => sum + (c.height ** 2), 0)
+                              );
+                              console.warn(`[Validation] Forecast invalid: ${(validation.ratio * 100).toFixed(0)}% of buoy (${forecastTotal.toFixed(1)}ft forecast RSS vs ${buoyData.waveHeight.toFixed(1)}ft observed). Falling back to buoy data.`);
+
+                              // Show buoy swell component
+                              if (buoyData.swellHeight !== null && buoyData.swellPeriod !== null) {
                             swells.push({
                               label: 'DOMINANT SWELL',
-                              height: buoyData.waveHeight.toFixed(1),
-                              period: buoyData.dominantPeriod.toFixed(0),
-                              direction: formatSwellDirection(buoyData.waveDirection),
-                              directionDeg: buoyData.waveDirection,
+                                  height: buoyData.swellHeight.toFixed(1),
+                                  period: buoyData.swellPeriod.toFixed(0),
+                                  direction: buoyData.swellDirectionDeg !== null
+                                    ? formatSwellDirection(buoyData.swellDirectionDeg)
+                                    : null,
+                                  directionDeg: buoyData.swellDirectionDeg,
                               isDominant: true,
                             });
                           }
 
-                          // SECONDARY - from forecast
+                              // Show buoy wind wave component if available
+                              if (buoyData.windWaveHeight !== null && buoyData.windWavePeriod !== null) {
+                                swells.push({
+                                  label: 'WIND WAVES',
+                                  height: buoyData.windWaveHeight.toFixed(1),
+                                  period: buoyData.windWavePeriod.toFixed(0),
+                                  direction: buoyData.windWaveDirectionDeg !== null
+                                    ? formatSwellDirection(buoyData.windWaveDirectionDeg)
+                                    : null,
+                                  directionDeg: buoyData.windWaveDirectionDeg,
+                                  isDominant: false,
+                                });
+                              }
+                            }
+                          } else {
+                            // No buoy data available or buoy data is stale - use forecast without validation
+                            console.log('[Validation] Buoy data unavailable or stale - using forecast without validation');
+
+                            // Primary swell
+                            if (currentConditions.waveHeightFt !== null && currentConditions.waveHeightFt > 0 &&
+                                currentConditions.wavePeriodSec !== null) {
+                              const heightNum = typeof currentConditions.waveHeightFt === 'string'
+                                ? parseFloat(currentConditions.waveHeightFt)
+                                : currentConditions.waveHeightFt;
+                              const periodNum = typeof currentConditions.wavePeriodSec === 'string'
+                                ? parseFloat(currentConditions.wavePeriodSec)
+                                : currentConditions.wavePeriodSec;
+
+                              if (!isNaN(heightNum) && !isNaN(periodNum)) {
+                                swells.push({
+                                  label: 'DOMINANT SWELL',
+                                  height: heightNum.toFixed(1),
+                                  period: periodNum.toFixed(0),
+                                  direction: currentConditions.waveDirectionDeg !== null
+                                    ? formatSwellDirection(currentConditions.waveDirectionDeg)
+                                    : null,
+                                  directionDeg: currentConditions.waveDirectionDeg,
+                                  isDominant: true,
+                                });
+                              }
+                            }
+
+                            // Secondary swell
                           if (currentConditions.secondarySwellHeightFt !== null && currentConditions.secondarySwellPeriodS !== null) {
                             const heightNum = typeof currentConditions.secondarySwellHeightFt === 'string'
                               ? parseFloat(currentConditions.secondarySwellHeightFt)
@@ -1313,10 +1503,10 @@ export default function SpotDetail() {
 
                             if (!isNaN(heightNum) && !isNaN(periodNum)) {
                               swells.push({
-                                label: 'Secondary',
+                                  label: 'SECONDARY',
                                 height: heightNum.toFixed(1),
                                 period: periodNum.toFixed(0),
-                                direction: currentConditions.secondarySwellDirectionDeg !== null && currentConditions.secondarySwellDirectionDeg !== undefined
+                                  direction: currentConditions.secondarySwellDirectionDeg !== null
                                   ? formatSwellDirection(currentConditions.secondarySwellDirectionDeg)
                                   : null,
                                 directionDeg: currentConditions.secondarySwellDirectionDeg,
@@ -1325,7 +1515,7 @@ export default function SpotDetail() {
                             }
                           }
 
-                          // WIND SWELL - from forecast
+                            // Wind swell
                           if (currentConditions.windWaveHeightFt !== null && currentConditions.windWavePeriodS !== null) {
                             const heightNum = typeof currentConditions.windWaveHeightFt === 'string'
                               ? parseFloat(currentConditions.windWaveHeightFt)
@@ -1336,15 +1526,16 @@ export default function SpotDetail() {
 
                             if (!isNaN(heightNum) && !isNaN(periodNum)) {
                               swells.push({
-                                label: 'Wind Swell',
+                                  label: 'WIND SWELL',
                                 height: heightNum.toFixed(1),
                                 period: periodNum.toFixed(0),
-                                direction: currentConditions.windWaveDirectionDeg !== null && currentConditions.windWaveDirectionDeg !== undefined
+                                  direction: currentConditions.windWaveDirectionDeg !== null
                                   ? formatSwellDirection(currentConditions.windWaveDirectionDeg)
                                   : null,
                                 directionDeg: currentConditions.windWaveDirectionDeg,
                                 isDominant: false,
                               });
+                              }
                             }
                           }
 
@@ -1409,11 +1600,13 @@ export default function SpotDetail() {
                                 <line x1="50" y1="20" x2="50" y2="55" stroke={
                                   currentConditions.windType === 'offshore' ? '#059669' :
                                   currentConditions.windType === 'onshore' ? '#ef4444' :
+                                  currentConditions.windType === 'cross-offshore' ? '#6b7280' :
                                   '#f59e0b'
                                 } strokeWidth="3" strokeLinecap="round" />
                                 <polygon points="50,15 44,28 56,28" fill={
                                   currentConditions.windType === 'offshore' ? '#059669' :
                                   currentConditions.windType === 'onshore' ? '#ef4444' :
+                                  currentConditions.windType === 'cross-offshore' ? '#6b7280' :
                                   '#f59e0b'
                                 } />
                               </g>
@@ -1434,9 +1627,10 @@ export default function SpotDetail() {
                               <p className={`text-xs sm:text-sm font-semibold uppercase tracking-wider ${
                                 currentConditions.windType === 'offshore' ? 'text-emerald-600' :
                                 currentConditions.windType === 'onshore' ? 'text-red-500' :
+                                currentConditions.windType === 'cross-offshore' ? 'text-gray-500' :
                                 'text-amber-500'
                               }`} style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                                {currentConditions.windType}
+                                {currentConditions.windType === 'cross-offshore' ? 'Cross-Offshore' : currentConditions.windType}
                               </p>
                             )}
                           </div>
@@ -1715,10 +1909,12 @@ export default function SpotDetail() {
                           <div className={`text-2xl font-black ${
                             currentConditions.windType === 'offshore' ? 'text-emerald-600' :
                             currentConditions.windType === 'onshore' ? 'text-red-500' :
+                            currentConditions.windType === 'cross-offshore' ? 'text-gray-500' :
                             'text-amber-500'
                           }`} style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                             {currentConditions.windType === 'offshore' ? '✓' :
-                             currentConditions.windType === 'onshore' ? '✗' : '~'}
+                             currentConditions.windType === 'onshore' ? '✗' : 
+                             currentConditions.windType === 'cross-offshore' ? '~' : '~'}
                           </div>
                           <div className="text-[10px] text-gray-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                             {currentConditions.windSpeedMph ? `${Math.round(currentConditions.windSpeedMph)}mph ${currentConditions.windType ?? ''}` : '—'}
@@ -2103,14 +2299,14 @@ export default function SpotDetail() {
                                               <text x="6" y="31" textAnchor="middle" fontSize="7" fill="#94a3b8" fontWeight="600" style={{ fontFamily: 'JetBrains Mono, monospace' }}>W</text>
                                               {/* Wind direction arrow - points FROM where wind is coming */}
                                               <g transform={`rotate(${windDir + 180}, 28, 28)`}>
-                                                <line x1="28" y1="38" x2="28" y2="14" stroke={windType === 'offshore' ? '#059669' : windType === 'onshore' ? '#ef4444' : '#64748b'} strokeWidth="2.5" strokeLinecap="round" />
+                                                <line x1="28" y1="38" x2="28" y2="14" stroke={windType === 'offshore' ? '#059669' : windType === 'onshore' ? '#ef4444' : windType === 'cross-offshore' ? '#6b7280' : '#64748b'} strokeWidth="2.5" strokeLinecap="round" />
                                                 <polygon
                                                   points="28,10 23,18 33,18"
-                                                  fill={windType === 'offshore' ? '#059669' : windType === 'onshore' ? '#ef4444' : '#64748b'}
+                                                  fill={windType === 'offshore' ? '#059669' : windType === 'onshore' ? '#ef4444' : windType === 'cross-offshore' ? '#6b7280' : '#64748b'}
                                                 />
                                               </g>
                                               {/* Center dot */}
-                                              <circle cx="28" cy="28" r="3" fill={windType === 'offshore' ? '#059669' : windType === 'onshore' ? '#ef4444' : '#64748b'} />
+                                              <circle cx="28" cy="28" r="3" fill={windType === 'offshore' ? '#059669' : windType === 'onshore' ? '#ef4444' : windType === 'cross-offshore' ? '#6b7280' : '#64748b'} />
                                             </svg>
                                           </div>
                                           {/* Wind Info */}
@@ -2122,7 +2318,7 @@ export default function SpotDetail() {
                                               <span className="text-[#64748b]">{Math.round(windSpeed)}mph </span>
                                               {windType && (
                                                 <span style={{
-                                                  color: windType === 'offshore' ? '#059669' : windType === 'onshore' ? '#ef4444' : '#64748b',
+                                                  color: windType === 'offshore' ? '#059669' : windType === 'onshore' ? '#ef4444' : windType === 'cross-offshore' ? '#6b7280' : '#64748b',
                                                   fontWeight: 700
                                                 }}>
                                                   {formatWindType(windType)}
@@ -2275,10 +2471,10 @@ export default function SpotDetail() {
                       const dayDate = new Date(year, month - 1, day);
                       dayDate.setHours(0, 0, 0, 0);
                       
-                        const isToday = dayDate.getTime() === today.getTime();
-                        const tomorrow = new Date(today);
-                        tomorrow.setDate(tomorrow.getDate() + 1);
-                        const isTomorrow = dayDate.getTime() === tomorrow.getTime();
+                      const isToday = dayDate.getTime() === today.getTime();
+                      const tomorrow = new Date(today);
+                      tomorrow.setDate(tomorrow.getDate() + 1);
+                      const isTomorrow = dayDate.getTime() === tomorrow.getTime();
                         
                         // Calculate day summary stats (prefer Day 1 MVP fields if available)
                         // New logic: Prioritize daylight hours if at least 50% are surfable
@@ -2310,8 +2506,8 @@ export default function SpotDetail() {
                           } else {
                             // Fall back to all hours average (current logic)
                             avgScore = validScores.length > 0 
-                              ? Math.round(validScores.reduce((a, b) => a + b, 0) / validScores.length)
-                              : 0;
+                          ? Math.round(validScores.reduce((a, b) => a + b, 0) / validScores.length)
+                          : 0;
                           }
                         } else {
                           // Fall back to all hours average if spot data not available
@@ -2839,19 +3035,19 @@ export default function SpotDetail() {
 
                                   {/* Scrollable wrapper for mobile */}
                                   <div className="overflow-x-auto md:overflow-x-visible">
-                                    {/* Table Header */}
-                                    <div
+                                  {/* Table Header */}
+                                  <div
                                       className="grid px-2 md:px-4 py-2 md:py-3 bg-gray-50 border-b border-gray-200 text-[8px] md:text-[10px] font-bold tracking-wide text-gray-500 uppercase"
                                       style={{ gridTemplateColumns: '6% 9% 22% 22% 15% 15% 11%', width: '100%', minWidth: '640px', fontFamily: "'JetBrains Mono', monospace" }}
-                                    >
-                                      <div></div>
-                                      <div>Surf</div>
-                                      <div>Primary Swell</div>
-                                      <div>Secondary Swell</div>
-                                      <div>Wind</div>
-                                      <div>Tide</div>
-                                      <div className="text-right">Quality</div>
-                                    </div>
+                                  >
+                                    <div></div>
+                                    <div>Surf</div>
+                                    <div>Primary Swell</div>
+                                    <div>Secondary Swell</div>
+                                    <div>Wind</div>
+                                    <div>Tide</div>
+                                    <div className="text-right">Quality</div>
+                                  </div>
 
                                   <div>
                                     {(() => {
@@ -3012,7 +3208,7 @@ export default function SpotDetail() {
 
                                         // Wind type for color coding
                                         const windType = point.windType ?? null;
-                                        const windColor = windType === 'offshore' ? '#059669' : windType === 'onshore' ? '#ef4444' : '#64748b';
+                                        const windColor = windType === 'offshore' ? '#059669' : windType === 'onshore' ? '#ef4444' : windType === 'cross-offshore' ? '#6b7280' : '#64748b';
 
                                         return (
                                           <div

@@ -107,23 +107,55 @@ export function getDirectionalPenalty(directionDeg: number | null): number {
 }
 
 /**
+ * Get tide multiplier based on tide height
+ *
+ * High tide reduces breaking wave height (waves break in deeper water, sandbars submerged,
+ * inlet/canyon effects dampened). Low tide increases it (shallow water, sandbars exposed).
+ *
+ * @param tideHeightFt - Tide height in decimal feet (e.g., 3.5, not 35) or null
+ * @returns Multiplier to apply to breaking height (0.7 for high, 1.2 for low, interpolated between)
+ */
+export function getTideMultiplier(tideHeightFt: number | null): number {
+  // If no tide data, return neutral multiplier
+  if (tideHeightFt === null || tideHeightFt === undefined) return 1.0;
+
+  // High tide (≥3.5ft): 30% reduction
+  if (tideHeightFt >= 3.5) {
+    return 0.7;
+  }
+
+  // Low tide (≤1.5ft): 20% boost
+  if (tideHeightFt <= 1.5) {
+    return 1.2;
+  }
+
+  // Mid-tide (1.5-3.5ft): Linear interpolation from 1.2 to 0.7
+  // At 2.5ft (midpoint): returns 0.95x
+  const range = 3.5 - 1.5; // 2.0ft range
+  const position = (tideHeightFt - 1.5) / range; // 0 to 1
+  return 1.2 - (position * 0.5); // Interpolate from 1.2 to 0.7
+}
+
+/**
  * Get the dominant swell from forecast point based on RAW ENERGY (H² × T)
  *
- * IMPORTANT: Selection is based on RAW energy only - NO penalties are applied
- * during selection. This ensures a blocked west swell doesn't accidentally
- * become "dominant" with 0ft while the real surf-producing swell is ignored.
+ * CRITICAL: Blocked directions (250-310° west) are filtered OUT before energy comparison.
+ * This prevents selecting a blocked west swell that would return 0ft, falling back to
+ * valid swells instead.
  *
- * Directional penalties and kill switches are applied AFTER selection,
- * when calculating the final breaking_height for display.
+ * Directional wrap penalties are applied AFTER selection, when calculating the
+ * final breaking_height for display.
  *
  * @param forecastPoint - Forecast point with all swell components
  * @param profile - Spot profile with multiplier for breaking height calculation
+ * @param tideHeightFt - Tide height in decimal feet (e.g., 3.5, not 35) or null
  * @param tidePhase - Tide phase: 'high', 'low', 'rising', 'falling', or null
  * @returns Dominant swell component with breaking_height calculated, or null if no valid data
  */
 export function getDominantSwell(
   forecastPoint: ForecastPoint,
   profile: SpotProfile,
+  tideHeightFt?: number | null,
   tidePhase?: string | null
 ): SwellComponent | null {
   console.log('🔍 [getDominantSwell] Checking forecast point:', {
@@ -208,8 +240,17 @@ export function getDominantSwell(
     return null;
   }
 
-  // Log energy comparison for all candidates
-  console.log('📊 [getDominantSwell] Energy comparison (H²×T):', candidates.map(c => ({
+  // CRITICAL FIX: Filter out blocked directions BEFORE selecting dominant swell
+  // This prevents selecting a west swell (250-310°) that would be killed, resulting in 0ft
+  const validCandidates = candidates.filter(c => !isDirectionBlocked(c.direction_deg));
+  
+  if (validCandidates.length === 0) {
+    console.log('❌ [getDominantSwell] All swells are blocked by land (250-310° west)!');
+    return null;
+  }
+
+  // Log energy comparison for valid (non-blocked) candidates
+  console.log('📊 [getDominantSwell] Energy comparison (H²×T) - valid swells only:', validCandidates.map(c => ({
     type: c.type,
     height: c.height_ft.toFixed(1),
     period: c.period_s,
@@ -218,16 +259,17 @@ export function getDominantSwell(
   })));
 
   // Sort by RAW ENERGY (H² × T) - highest energy wins
-  // NO penalties applied during selection!
-  const sorted = [...candidates].sort((a, b) => b.energy - a.energy);
+  // Only considering non-blocked directions
+  const sorted = [...validCandidates].sort((a, b) => b.energy - a.energy);
   const winner = sorted[0];
 
-  // NOW calculate breaking height for the winner, applying all penalties
+  // NOW calculate breaking height for the winner, applying tide and directional penalties
   const breakingHeight = calculateBreakingWaveHeight(
     winner.height_ft,
     winner.period_s,
     profile,
     winner.direction_deg,
+    tideHeightFt ?? null,
     tidePhase
   );
 
@@ -260,19 +302,20 @@ export function getDominantSwell(
  *
  * This function is called AFTER the dominant swell is selected by energy (H² × T).
  * It calculates the display height using period-based wave shoaling physics,
- * then applies directional penalties and tide adjustments.
+ * then applies tide adjustments and directional penalties.
  *
  * SELECTION vs DISPLAY:
  * - SELECTION: Uses H² × T energy formula (in getDominantSwell)
- * - DISPLAY: Uses H × (T/10) × spotMultiplier (this function)
+ * - DISPLAY: Uses H × (T/10) × spotMultiplier × tideMultiplier (this function)
  *
  * Formula (in order):
  * 1. Period-adjusted base height: H × (T / 10) - reflects wave shoaling physics
  * 2. Apply spot multiplier (Lido: 1.5x, Long Beach: 1.3x, Rockaway: 1.1x)
- * 3. Apply directional kill switch (250-310° West) → 0
- * 4. Apply directional wrap penalty (< 110° East) → 0.7x
- * 5. Round to nearest 0.1ft - ONLY at the very end
- * 6. Apply minimum floor of 0.1ft (if calculated > 0)
+ * 3. Apply tide multiplier (high tide: 0.7x, low tide: 1.2x, interpolated between)
+ * 4. Apply directional kill switch (250-310° West) → 0
+ * 5. Apply directional wrap penalty (< 110° East) → 0.7x
+ * 6. Round to nearest 0.1ft - ONLY at the very end
+ * 7. Apply minimum floor of 0.1ft (if calculated > 0)
  *
  * Example: 3ft swell @ 15s at Lido (1.5x) = 3 × 1.5 × 1.5 = 6.75ft → 7ft
  * Example: 3ft swell @ 5s at Lido (1.5x) = 3 × 0.5 × 1.5 = 2.25ft → 2ft
@@ -281,6 +324,7 @@ export function getDominantSwell(
  * @param periodS - Swell period in seconds
  * @param profile - Spot profile with multiplier
  * @param swellDirectionDeg - Swell direction in degrees (0-360) or null
+ * @param tideHeightFt - Tide height in decimal feet (e.g., 3.5, not 35) or null
  * @param tidePhase - Tide phase: 'high', 'low', 'rising', 'falling', or null
  * @returns Predicted breaking wave face height in feet (rounded to 0.5ft)
  */
@@ -289,6 +333,7 @@ export function calculateBreakingWaveHeight(
   periodS: number,
   profile: SpotProfile,
   swellDirectionDeg?: number | null,
+  tideHeightFt?: number | null,
   tidePhase?: string | null
 ): number {
   // Validate inputs are in correct units (feet, seconds)
@@ -307,6 +352,7 @@ export function calculateBreakingWaveHeight(
     swellHeightFt,
     periodS,
     swellDirectionDeg,
+    tideHeightFt,
     tidePhase,
     spotName: profile.name,
     spotKey,
@@ -328,7 +374,15 @@ export function calculateBreakingWaveHeight(
   console.log('🏖️ [Spot Multiplier]:', adjustedHeight.toFixed(2),
     `ft (${periodAdjustedHeight.toFixed(2)} × ${spotMultiplier})`);
 
-  // STEP 3: Check Directional Kill Switch (250° - 310°)
+  // STEP 3: Apply Tide Multiplier
+  // High tide reduces breaking height (deeper water, submerged sandbars)
+  // Low tide increases breaking height (shallow water, exposed sandbars)
+  const tideMultiplier = getTideMultiplier(tideHeightFt ?? null);
+  adjustedHeight = adjustedHeight * tideMultiplier;
+  console.log('🌊 [Tide Multiplier]:', adjustedHeight.toFixed(2),
+    `ft (tide: ${tideHeightFt?.toFixed(1) ?? 'N/A'}ft → ${tideMultiplier.toFixed(2)}x)`);
+
+  // STEP 4: Check Directional Kill Switch (250° - 310°)
   // Western Long Island is shadowed by NJ/land - no surf from west
   // Applied AFTER period & multiplier so we can see the "potential" height in logs
   if (isDirectionBlocked(swellDirectionDeg ?? null)) {
@@ -336,7 +390,7 @@ export function calculateBreakingWaveHeight(
     return 0;
   }
 
-  // STEP 4: Apply Directional Wrap Penalty (< 110°)
+  // STEP 5: Apply Directional Wrap Penalty (< 110°)
   // East swells wrap around and lose energy
   const directionalPenalty = getDirectionalPenalty(swellDirectionDeg ?? null);
   if (directionalPenalty < 1.0) {
@@ -345,11 +399,11 @@ export function calculateBreakingWaveHeight(
       `ft (East swell < 110° → ${directionalPenalty}x)`);
   }
 
-  // STEP 5: Round to nearest 0.1ft - ONLY at the very end
+  // STEP 6: Round to nearest 0.1ft - ONLY at the very end
   const rounded = Math.round(adjustedHeight * 10) / 10;
   console.log('✅ [FINAL Breaking Height]:', rounded, 'ft (rounded to 0.1ft)');
 
-  // STEP 6: Apply minimum floor of 0.1ft (if calculated > 0)
+  // STEP 7: Apply minimum floor of 0.1ft (if calculated > 0)
   // Prevents 0.0ft display for very small but non-zero waves
   if (rounded > 0 && rounded < 0.1) {
     return 0.1;

@@ -29,7 +29,7 @@ export interface ForecastResult {
   // Wind data
   windSpeedMph: number | null;
   windDirectionDeg: number | null;
-  windType: "offshore" | "onshore" | "cross" | null;
+  windType: "offshore" | "onshore" | "cross" | "cross-offshore" | null;
   // Tide data
   tideHeightFt: number | null; // in tenths of feet
   tidePhase: "rising" | "falling" | "high" | "low" | null;
@@ -163,15 +163,19 @@ export function generateForecast(input: ForecastInput): ForecastResult {
 
 /**
  * Determines wind type based on direction for Long Island.
- * North (315-45) = offshore, South (135-225) = onshore, else = cross
+ * North (315-45) = offshore, South (135-225) = onshore, 
+ * WNW (285-300) = cross-offshore, else = cross
  */
-function calculateWindType(windDir: number | null): "offshore" | "onshore" | "cross" | null {
+function calculateWindType(windDir: number | null): "offshore" | "onshore" | "cross" | "cross-offshore" | null {
   if (windDir === null) return null;
   
   if (windDir >= 315 || windDir <= 45) {
     return "offshore";
   } else if (windDir >= 135 && windDir <= 225) {
     return "onshore";
+  } else if (windDir >= 285 && windDir <= 300) {
+    // WNW range (292.5° ± 7.5°)
+    return "cross-offshore";
   } else {
     return "cross";
   }
@@ -378,7 +382,7 @@ export interface ForecastTimelineResult {
   // Wind data
   windSpeedMph: number | null;
   windDirectionDeg: number | null;
-  windType: "offshore" | "onshore" | "cross" | null;
+  windType: "offshore" | "onshore" | "cross" | "cross-offshore" | null;
   // Tide data
   tideHeightFt: number | null; // in tenths of feet
   tidePhase: "rising" | "falling" | "high" | "low" | null;
@@ -518,9 +522,9 @@ export async function generateForecastTimeline(
     // ========== DOMINANT SWELL CALCULATION (Energy-Based: H² × T) ==========
     // Calculate the dominant swell using quadratic energy formula (H² × T)
     // This ensures the highest-energy swell is selected (e.g., 6.6ft wind swell beats 2.4ft primary)
-    // Directional penalties are applied AFTER selection, not during energy comparison
+    // Blocked directions (W) filtered out BEFORE selection, wrap penalties applied AFTER
     const profile = spotKey ? getSpotProfile(spotKey) : null;
-    const dominantSwell = profile ? getDominantSwell(point, profile, tideInfo?.phase ?? null) : null;
+    const dominantSwell = profile ? getDominantSwell(point, profile, tideInfo?.heightFt ?? null, tideInfo?.phase ?? null) : null;
     const dominantSwellHeightFt = dominantSwell?.height_ft ?? null;
     const dominantSwellPeriodS = dominantSwell?.period_s ?? null;
     const dominantSwellDirectionDeg = dominantSwell?.direction_deg ?? null;
@@ -569,7 +573,8 @@ export async function generateForecastTimeline(
             dominantSwellPeriodS,
             profile,
             dominantSwellDirectionDeg,
-            null // No tide phase available in fallback
+            null, // No tide height available in fallback
+            null  // No tide phase available in fallback
           );
           if (results.length === 0) {
             console.log(`[Forecast] Fallback: breakingWaveHeightFt calculated without tide: ${breakingWaveHeightFt}ft from ${dominantSwell.type} swell`);
