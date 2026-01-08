@@ -725,52 +725,65 @@ export default function SpotDetail() {
       return new Date(a.forecastTimestamp).getTime() - new Date(b.forecastTimestamp).getTime();
     });
 
-    // Find consecutive windows with quality > 60
-    const windows: Window[] = [];
-    let currentWindow: typeof sortedPoints = [];
-    
-    for (let i = 0; i < sortedPoints.length; i++) {
-      const point = sortedPoints[i];
-      const score = point.quality_score ?? point.probabilityScore ?? 0;
-      const date = new Date(point.forecastTimestamp);
-      const hour = date.getHours();
+    // Try to find windows with score > 60 first (high quality)
+    // If none found, fall back to score >= 40 (surfable conditions)
+    const findWindowsWithThreshold = (threshold: number): Window[] => {
+      const windows: Window[] = [];
+      let currentWindow: typeof sortedPoints = [];
       
-      if (score > 60) {
-        // Check if this hour is consecutive with the last point in current window
-        if (currentWindow.length > 0) {
-          const lastPoint = currentWindow[currentWindow.length - 1];
-          const lastDate = new Date(lastPoint.forecastTimestamp);
-          const lastHour = lastDate.getHours();
-          const hoursDiff = hour - lastHour;
-          
-          // Allow up to 1 hour gap (in case of missing data)
-          if (hoursDiff <= 1) {
-            currentWindow.push(point);
-          } else {
-            // Save current window if it has at least 2 hours
-            if (currentWindow.length >= 2) {
-              const window = createWindowFromPoints(currentWindow);
-              if (window) windows.push(window);
+      for (let i = 0; i < sortedPoints.length; i++) {
+        const point = sortedPoints[i];
+        const score = point.quality_score ?? point.probabilityScore ?? 0;
+        const date = new Date(point.forecastTimestamp);
+        const hour = date.getHours();
+        
+        if (score > threshold) {
+          // Check if this hour is consecutive with the last point in current window
+          if (currentWindow.length > 0) {
+            const lastPoint = currentWindow[currentWindow.length - 1];
+            const lastDate = new Date(lastPoint.forecastTimestamp);
+            const lastHour = lastDate.getHours();
+            const hoursDiff = hour - lastHour;
+            
+            // Allow up to 1 hour gap (in case of missing data)
+            if (hoursDiff <= 1) {
+              currentWindow.push(point);
+            } else {
+              // Save current window if it has at least 2 hours
+              if (currentWindow.length >= 2) {
+                const window = createWindowFromPoints(currentWindow);
+                if (window) windows.push(window);
+              }
+              currentWindow = [point];
             }
+          } else {
             currentWindow = [point];
           }
         } else {
-          currentWindow = [point];
+          // Save current window if it has at least 2 hours
+          if (currentWindow.length >= 2) {
+            const window = createWindowFromPoints(currentWindow);
+            if (window) windows.push(window);
+          }
+          currentWindow = [];
         }
-      } else {
-        // Save current window if it has at least 2 hours
-        if (currentWindow.length >= 2) {
-          const window = createWindowFromPoints(currentWindow);
-          if (window) windows.push(window);
-        }
-        currentWindow = [];
       }
-    }
+      
+      // Save final window if it has at least 2 hours
+      if (currentWindow.length >= 2) {
+        const window = createWindowFromPoints(currentWindow);
+        if (window) windows.push(window);
+      }
+      
+      return windows;
+    };
+
+    // First try high-quality windows (score > 60)
+    let windows = findWindowsWithThreshold(60);
     
-    // Save final window if it has at least 2 hours
-    if (currentWindow.length >= 2) {
-      const window = createWindowFromPoints(currentWindow);
-      if (window) windows.push(window);
+    // If no high-quality windows, fall back to surfable windows (score >= 40)
+    if (windows.length === 0) {
+      windows = findWindowsWithThreshold(39); // 39 so score >= 40 passes
     }
     
     // Sort by average score (highest first) and take top 3

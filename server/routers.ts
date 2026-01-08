@@ -15,6 +15,15 @@ import {
   getAverageCrowdLevel,
   insertCrowdReport,
   getForecastTimeline,
+  getAllSwellAlertsForUser,
+  getSwellAlertById,
+  createSwellAlert,
+  updateSwellAlert,
+  deleteSwellAlert,
+  checkIfAlertAlreadySent,
+  logSwellAlertSent,
+  updateSwellAlertLogEmailSent,
+  getAllActiveSwellAlerts,
 } from "./db";
 import { getCurrentTideInfo } from "./services/tides";
 import { getCurrentConditionsFromOpenMeteo } from "./services/openMeteo";
@@ -1034,6 +1043,138 @@ export const appRouter = router({
             waveHeight: l.waveHeightFt,
           })),
         };
+      }),
+      }),
+
+  // ==================== ALERTS ROUTER ====================
+  alerts: router({
+    list: protectedProcedure.query(async ({ ctx }) => {
+      if (!ctx.user) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "User must be authenticated" });
+      }
+      return await getAllSwellAlertsForUser(ctx.user.id);
+    }),
+
+    get: protectedProcedure
+      .input(z.object({ alertId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "User must be authenticated" });
+        }
+        const alert = await getSwellAlertById(input.alertId, ctx.user.id);
+        if (!alert) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Alert not found" });
+        }
+        return alert;
+      }),
+
+    create: protectedProcedure
+      .input(
+        z.object({
+          spotId: z.number().nullable(),
+          minWaveHeightFt: z.number().optional(),
+          minQualityScore: z.number().min(0).max(100).optional(),
+          minPeriodSec: z.number().optional(),
+          idealWindOnly: z.boolean().optional(),
+          hoursAdvanceNotice: z.number().min(1).max(168).default(24),
+          emailEnabled: z.boolean().default(true),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "User must be authenticated" });
+        }
+        const alertId = await createSwellAlert({
+          userId: ctx.user.id,
+          spotId: input.spotId,
+          minWaveHeightFt: input.minWaveHeightFt ? String(input.minWaveHeightFt) : null,
+          minQualityScore: input.minQualityScore ?? null,
+          minPeriodSec: input.minPeriodSec ?? null,
+          idealWindOnly: input.idealWindOnly ? 1 : 0,
+          hoursAdvanceNotice: input.hoursAdvanceNotice,
+          emailEnabled: input.emailEnabled ? 1 : 1,
+          pushEnabled: 0,
+          isActive: 1,
+        });
+        return { success: true, alertId };
+      }),
+
+    update: protectedProcedure
+      .input(
+        z.object({
+          alertId: z.number(),
+          spotId: z.number().nullable().optional(),
+          minWaveHeightFt: z.number().optional(),
+          minQualityScore: z.number().min(0).max(100).optional(),
+          minPeriodSec: z.number().optional(),
+          idealWindOnly: z.boolean().optional(),
+          hoursAdvanceNotice: z.number().min(1).max(168).optional(),
+          emailEnabled: z.boolean().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "User must be authenticated" });
+        }
+        const { alertId, ...updates } = input;
+        const existingAlert = await getSwellAlertById(alertId, ctx.user.id);
+        if (!existingAlert) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Alert not found" });
+        }
+        const updateData: any = {};
+        if (updates.spotId !== undefined) updateData.spotId = updates.spotId;
+        if (updates.minWaveHeightFt !== undefined) {
+          updateData.minWaveHeightFt = updates.minWaveHeightFt ? String(updates.minWaveHeightFt) : null;
+        }
+        if (updates.minQualityScore !== undefined) updateData.minQualityScore = updates.minQualityScore;
+        if (updates.minPeriodSec !== undefined) updateData.minPeriodSec = updates.minPeriodSec;
+        if (updates.idealWindOnly !== undefined) updateData.idealWindOnly = updates.idealWindOnly ? 1 : 0;
+        if (updates.hoursAdvanceNotice !== undefined) updateData.hoursAdvanceNotice = updates.hoursAdvanceNotice;
+        if (updates.emailEnabled !== undefined) updateData.emailEnabled = updates.emailEnabled ? 1 : 0;
+        await updateSwellAlert(alertId, ctx.user.id, updateData);
+        return { success: true };
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ alertId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "User must be authenticated" });
+        }
+        await deleteSwellAlert(input.alertId, ctx.user.id);
+        return { success: true };
+      }),
+
+    preview: protectedProcedure
+      .input(
+        z.object({
+          spotId: z.number().nullable(),
+          minWaveHeightFt: z.number().optional(),
+          minQualityScore: z.number().min(0).max(100).optional(),
+          minPeriodSec: z.number().optional(),
+          hoursAdvanceNotice: z.number().min(1).max(168).default(24),
+        })
+      )
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "User must be authenticated" });
+        }
+        const { detectUpcomingSwells } = await import("./services/swellDetection");
+        const tempAlert: any = {
+          id: 0,
+          userId: ctx.user.id,
+          spotId: input.spotId,
+          minWaveHeightFt: input.minWaveHeightFt ? String(input.minWaveHeightFt) : null,
+          minQualityScore: input.minQualityScore ?? null,
+          minPeriodSec: input.minPeriodSec ?? null,
+          idealWindOnly: 0,
+          hoursAdvanceNotice: input.hoursAdvanceNotice,
+          emailEnabled: 1,
+          pushEnabled: 0,
+          isActive: 1,
+        };
+        const spots = await getAllSpots();
+        return await detectUpcomingSwells(tempAlert, spots);
       }),
   }),
 });

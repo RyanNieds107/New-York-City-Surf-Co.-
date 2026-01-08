@@ -1,4 +1,4 @@
-import { eq, desc, and, gte, lte, lt } from "drizzle-orm";
+import { eq, desc, and, gte, lte, lt, isNull, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser,
@@ -8,6 +8,8 @@ import {
   forecasts,
   forecastPoints,
   crowdReports,
+  swellAlerts,
+  swellAlertLogs,
   type SurfSpot,
   type InsertSurfSpot,
   type BuoyReading,
@@ -18,6 +20,10 @@ import {
   type InsertForecastPoint,
   type CrowdReport,
   type InsertCrowdReport,
+  type SwellAlert,
+  type InsertSwellAlert,
+  type SwellAlertLog,
+  type InsertSwellAlertLog,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -417,4 +423,170 @@ export async function deleteAllForecastPointsForSpot(
     .where(eq(forecastPoints.spotId, spotId));
   
   return result.rowsAffected || 0;
+}
+
+// ==================== SWELL ALERTS ====================
+
+export async function getAllSwellAlertsForUser(userId: number): Promise<SwellAlert[]> {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const result = await db
+    .select()
+    .from(swellAlerts)
+    .where(
+      and(
+        eq(swellAlerts.userId, userId),
+        eq(swellAlerts.isActive, 1)
+      )
+    )
+    .orderBy(desc(swellAlerts.createdAt));
+  
+  return result;
+}
+
+export async function getSwellAlertById(alertId: number, userId: number): Promise<SwellAlert | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const result = await db
+    .select()
+    .from(swellAlerts)
+    .where(
+      and(
+        eq(swellAlerts.id, alertId),
+        eq(swellAlerts.userId, userId)
+      )
+    )
+    .limit(1);
+  
+  return result[0];
+}
+
+export async function getAllActiveSwellAlerts(): Promise<SwellAlert[]> {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const result = await db
+    .select()
+    .from(swellAlerts)
+    .where(eq(swellAlerts.isActive, 1))
+    .orderBy(desc(swellAlerts.createdAt));
+  
+  return result;
+}
+
+export async function createSwellAlert(alert: InsertSwellAlert): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(swellAlerts).values({
+    ...alert,
+    isActive: alert.isActive ?? 1,
+    emailEnabled: alert.emailEnabled ?? 1,
+    pushEnabled: alert.pushEnabled ?? 0,
+    idealWindOnly: alert.idealWindOnly ?? 0,
+    hoursAdvanceNotice: alert.hoursAdvanceNotice ?? 24,
+  });
+  
+  return result.insertId;
+}
+
+export async function updateSwellAlert(
+  alertId: number,
+  userId: number,
+  updates: Partial<InsertSwellAlert>
+): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db
+    .update(swellAlerts)
+    .set({
+      ...updates,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(swellAlerts.id, alertId),
+        eq(swellAlerts.userId, userId)
+      )
+    );
+}
+
+export async function deleteSwellAlert(alertId: number, userId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  // Soft delete - set isActive to 0
+  await db
+    .update(swellAlerts)
+    .set({
+      isActive: 0,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(swellAlerts.id, alertId),
+        eq(swellAlerts.userId, userId)
+      )
+    );
+}
+
+export async function checkIfAlertAlreadySent(
+  alertId: number,
+  swellStartTime: Date,
+  swellEndTime: Date
+): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  
+  // Check if we've already sent an alert for this swell window
+  // Use a 12-hour window tolerance to avoid duplicates
+  const toleranceMs = 12 * 60 * 60 * 1000; // 12 hours
+  const startTimeMin = new Date(swellStartTime.getTime() - toleranceMs);
+  const startTimeMax = new Date(swellStartTime.getTime() + toleranceMs);
+  
+  const result = await db
+    .select()
+    .from(swellAlertLogs)
+    .where(
+      and(
+        eq(swellAlertLogs.alertId, alertId),
+        gte(swellAlertLogs.swellStartTime, startTimeMin),
+        lte(swellAlertLogs.swellStartTime, startTimeMax)
+      )
+    )
+    .limit(1);
+  
+  return result.length > 0;
+}
+
+export async function logSwellAlertSent(alertLog: InsertSwellAlertLog): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(swellAlertLogs).values({
+    ...alertLog,
+    emailSent: alertLog.emailSent ?? 0,
+    pushSent: alertLog.pushSent ?? 0,
+  });
+  
+  return result.insertId;
+}
+
+export async function updateSwellAlertLogEmailSent(
+  logId: number,
+  sentAt: Date
+): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db
+    .update(swellAlertLogs)
+    .set({
+      emailSent: 1,
+      emailSentAt: sentAt,
+    })
+    .where(eq(swellAlertLogs.id, logId));
 }
