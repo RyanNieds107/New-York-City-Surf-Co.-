@@ -58,6 +58,67 @@ export const appRouter = router({
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
     }),
+    signUp: publicProcedure
+      .input(
+        z.object({
+          name: z.string().min(1).max(128),
+          email: z.string().email(),
+          phone: z.string().min(10).max(20),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const { upsertUser, getUserByOpenId } = await import("./db");
+        const { sdk } = await import("./_core/sdk");
+        const { COOKIE_NAME, ONE_YEAR_MS } = await import("@shared/const");
+        const { getSessionCookieOptions } = await import("./_core/cookies");
+        const crypto = await import("crypto");
+
+        // Generate a custom openId for email-based sign-ups
+        // Use a hash of email to create unique identifier
+        const openIdHash = crypto.createHash("sha256").update(input.email.toLowerCase()).digest("hex").substring(0, 32);
+        const customOpenId = `email:${openIdHash}`;
+
+        // Check if user already exists
+        const existingUser = await getUserByOpenId(customOpenId);
+        if (existingUser) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "An account with this email already exists",
+          });
+        }
+
+        // Create user
+        await upsertUser({
+          openId: customOpenId,
+          name: input.name,
+          email: input.email.toLowerCase(),
+          phone: input.phone,
+          loginMethod: "email",
+          lastSignedIn: new Date(),
+        });
+
+        // Create session token
+        try {
+          const sessionToken = await sdk.createSessionToken(customOpenId, {
+            name: input.name,
+            expiresInMs: ONE_YEAR_MS,
+          });
+
+          // Set cookie
+          const cookieOptions = getSessionCookieOptions(ctx.req);
+          ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+
+          return { success: true };
+        } catch (error) {
+          console.error("[Auth] Failed to create session token for custom sign-up:", error);
+          // If SDK session creation fails, we still created the user
+          // They'll need to sign in via OAuth or we implement custom session management
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Account created but session setup failed. Please try signing in.",
+          });
+        }
+      }),
   }),
 
   // ==================== SPOTS ROUTER ====================

@@ -10,11 +10,13 @@ import SpotDetail from "./pages/SpotDetail";
 import SurfAnalysis from "./pages/SurfAnalysis";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
+import SignIn from "./pages/SignIn";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={LandingPage} />
+      <Route path="/sign-in" component={SignIn} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/spot/:id" component={SpotDetail} />
       <Route path="/surf-analysis" component={SurfAnalysis} />
