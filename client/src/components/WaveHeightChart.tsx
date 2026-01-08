@@ -240,6 +240,80 @@ export function WaveHeightChart({ data, selectedIndex, onPointSelect }: WaveHeig
     setHover(null);
   }, []);
 
+  // Touch interaction for mobile
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    e.preventDefault(); // Prevent scrolling
+    if (!chartData || !svgRef.current) return;
+
+    const rect = svgRef.current.getBoundingClientRect();
+    const touch = e.touches[0];
+    const touchX = touch.clientX - rect.left;
+
+    let closestIdx = 0;
+    let closestDist = Infinity;
+
+    chartData.points.forEach((_, idx) => {
+      const pointX = xScale(idx);
+      const dist = Math.abs(touchX - pointX);
+      if (dist < closestDist) {
+        closestDist = dist;
+        closestIdx = idx;
+      }
+    });
+
+    const point = chartData.points[closestIdx];
+    setHover({
+      index: closestIdx,
+      x: xScale(closestIdx),
+      y: yScale(point.waveHeight),
+      point,
+    });
+
+    // Call onPointSelect callback
+    if (onPointSelect) {
+      onPointSelect(closestIdx, point);
+    }
+  }, [chartData, xScale, yScale, onPointSelect]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    e.preventDefault(); // Prevent scrolling
+    if (!chartData || !svgRef.current) return;
+
+    const rect = svgRef.current.getBoundingClientRect();
+    const touch = e.touches[0];
+    const touchX = touch.clientX - rect.left;
+
+    let closestIdx = 0;
+    let closestDist = Infinity;
+
+    chartData.points.forEach((_, idx) => {
+      const pointX = xScale(idx);
+      const dist = Math.abs(touchX - pointX);
+      if (dist < closestDist) {
+        closestDist = dist;
+        closestIdx = idx;
+      }
+    });
+
+    const point = chartData.points[closestIdx];
+    setHover({
+      index: closestIdx,
+      x: xScale(closestIdx),
+      y: yScale(point.waveHeight),
+      point,
+    });
+
+    // Call onPointSelect callback
+    if (onPointSelect) {
+      onPointSelect(closestIdx, point);
+    }
+  }, [chartData, xScale, yScale, onPointSelect]);
+
+  const handleTouchEnd = useCallback(() => {
+    // Keep the last selected point visible on touch end
+    // Don't clear hover on mobile - let the selected point stay
+  }, []);
+
   // Empty state
   if (!data || data.length === 0 || !chartData) {
     return (
@@ -277,7 +351,10 @@ export function WaveHeightChart({ data, selectedIndex, onPointSelect }: WaveHeig
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         onClick={handleClick}
-        style={{ cursor: 'crosshair' }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        style={{ cursor: 'crosshair', touchAction: 'none' }}
       >
         <defs>
           {/* Gradient for each condition color - adds subtle depth */}

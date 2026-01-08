@@ -572,6 +572,24 @@ export default function SpotDetail() {
     };
   };
 
+  const DirectionArrow = ({ degrees }: { degrees: number }) => {
+    // Swell direction is where it comes FROM, add 180 to show direction of travel
+    return <SwellArrow directionDeg={degrees} size={14} />;
+  };
+
+  const getCrowdLabel = (level: number) => {
+    const labels = ["", "Empty", "Light", "Moderate", "Crowded", "Packed"];
+    return labels[level] || "Unknown";
+  };
+
+  const getCrowdColor = (level: number) => {
+    if (level <= 1) return "bg-emerald-600";
+    if (level === 2) return "bg-emerald-500";
+    if (level === 3) return "bg-amber-500";
+    if (level === 4) return "bg-orange-500";
+    return "bg-red-600";
+  };
+
   const getWaveHeightDescription = (heightFt: number | null): string => {
     if (heightFt === null || heightFt <= 0) return "Flat";
 
@@ -590,24 +608,6 @@ export default function SpotDetail() {
     if (heightFt < 9.0) return "Well Overhead";
 
     return "Double Overhead +";
-  };
-
-  const DirectionArrow = ({ degrees }: { degrees: number }) => {
-    // Swell direction is where it comes FROM, add 180 to show direction of travel
-    return <SwellArrow directionDeg={degrees} size={14} />;
-  };
-
-  const getCrowdLabel = (level: number) => {
-    const labels = ["", "Empty", "Light", "Moderate", "Crowded", "Packed"];
-    return labels[level] || "Unknown";
-  };
-
-  const getCrowdColor = (level: number) => {
-    if (level <= 1) return "bg-emerald-600";
-    if (level === 2) return "bg-emerald-500";
-    if (level === 3) return "bg-amber-500";
-    if (level === 4) return "bg-orange-500";
-    return "bg-red-600";
   };
 
   // Get rating label from quality score (0-100)
@@ -2947,177 +2947,6 @@ export default function SpotDetail() {
                                         ))}
                                       </div>
                                     )}
-                                  </div>
-                                </div>
-
-                                {/* Row 2: TIDE FORECAST */}
-                                <div className="mb-4 md:mb-6">
-                                  {/* TIDE FORECAST Box */}
-                                  <div className="bg-white border-2 border-black p-2">
-                                    <span className="text-[8px] md:text-[10px] font-bold tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.5px' }}>TIDE FORECAST</span>
-                                    {(() => {
-                                      // Find high and low tide points for this day
-                                      const tideExtremes: { type: 'high' | 'low'; time: Date; height: number; index: number }[] = [];
-
-                                      for (let i = 1; i < points.length - 1; i++) {
-                                        const prev = points[i - 1];
-                                        const curr = points[i];
-                                        const next = points[i + 1];
-
-                                        const prevHeight = prev.tideHeightFt != null ? prev.tideHeightFt / 10 : null;
-                                        const currHeight = curr.tideHeightFt != null ? curr.tideHeightFt / 10 : null;
-                                        const nextHeight = next.tideHeightFt != null ? next.tideHeightFt / 10 : null;
-
-                                        if (prevHeight !== null && currHeight !== null && nextHeight !== null) {
-                                          if (currHeight > prevHeight && currHeight > nextHeight) {
-                                            tideExtremes.push({ type: 'high', time: new Date(curr.forecastTimestamp), height: currHeight, index: i });
-                                          }
-                                          if (currHeight < prevHeight && currHeight < nextHeight) {
-                                            tideExtremes.push({ type: 'low', time: new Date(curr.forecastTimestamp), height: currHeight, index: i });
-                                          }
-                                        }
-                                      }
-
-                                      const highTide = tideExtremes.find(t => t.type === 'high');
-                                      const lowTide = tideExtremes.find(t => t.type === 'low');
-
-                                      const formatTideTime = (date: Date) => {
-                                        const hours = date.getHours();
-                                        const period = hours >= 12 ? 'pm' : 'am';
-                                        const hour12 = hours % 12 || 12;
-                                        return `${hour12}${period}`;
-                                      };
-
-                                      // Build tide curve data
-                                      const tideData = points.map((p, idx) => ({
-                                        height: p.tideHeightFt != null ? p.tideHeightFt / 10 : null,
-                                        hour: new Date(p.forecastTimestamp).getHours(),
-                                        index: idx
-                                      })).filter(d => d.height !== null) as { height: number; hour: number; index: number }[];
-
-                                      if (tideData.length === 0) {
-                                        return <p className="text-sm text-gray-500">No tide data available</p>;
-                                      }
-
-                                      // SVG dimensions - wider and compact for full-width panoramic layout
-                                      const svgWidth = 500;
-                                      const svgHeight = 40;
-                                      const padding = { top: 14, bottom: 14, left: 12, right: 12 };
-                                      const chartWidth = svgWidth - padding.left - padding.right;
-                                      const chartHeight = svgHeight - padding.top - padding.bottom;
-
-                                      // Find min/max for scaling with some padding
-                                      const heights = tideData.map(d => d.height);
-                                      const minHeight = Math.min(...heights);
-                                      const maxHeight = Math.max(...heights);
-                                      const heightRange = (maxHeight - minHeight) || 1;
-                                      const scalePadding = heightRange * 0.1;
-
-                                      const getX = (idx: number) => padding.left + (idx / Math.max(tideData.length - 1, 1)) * chartWidth;
-                                      const getY = (height: number) => {
-                                        const normalizedHeight = (height - minHeight + scalePadding) / (heightRange + scalePadding * 2);
-                                        return padding.top + chartHeight * (1 - normalizedHeight);
-                                      };
-
-                                      // Create smooth bezier curve
-                                      let pathD = `M ${getX(0)} ${getY(tideData[0].height)}`;
-                                      for (let i = 1; i < tideData.length; i++) {
-                                        const x0 = getX(i - 1);
-                                        const y0 = getY(tideData[i - 1].height);
-                                        const x1 = getX(i);
-                                        const y1 = getY(tideData[i].height);
-                                        const cpx = (x0 + x1) / 2;
-                                        pathD += ` C ${cpx} ${y0}, ${cpx} ${y1}, ${x1} ${y1}`;
-                                      }
-
-                                      // Create gradient fill path
-                                      const fillPathD = `${pathD} L ${getX(tideData.length - 1)} ${svgHeight - padding.bottom} L ${padding.left} ${svgHeight - padding.bottom} Z`;
-
-                                      return (
-                                        <div>
-                                          {/* Tide Curve SVG */}
-                                          <svg
-                                            width="100%"
-                                            height={svgHeight}
-                                            viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-                                            preserveAspectRatio="xMidYMid meet"
-                                            className="block"
-                                          >
-                                            {/* Gradient definition */}
-                                            <defs>
-                                              <linearGradient id={`tideGradient-${dayKey}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                                                <stop offset="0%" stopColor="#0ea5e9" stopOpacity="0.3" />
-                                                <stop offset="100%" stopColor="#0ea5e9" stopOpacity="0.05" />
-                                              </linearGradient>
-                                            </defs>
-
-                                            {/* Subtle horizontal gridlines */}
-                                            <line x1={padding.left} y1={padding.top} x2={svgWidth - padding.right} y2={padding.top} stroke="#e5e7eb" strokeWidth="1" />
-                                            <line x1={padding.left} y1={padding.top + chartHeight / 2} x2={svgWidth - padding.right} y2={padding.top + chartHeight / 2} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="4,4" />
-                                            <line x1={padding.left} y1={svgHeight - padding.bottom} x2={svgWidth - padding.right} y2={svgHeight - padding.bottom} stroke="#d1d5db" strokeWidth="1" />
-
-                                            {/* Fill under curve */}
-                                            <path d={fillPathD} fill={`url(#tideGradient-${dayKey})`} />
-
-                                            {/* Main curve line */}
-                                            <path d={pathD} fill="none" stroke="#0ea5e9" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-
-                                            {/* High tide marker */}
-                                            {highTide && (() => {
-                                              const highIdx = tideData.findIndex(d => d.index === highTide.index);
-                                              if (highIdx === -1) return null;
-                                              const x = getX(highIdx);
-                                              const y = getY(highTide.height);
-                                              return (
-                                                <g>
-                                                  <circle cx={x} cy={y} r="5" fill="#0ea5e9" stroke="white" strokeWidth="2" />
-                                                  <text x={x} y={y - 8} textAnchor="middle" fontSize="9" fill="#0369a1" fontWeight="600" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                                                    {formatTideTime(highTide.time)}
-                                                  </text>
-                                                </g>
-                                              );
-                                            })()}
-
-                                            {/* Low tide marker */}
-                                            {lowTide && (() => {
-                                              const lowIdx = tideData.findIndex(d => d.index === lowTide.index);
-                                              if (lowIdx === -1) return null;
-                                              const x = getX(lowIdx);
-                                              const y = getY(lowTide.height);
-                                              return (
-                                                <g>
-                                                  <circle cx={x} cy={y} r="5" fill="#0ea5e9" stroke="white" strokeWidth="2" />
-                                                  <text x={x} y={y - 8} textAnchor="middle" fontSize="9" fill="#0369a1" fontWeight="600" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                                                    {formatTideTime(lowTide.time)}
-                                                  </text>
-                                                </g>
-                                              );
-                                            })()}
-
-                                            {/* Time axis labels */}
-                                            <text x={padding.left} y={svgHeight - 4} fontSize="8" fill="#9ca3af" textAnchor="start" style={{ fontFamily: 'JetBrains Mono, monospace' }}>6a</text>
-                                            <text x={svgWidth / 2} y={svgHeight - 4} fontSize="8" fill="#9ca3af" textAnchor="middle" style={{ fontFamily: 'JetBrains Mono, monospace' }}>12p</text>
-                                            <text x={svgWidth - padding.right} y={svgHeight - 4} fontSize="8" fill="#9ca3af" textAnchor="end" style={{ fontFamily: 'JetBrains Mono, monospace' }}>6p</text>
-                                          </svg>
-
-                                          {/* High/Low summary row */}
-                                          <div className="flex justify-between mt-1 pt-1 border-t border-gray-100">
-                                            <div className="flex items-center gap-1 md:gap-1.5">
-                                              <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-sky-500"></div>
-                                              <span className="text-[9px] md:text-[11px] text-gray-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                                                <span className="font-semibold">High</span> {highTide ? `${highTide.height.toFixed(1)}ft` : 'N/A'}
-                                              </span>
-                                            </div>
-                                            <div className="flex items-center gap-1 md:gap-1.5">
-                                              <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-sky-500"></div>
-                                              <span className="text-[9px] md:text-[11px] text-gray-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                                                <span className="font-semibold">Low</span> {lowTide ? `${lowTide.height.toFixed(1)}ft` : 'N/A'}
-                                              </span>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      );
-                                    })()}
                                   </div>
                                 </div>
 
