@@ -66,22 +66,22 @@ export function SwellSignalTeaser({ className }: SwellSignalTeaserProps) {
     <>
       <div className={cn("bg-white border-2 border-black shadow-lg", className)}>
         {/* Header */}
-        <div className="px-5 pt-4 pb-1">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-black flex items-center justify-center flex-shrink-0">
-                <Radio className="w-4 h-4 text-white" />
+        <div className="px-3 sm:px-5 pt-3 sm:pt-4 pb-1">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-6 h-6 sm:w-8 sm:h-8 bg-black flex items-center justify-center flex-shrink-0">
+                <Radio className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
               </div>
               <span
-                className="text-[10px] font-medium tracking-widest text-gray-500 uppercase"
+                className="text-[8px] sm:text-[10px] font-medium tracking-widest text-gray-500 uppercase"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
-                LONG RANGE FORECAST
+                LONG RANGE
               </span>
             </div>
-            <div className="px-2 py-1 bg-black text-white">
+            <div className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-black text-white">
               <span
-                className="text-[9px] font-bold uppercase tracking-wider"
+                className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
                 Coming Soon
@@ -91,28 +91,28 @@ export function SwellSignalTeaser({ className }: SwellSignalTeaserProps) {
         </div>
 
         {/* Content */}
-        <div className="px-5 pt-2 pb-5">
-          <div className="flex flex-col md:flex-row md:items-center gap-5 md:gap-8">
+        <div className="px-3 sm:px-5 pt-1 sm:pt-2 pb-3 sm:pb-5">
+          <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-8">
             {/* Left: Header + Value Props */}
             <div className="flex-1">
               {/* Title */}
-              <div className="mb-4">
+              <div className="mb-2 sm:mb-4">
                 <h2
-                  className="text-3xl font-black text-black uppercase tracking-tight"
+                  className="text-2xl sm:text-3xl font-black text-black uppercase tracking-tight"
                   style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.02em' }}
                 >
                   THE SWELL SIGNAL
                 </h2>
                 <p
-                  className="text-sm text-gray-600 mt-1"
+                  className="text-xs sm:text-sm text-gray-600 mt-0.5 sm:mt-1"
                   style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
                 >
                   6-10 day forecast. Plan your sick days with precision.
                 </p>
               </div>
 
-              {/* Value Props - Horizontal on desktop */}
-              <div className="flex flex-wrap gap-x-6 gap-y-2 mb-4">
+              {/* Value Props - Compact on mobile */}
+              <div className="hidden sm:flex flex-wrap gap-x-6 gap-y-2 mb-4">
                 <div className="flex items-center gap-2">
                   <div className="w-5 h-5 bg-black flex items-center justify-center flex-shrink-0">
                     <BarChart3 className="w-2.5 h-2.5 text-white" />
@@ -148,17 +148,30 @@ export function SwellSignalTeaser({ className }: SwellSignalTeaserProps) {
                 </div>
               </div>
 
+              {/* Mobile: Inline feature tags */}
+              <div className="flex sm:hidden flex-wrap gap-1.5 mb-3">
+                <span className="text-[9px] px-1.5 py-0.5 bg-gray-100 text-gray-600 uppercase tracking-wide" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  Ensemble Models
+                </span>
+                <span className="text-[9px] px-1.5 py-0.5 bg-gray-100 text-gray-600 uppercase tracking-wide" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  Probability Scores
+                </span>
+                <span className="text-[9px] px-1.5 py-0.5 bg-gray-100 text-gray-600 uppercase tracking-wide" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  WLI Optimized
+                </span>
+              </div>
+
               {/* CTA Buttons */}
               <div className="flex gap-2">
                 <Button
                   onClick={() => setShowNotifyModal(true)}
                   size="sm"
                   className={cn(
-                    "gap-1.5",
+                    "gap-1 sm:gap-1.5 h-8 sm:h-9 px-2.5 sm:px-3",
                     "bg-black hover:bg-gray-800 text-white",
                     "border-2 border-black",
                     "rounded-none",
-                    "font-bold uppercase tracking-wide text-xs"
+                    "font-bold uppercase tracking-wide text-[10px] sm:text-xs"
                   )}
                   style={{ fontFamily: "'JetBrains Mono', monospace" }}
                 >
@@ -170,11 +183,11 @@ export function SwellSignalTeaser({ className }: SwellSignalTeaserProps) {
                   variant="outline"
                   size="sm"
                   className={cn(
-                    "gap-1.5",
+                    "gap-1 sm:gap-1.5 h-8 sm:h-9 px-2.5 sm:px-3",
                     "bg-white hover:bg-gray-50 text-black",
                     "border-2 border-black",
                     "rounded-none",
-                    "font-bold uppercase tracking-wide text-xs"
+                    "font-bold uppercase tracking-wide text-[10px] sm:text-xs"
                   )}
                   style={{ fontFamily: "'JetBrains Mono', monospace" }}
                 >
@@ -184,8 +197,8 @@ export function SwellSignalTeaser({ className }: SwellSignalTeaserProps) {
               </div>
             </div>
 
-            {/* Right: Ghosted Chart Preview */}
-            <div className="relative w-full md:w-64 flex-shrink-0 border-2 border-dashed border-gray-300 bg-gray-50 p-3">
+            {/* Right: Ghosted Chart Preview - Hidden on mobile */}
+            <div className="hidden md:block relative w-64 flex-shrink-0 border-2 border-dashed border-gray-300 bg-gray-50 p-3">
               <div className="opacity-30">
                 <svg
                   viewBox={`0 0 ${chartWidth} ${chartHeight}`}

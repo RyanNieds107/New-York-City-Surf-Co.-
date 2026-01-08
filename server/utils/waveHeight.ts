@@ -306,19 +306,19 @@ export function getDominantSwell(
  *
  * SELECTION vs DISPLAY:
  * - SELECTION: Uses H² × T energy formula (in getDominantSwell)
- * - DISPLAY: Uses H × (T/10) × spotMultiplier × tideMultiplier (this function)
+ * - DISPLAY: Uses H × (T/9)^0.5 × directionMultiplier × spotMultiplier × tideMultiplier (this function)
  *
  * Formula (in order):
- * 1. Period-adjusted base height: H × (T / 10) - reflects wave shoaling physics
- * 2. Apply spot multiplier (Lido: 1.5x, Long Beach: 1.3x, Rockaway: 1.1x)
+ * 1. Period-adjusted base height: H × (T / 9)^0.5 - power function with 9s baseline
+ * 2. Apply spot multiplier (Lido: 1.2x-1.5x, Long Beach: 1.1x-1.3x, Rockaway: 1.0x-1.1x)
  * 3. Apply tide multiplier (high tide: 0.7x, low tide: 1.2x, interpolated between)
  * 4. Apply directional kill switch (250-310° West) → 0
  * 5. Apply directional wrap penalty (< 110° East) → 0.7x
  * 6. Round to nearest 0.1ft - ONLY at the very end
  * 7. Apply minimum floor of 0.1ft (if calculated > 0)
  *
- * Example: 3ft swell @ 15s at Lido (1.5x) = 3 × 1.5 × 1.5 = 6.75ft → 7ft
- * Example: 3ft swell @ 5s at Lido (1.5x) = 3 × 0.5 × 1.5 = 2.25ft → 2ft
+ * Example: 2.5ft @ 8s at Lido (1.2x) = 2.5 × (8/9)^0.5 × 1.2 = 2.5 × 0.94 × 1.2 = 2.82ft
+ * Example: 3ft @ 14s at Lido (1.5x) = 3 × (14/9)^0.5 × 1.5 = 3 × 1.25 × 1.5 = 5.63ft
  *
  * @param swellHeightFt - Offshore swell height in decimal feet (MUST be in feet)
  * @param periodS - Swell period in seconds
@@ -326,7 +326,7 @@ export function getDominantSwell(
  * @param swellDirectionDeg - Swell direction in degrees (0-360) or null
  * @param tideHeightFt - Tide height in decimal feet (e.g., 3.5, not 35) or null
  * @param tidePhase - Tide phase: 'high', 'low', 'rising', 'falling', or null
- * @returns Predicted breaking wave face height in feet (rounded to 0.5ft)
+ * @returns Predicted breaking wave face height in feet (rounded to 0.1ft)
  */
 export function calculateBreakingWaveHeight(
   swellHeightFt: number,
@@ -359,13 +359,26 @@ export function calculateBreakingWaveHeight(
     spotMultiplier,
   });
 
-  // STEP 1: Calculate period-adjusted base height
-  // Formula: H × (T / 10) - reflects wave shoaling physics
-  // A 15s groundswell breaks larger than a 5s wind swell of the same offshore height
-  const periodFactor = periodS / 10;
+  // STEP 1: Calculate period-adjusted base height using power function
+  // Formula: H × (T / 9)^0.5 - power function with 9s baseline
+  // A 9s swell has multiplier of 1.0, 8s is ~0.94x, 14s+ tapers off smoothly
+  const periodBaseline = 9;
+  const periodFactor = Math.pow(periodS / periodBaseline, 0.5);
   const periodAdjustedHeight = swellHeightFt * periodFactor;
+  
   console.log('📊 [Period-Adjusted Height]:', periodAdjustedHeight.toFixed(2),
-    `ft (${swellHeightFt.toFixed(1)} × ${periodFactor.toFixed(2)})`);
+    `ft (${swellHeightFt.toFixed(1)} × (${periodS}/${periodBaseline})^0.5 = ${periodFactor.toFixed(3)})`);
+
+  // Test cases for verification
+  if ((Math.abs(swellHeightFt - 2.5) < 0.1 && Math.abs(periodS - 8) < 0.1) ||
+      (Math.abs(swellHeightFt - 3.0) < 0.1 && Math.abs(periodS - 6) < 0.1)) {
+    console.log('🧪 [TEST CASE]', {
+      input: `${swellHeightFt.toFixed(1)}ft @ ${periodS}s`,
+      periodFactor: periodFactor.toFixed(3),
+      periodAdjustedHeight: periodAdjustedHeight.toFixed(2),
+      expected: periodS === 8 ? '~2.35-2.5ft' : '~2.4ft'
+    });
+  }
 
   // STEP 2: Apply Spot Multiplier
   // Each spot has different bathymetry that amplifies waves

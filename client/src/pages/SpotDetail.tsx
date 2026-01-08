@@ -573,14 +573,23 @@ export default function SpotDetail() {
   };
 
   const getWaveHeightDescription = (heightFt: number | null): string => {
-    if (heightFt === null) return "";
-    if (heightFt < 1) return "Ankle to shin";
-    if (heightFt < 2) return "Shin to knee";
-    if (heightFt < 3) return "Knee to waist";
-    if (heightFt < 4) return "Waist to chest";
-    if (heightFt < 6) return "Chest to head";
-    if (heightFt < 8) return "Head high to overhead";
-    return "Double overhead+";
+    if (heightFt === null || heightFt <= 0) return "Flat";
+
+    if (heightFt < 1.5) return "Shin to Knee";
+
+    if (heightFt < 2.5) return "Knee to Waist";
+
+    if (heightFt < 3.5) return "Waist to Chest";
+
+    if (heightFt < 4.5) return "Chest to Shoulder";
+
+    if (heightFt < 5.5) return "Head High";
+
+    if (heightFt < 7.0) return "Overhead";
+
+    if (heightFt < 9.0) return "Well Overhead";
+
+    return "Double Overhead +";
   };
 
   const DirectionArrow = ({ degrees }: { degrees: number }) => {
@@ -656,7 +665,9 @@ export default function SpotDetail() {
   const getWindowLabel = (hour: number): { label: string; emoji: string } => {
     if (hour >= 5 && hour < 8) {
       return { label: "DAWN PATROL", emoji: "🌅" };
-    } else if (hour >= 10 && hour < 14) {
+    } else if (hour >= 8 && hour < 12) {
+      return { label: "MORNING", emoji: "🌊" };
+    } else if (hour >= 12 && hour < 14) {
       return { label: "MIDDAY", emoji: "⚡" };
     } else if (hour >= 14 && hour < 18) {
       return { label: "AFTERNOON", emoji: "🌊" };
@@ -701,9 +712,16 @@ export default function SpotDetail() {
 
   const analyzeBestWindows = (points: Array<NonNullable<typeof timelineQuery.data>['timeline'][number]>): Window[] => {
     if (!points || points.length === 0) return [];
+    
+    // Filter out nighttime hours - only consider daylight hours for best windows
+    const daylightPoints = spot ? points.filter(p => {
+      return !isNighttime(p.forecastTimestamp, parseFloat(String(spot.latitude)), parseFloat(String(spot.longitude)));
+    }) : points;
+
+    if (daylightPoints.length === 0) return [];
 
     // Sort points by timestamp
-    const sortedPoints = [...points].sort((a, b) => {
+    const sortedPoints = [...daylightPoints].sort((a, b) => {
       return new Date(a.forecastTimestamp).getTime() - new Date(b.forecastTimestamp).getTime();
     });
 
@@ -1256,7 +1274,7 @@ export default function SpotDetail() {
               <div className="px-4 sm:px-6 py-3 sm:py-4 border-b-2 border-black">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <h2 className="text-2xl sm:text-3xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                    Conditions
+                    Current Conditions
                   </h2>
                   {conditionsAsOf && (
                     <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-black uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
@@ -1273,16 +1291,22 @@ export default function SpotDetail() {
               <div className="p-4 sm:p-6 md:p-8">
                 {currentConditions ? (
                   <>
-                    <div className="grid grid-cols-2 gap-6 sm:gap-8 md:gap-12">
+                    <div className="grid grid-cols-2 gap-4 sm:gap-6 md:gap-8">
                       {/* Surf Height - calculated from buoy data using spot-specific algorithm */}
                       <div>
-                        <p className="text-[10px] sm:text-xs font-medium text-black uppercase tracking-wider mb-2 sm:mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                        <p className="text-[10px] sm:text-xs font-medium text-black uppercase tracking-wider mb-1.5 sm:mb-2" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                           Surf Height
                         </p>
                         {(() => {
-                          // Prefer buoy-calculated breaking height using spot-specific algorithm
+                          // Use NOAA-based breaking height from currentConditions if available
+                          // This comes from getCurrentConditionsForAll which uses buoy data
+                          // Fallback to buoyBreakingHeightsQuery if currentConditions doesn't have it
                           const buoyBasedHeight = spot?.name ? buoyBreakingHeightsQuery.data?.[spot.name] : null;
-                          const displayHeight = buoyBasedHeight ?? currentConditions.dominantSwellHeightFt ?? currentConditions.waveHeightFt ?? null;
+                          const displayHeight = currentConditions?.breakingWaveHeightFt ??
+                            buoyBasedHeight ??
+                            currentConditions?.dominantSwellHeightFt ??
+                            currentConditions?.waveHeightFt ??
+                            (forecast?.waveHeightTenthsFt ? forecast.waveHeightTenthsFt / 10 : null);
                           const description = getWaveHeightDescription(displayHeight);
 
                           return (
@@ -1301,7 +1325,7 @@ export default function SpotDetail() {
                       </div>
 
                       {/* Swell */}
-                      <div className="overflow-hidden">
+                      <div>
                         <p className="text-[10px] sm:text-xs font-medium text-black uppercase tracking-wider mb-2 sm:mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                           Swell
                         </p>
@@ -1315,7 +1339,7 @@ export default function SpotDetail() {
                             period: string;
                             direction: string | null;
                             directionDeg: number | null | undefined;
-                            isDominant: boolean;
+                            isPrimary: boolean;
                           }> = [];
 
                           // VALIDATION MODE: Use buoy to validate Open-Meteo forecast
@@ -1330,7 +1354,7 @@ export default function SpotDetail() {
                               period: string;
                               direction: string | null;
                               directionDeg: number | null | undefined;
-                              isDominant: boolean;
+                              isPrimary: boolean;
                             }> = [];
 
                             // Primary swell from forecast
@@ -1345,7 +1369,7 @@ export default function SpotDetail() {
 
                               if (!isNaN(heightNum) && !isNaN(periodNum) && heightNum > 0) {
                                 forecastComponents.push({
-                                  label: 'DOMINANT SWELL',
+                                  label: 'PRIMARY',
                                   height: heightNum,
                                   heightStr: heightNum.toFixed(1),
                                   period: periodNum.toFixed(0),
@@ -1353,7 +1377,7 @@ export default function SpotDetail() {
                                     ? formatSwellDirection(currentConditions.waveDirectionDeg)
                                     : null,
                                   directionDeg: currentConditions.waveDirectionDeg,
-                                  isDominant: true,
+                                  isPrimary: true,
                                 });
                               }
                             }
@@ -1378,7 +1402,7 @@ export default function SpotDetail() {
                                     ? formatSwellDirection(currentConditions.secondarySwellDirectionDeg)
                                     : null,
                                   directionDeg: currentConditions.secondarySwellDirectionDeg,
-                                  isDominant: false,
+                                  isPrimary: false,
                                 });
                               }
                             }
@@ -1395,7 +1419,7 @@ export default function SpotDetail() {
 
                               if (!isNaN(heightNum) && !isNaN(periodNum) && heightNum > 0) {
                                 forecastComponents.push({
-                                  label: 'WIND SWELL',
+                                  label: 'WIND',
                                   height: heightNum,
                                   heightStr: heightNum.toFixed(1),
                                   period: periodNum.toFixed(0),
@@ -1403,7 +1427,7 @@ export default function SpotDetail() {
                                     ? formatSwellDirection(currentConditions.windWaveDirectionDeg)
                                     : null,
                                   directionDeg: currentConditions.windWaveDirectionDeg,
-                                  isDominant: false,
+                                  isPrimary: false,
                                 });
                               }
                             }
@@ -1422,7 +1446,7 @@ export default function SpotDetail() {
                                 period: c.period,
                                 direction: c.direction,
                                 directionDeg: c.directionDeg,
-                                isDominant: c.isDominant,
+                                isPrimary: c.isPrimary,
                               })));
 
                               const forecastTotal = Math.sqrt(
@@ -1438,29 +1462,29 @@ export default function SpotDetail() {
 
                               // Show buoy swell component
                               if (buoyData.swellHeight !== null && buoyData.swellPeriod !== null) {
-                            swells.push({
-                              label: 'DOMINANT SWELL',
+                                swells.push({
+                                  label: 'PRIMARY',
                                   height: buoyData.swellHeight.toFixed(1),
                                   period: buoyData.swellPeriod.toFixed(0),
                                   direction: buoyData.swellDirectionDeg !== null
                                     ? formatSwellDirection(buoyData.swellDirectionDeg)
                                     : null,
                                   directionDeg: buoyData.swellDirectionDeg,
-                              isDominant: true,
-                            });
-                          }
+                                  isPrimary: true,
+                                });
+                              }
 
                               // Show buoy wind wave component if available
                               if (buoyData.windWaveHeight !== null && buoyData.windWavePeriod !== null) {
                                 swells.push({
-                                  label: 'WIND WAVES',
+                                  label: 'WIND',
                                   height: buoyData.windWaveHeight.toFixed(1),
                                   period: buoyData.windWavePeriod.toFixed(0),
                                   direction: buoyData.windWaveDirectionDeg !== null
                                     ? formatSwellDirection(buoyData.windWaveDirectionDeg)
                                     : null,
                                   directionDeg: buoyData.windWaveDirectionDeg,
-                                  isDominant: false,
+                                  isPrimary: false,
                                 });
                               }
                             }
@@ -1480,61 +1504,61 @@ export default function SpotDetail() {
 
                               if (!isNaN(heightNum) && !isNaN(periodNum)) {
                                 swells.push({
-                                  label: 'DOMINANT SWELL',
+                                  label: 'PRIMARY',
                                   height: heightNum.toFixed(1),
                                   period: periodNum.toFixed(0),
                                   direction: currentConditions.waveDirectionDeg !== null
                                     ? formatSwellDirection(currentConditions.waveDirectionDeg)
                                     : null,
                                   directionDeg: currentConditions.waveDirectionDeg,
-                                  isDominant: true,
+                                  isPrimary: true,
                                 });
                               }
                             }
 
                             // Secondary swell
-                          if (currentConditions.secondarySwellHeightFt !== null && currentConditions.secondarySwellPeriodS !== null) {
-                            const heightNum = typeof currentConditions.secondarySwellHeightFt === 'string'
-                              ? parseFloat(currentConditions.secondarySwellHeightFt)
-                              : currentConditions.secondarySwellHeightFt;
-                            const periodNum = typeof currentConditions.secondarySwellPeriodS === 'string'
-                              ? parseFloat(currentConditions.secondarySwellPeriodS)
-                              : currentConditions.secondarySwellPeriodS;
+                            if (currentConditions.secondarySwellHeightFt !== null && currentConditions.secondarySwellPeriodS !== null) {
+                              const heightNum = typeof currentConditions.secondarySwellHeightFt === 'string'
+                                ? parseFloat(currentConditions.secondarySwellHeightFt)
+                                : currentConditions.secondarySwellHeightFt;
+                              const periodNum = typeof currentConditions.secondarySwellPeriodS === 'string'
+                                ? parseFloat(currentConditions.secondarySwellPeriodS)
+                                : currentConditions.secondarySwellPeriodS;
 
-                            if (!isNaN(heightNum) && !isNaN(periodNum)) {
-                              swells.push({
+                              if (!isNaN(heightNum) && !isNaN(periodNum)) {
+                                swells.push({
                                   label: 'SECONDARY',
-                                height: heightNum.toFixed(1),
-                                period: periodNum.toFixed(0),
+                                  height: heightNum.toFixed(1),
+                                  period: periodNum.toFixed(0),
                                   direction: currentConditions.secondarySwellDirectionDeg !== null
-                                  ? formatSwellDirection(currentConditions.secondarySwellDirectionDeg)
-                                  : null,
-                                directionDeg: currentConditions.secondarySwellDirectionDeg,
-                                isDominant: false,
-                              });
+                                    ? formatSwellDirection(currentConditions.secondarySwellDirectionDeg)
+                                    : null,
+                                  directionDeg: currentConditions.secondarySwellDirectionDeg,
+                                  isPrimary: false,
+                                });
+                              }
                             }
-                          }
 
                             // Wind swell
-                          if (currentConditions.windWaveHeightFt !== null && currentConditions.windWavePeriodS !== null) {
-                            const heightNum = typeof currentConditions.windWaveHeightFt === 'string'
-                              ? parseFloat(currentConditions.windWaveHeightFt)
-                              : currentConditions.windWaveHeightFt;
-                            const periodNum = typeof currentConditions.windWavePeriodS === 'string'
-                              ? parseFloat(currentConditions.windWavePeriodS)
-                              : currentConditions.windWavePeriodS;
+                            if (currentConditions.windWaveHeightFt !== null && currentConditions.windWavePeriodS !== null) {
+                              const heightNum = typeof currentConditions.windWaveHeightFt === 'string'
+                                ? parseFloat(currentConditions.windWaveHeightFt)
+                                : currentConditions.windWaveHeightFt;
+                              const periodNum = typeof currentConditions.windWavePeriodS === 'string'
+                                ? parseFloat(currentConditions.windWavePeriodS)
+                                : currentConditions.windWavePeriodS;
 
-                            if (!isNaN(heightNum) && !isNaN(periodNum)) {
-                              swells.push({
-                                  label: 'WIND SWELL',
-                                height: heightNum.toFixed(1),
-                                period: periodNum.toFixed(0),
+                              if (!isNaN(heightNum) && !isNaN(periodNum)) {
+                                swells.push({
+                                  label: 'WIND',
+                                  height: heightNum.toFixed(1),
+                                  period: periodNum.toFixed(0),
                                   direction: currentConditions.windWaveDirectionDeg !== null
-                                  ? formatSwellDirection(currentConditions.windWaveDirectionDeg)
-                                  : null,
-                                directionDeg: currentConditions.windWaveDirectionDeg,
-                                isDominant: false,
-                              });
+                                    ? formatSwellDirection(currentConditions.windWaveDirectionDeg)
+                                    : null,
+                                  directionDeg: currentConditions.windWaveDirectionDeg,
+                                  isPrimary: false,
+                                });
                               }
                             }
                           }
@@ -1546,27 +1570,44 @@ export default function SpotDetail() {
                           return (
                             <div className="space-y-2 sm:space-y-3">
                               {swells.map((swell, i) => (
-                                <div key={i} className={`${swell.isDominant ? 'bg-blue-50 p-2 -mx-2 rounded' : ''}`}>
-                                  <div className={`text-[10px] sm:text-xs font-medium uppercase tracking-wider mb-1 ${swell.isDominant ? 'text-blue-900' : 'text-black'}`} style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                                    {swell.label}:
-                                  </div>
-                                  <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
-                                    <span className={`text-lg sm:text-xl font-black uppercase ${swell.isDominant ? 'text-blue-900' : 'text-black'}`} style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                                      {swell.height}ft
+                                <div
+                                  key={i}
+                                  className={`${swell.isPrimary
+                                    ? 'border-l-4 border-blue-500 pl-3 py-1'
+                                    : 'border-l-2 border-gray-200 pl-3 py-0.5'}`}
+                                >
+                                  <div className="flex items-baseline gap-2">
+                                    <span
+                                      className={`text-2xl sm:text-3xl font-black uppercase tracking-tight ${swell.isPrimary ? 'text-black' : 'text-gray-700'}`}
+                                      style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
+                                    >
+                                      {swell.height}FT
                                     </span>
-                                    <span className={`text-sm sm:text-base font-normal ${swell.isDominant ? 'text-blue-800' : 'text-black'}`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                    <span
+                                      className={`text-sm sm:text-base font-medium ${swell.isPrimary ? 'text-gray-600' : 'text-gray-500'}`}
+                                      style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                                    >
                                       {swell.period}s
                                     </span>
                                     {swell.directionDeg !== null && swell.directionDeg !== undefined && (
-                                      <>
+                                      <div className="flex items-center gap-1">
                                         <DirectionArrow degrees={swell.directionDeg} />
                                         {swell.direction && (
-                                          <span className={`text-xs sm:text-sm font-normal ${swell.isDominant ? 'text-blue-800' : 'text-black'}`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                          <span
+                                            className={`text-xs sm:text-sm ${swell.isPrimary ? 'text-gray-600' : 'text-gray-500'}`}
+                                            style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                                          >
                                             {swell.direction}
                                           </span>
                                         )}
-                                      </>
+                                      </div>
                                     )}
+                                  </div>
+                                  <div
+                                    className={`text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider mt-0.5 ${swell.isPrimary ? 'text-blue-600' : 'text-gray-400'}`}
+                                    style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
+                                  >
+                                    {swell.label}
                                   </div>
                                 </div>
                               ))}
@@ -1576,204 +1617,144 @@ export default function SpotDetail() {
                       </div>
                     </div>
 
-                    {/* Additional Sections: Wind, Tide, Temperature, Wetsuit, Crowd */}
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 sm:gap-6 md:gap-8 mt-6 sm:mt-8 pt-6 sm:pt-8 border-t-2 border-black">
-                    {/* Wind */}
-                    <div>
-                      <p className="text-[10px] sm:text-xs font-medium text-black uppercase tracking-wider mb-2 sm:mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                        Wind
-                      </p>
-                      {currentConditions.windSpeedMph !== null && currentConditions.windDirectionDeg !== null ? (
-                        <div className="flex items-center gap-2 sm:gap-4">
-                          {/* Wind Compass */}
-                          <div className="relative w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0">
-                            <svg viewBox="0 0 100 100" className="w-full h-full">
-                              {/* Outer circle */}
-                              <circle cx="50" cy="50" r="45" fill="none" stroke="#e5e7eb" strokeWidth="2" />
-                              {/* Cardinal directions */}
-                              <text x="50" y="12" textAnchor="middle" className="text-[10px] font-bold fill-gray-400">N</text>
-                              <text x="88" y="54" textAnchor="middle" className="text-[10px] font-bold fill-gray-400">E</text>
-                              <text x="50" y="96" textAnchor="middle" className="text-[10px] font-bold fill-gray-400">S</text>
-                              <text x="12" y="54" textAnchor="middle" className="text-[10px] font-bold fill-gray-400">W</text>
-                              {/* Wind direction arrow - points where wind is coming FROM */}
-                              <g transform={`rotate(${currentConditions.windDirectionDeg + 180}, 50, 50)`}>
-                                <line x1="50" y1="20" x2="50" y2="55" stroke={
-                                  currentConditions.windType === 'offshore' ? '#059669' :
-                                  currentConditions.windType === 'onshore' ? '#ef4444' :
-                                  currentConditions.windType === 'cross-offshore' ? '#6b7280' :
-                                  '#f59e0b'
-                                } strokeWidth="3" strokeLinecap="round" />
-                                <polygon points="50,15 44,28 56,28" fill={
-                                  currentConditions.windType === 'offshore' ? '#059669' :
-                                  currentConditions.windType === 'onshore' ? '#ef4444' :
-                                  currentConditions.windType === 'cross-offshore' ? '#6b7280' :
-                                  '#f59e0b'
-                                } />
-                              </g>
-                              {/* Center dot */}
-                              <circle cx="50" cy="50" r="4" fill="#1f2937" />
-                            </svg>
-                          </div>
-                          {/* Wind data */}
+                    {/* Additional Sections: Wind, Tide, Temperature, Wetsuit */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-gray-200 mt-6 sm:mt-8 border-t-2 border-b-2 border-black">
+                      {/* Wind */}
+                      <div className="bg-white p-3 sm:p-4">
+                        <p className="text-[9px] sm:text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                          Wind
+                        </p>
+                        {currentConditions.windSpeedMph !== null && currentConditions.windDirectionDeg !== null ? (
                           <div>
-                            <p className="text-xl sm:text-2xl md:text-3xl font-black text-black mb-1 leading-none uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                              {Math.round(currentConditions.windSpeedMph)}mph {(() => {
-                                  const directions = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
-                                  const index = Math.round(currentConditions.windDirectionDeg / 22.5) % 16;
-                                  return directions[index];
+                            <p className="text-xl sm:text-2xl font-black text-black leading-none uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                              {Math.round(currentConditions.windSpeedMph)}<span className="text-base sm:text-lg">MPH</span> {(() => {
+                                const directions = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+                                const index = Math.round(currentConditions.windDirectionDeg / 22.5) % 16;
+                                return directions[index];
                               })()}
                             </p>
                             {currentConditions.windType && (
-                              <p className={`text-xs sm:text-sm font-semibold uppercase tracking-wider ${
+                              <p className={`text-[10px] sm:text-xs font-semibold uppercase tracking-wider mt-1 ${
                                 currentConditions.windType === 'offshore' ? 'text-emerald-600' :
                                 currentConditions.windType === 'onshore' ? 'text-red-500' :
                                 currentConditions.windType === 'cross-offshore' ? 'text-gray-500' :
                                 'text-amber-500'
                               }`} style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                                {currentConditions.windType === 'cross-offshore' ? 'Cross-Offshore' : currentConditions.windType}
+                                {currentConditions.windType === 'cross-offshore' ? 'Cross-Off' : currentConditions.windType}
                               </p>
                             )}
                           </div>
-                        </div>
-                      ) : (
-                        <p className="text-sm text-black uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>No wind data</p>
-                      )}
-                    </div>
+                        ) : (
+                          <p className="text-xs text-gray-400 uppercase" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>—</p>
+                        )}
+                      </div>
 
-                    {/* Tide */}
-                    <div>
-                      <p className="text-[10px] sm:text-xs font-medium text-black uppercase tracking-wider mb-2 sm:mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                        Tide
-                      </p>
-                      {currentConditions.tideHeightFt !== null ? (
-                        <>
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className="text-xl sm:text-2xl md:text-3xl font-black text-black leading-none uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                              {(currentConditions.tideHeightFt / 10).toFixed(1)}ft
-                            </p>
-                            {currentConditions.tidePhase === "rising" && (
-                              <ArrowUp className="h-3 w-3 sm:h-4 sm:w-4 text-black" />
-                            )}
-                            {currentConditions.tidePhase === "falling" && (
-                              <ArrowDown className="h-3 w-3 sm:h-4 sm:w-4 text-black" />
-                            )}
-                          </div>
-                          {currentConditions.tidePhase && (
-                            <p className="text-xs sm:text-sm font-normal text-black uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                              {currentConditions.tidePhase}
-                            </p>
-                          )}
-                        </>
-                      ) : (
-                        <p className="text-sm text-black uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>No tide data</p>
-                      )}
-                    </div>
-
-                    {/* Temperature */}
-                    <div>
-                      <p className="text-[10px] sm:text-xs font-medium text-black uppercase tracking-wider mb-2 sm:mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                        Temperature
-                      </p>
-                      {currentConditions.waterTempF !== null || currentConditions.airTempF !== null ? (
-                        <div className="space-y-1 sm:space-y-2">
-                          <div className="flex items-center gap-1 sm:gap-2">
-                            <Droplet className="h-4 w-4 sm:h-5 sm:w-5 text-black" />
-                            <p className="text-xl sm:text-2xl md:text-3xl font-black text-black leading-none uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                              {currentConditions.waterTempF !== null ? `${Math.round(currentConditions.waterTempF)}°F` : '—'}
-                            </p>
-                            <span className="text-[10px] sm:text-xs text-black uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>water</span>
-                          </div>
-                          <div className="flex items-center gap-1 sm:gap-2">
-                            <Sun className="h-4 w-4 sm:h-5 sm:w-5 text-black" />
-                            <p className="text-xl sm:text-2xl md:text-3xl font-black text-black leading-none uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                              {currentConditions.airTempF !== null ? `${Math.round(currentConditions.airTempF)}°F` : '—'}
-                            </p>
-                            <span className="text-[10px] sm:text-xs text-black uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>air</span>
-                    </div>
-                  </div>
-                ) : (
-                        <p className="text-sm text-black uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>No temp data</p>
-                      )}
-                    </div>
-
-                    {/* Wetsuit Required */}
-                    <div>
-                      <p className="text-[10px] sm:text-xs font-medium text-black uppercase tracking-wider mb-2 sm:mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                        Wetsuit Required
-                      </p>
-                      {currentConditions.waterTempF !== null ? (
-                        <>
-                          {(() => {
-                            const { thickness, color } = getWetsuitRecommendation(currentConditions.waterTempF);
-                            return (
-                              <p className={`text-lg sm:text-xl md:text-2xl lg:text-3xl font-black leading-none uppercase tracking-tight mb-1 sm:mb-2 ${color}`} style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                                {thickness}
+                      {/* Tide */}
+                      <div className="bg-white p-3 sm:p-4">
+                        <p className="text-[9px] sm:text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                          Tide
+                        </p>
+                        {currentConditions.tideHeightFt !== null ? (
+                          <div>
+                            <div className="flex items-center gap-1">
+                              <p className="text-xl sm:text-2xl font-black text-black leading-none uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                                {(currentConditions.tideHeightFt / 10).toFixed(1)}<span className="text-base sm:text-lg">FT</span>
                               </p>
-                            );
-                          })()}
-                          <p className="text-[10px] sm:text-xs font-normal text-black uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                            {getWetsuitAccessories(currentConditions.waterTempF, currentConditions.airTempF)}
-                          </p>
-                        </>
-                      ) : (
-                        <p className="text-sm text-black uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>No temp data</p>
-                      )}
-                    </div>
-
-                    {/* Crowd Level */}
-                    <div>
-                      <p className="text-[10px] sm:text-xs font-medium text-black uppercase tracking-wider mb-2 sm:mb-3" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                        Crowd Level
-                      </p>
-                      {crowdQuery.data?.averageLevel ? (
-                        <button
-                          onClick={() => isAuthenticated && setShowCrowdReport(!showCrowdReport)}
-                          className="w-full text-left hover:opacity-80 transition-opacity"
-                          disabled={!isAuthenticated}
-                        >
-                          <div className="flex items-center gap-1 sm:gap-2 mb-2">
-                            <Users className="h-4 w-4 sm:h-5 sm:w-5 text-black" />
-                            <div className="flex-1">
-                              <p className="text-lg sm:text-xl md:text-2xl font-black text-black leading-none uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                                {getCrowdLabel(crowdQuery.data.averageLevel)}
-                              </p>
-                              <p className="text-[10px] sm:text-xs text-gray-600 uppercase tracking-wider mt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                                {crowdQuery.data.reports.length} {crowdQuery.data.reports.length === 1 ? 'report' : 'reports'}
-                              </p>
+                              {currentConditions.tidePhase === "rising" && (
+                                <ArrowUp className="h-4 w-4 text-black" />
+                              )}
+                              {currentConditions.tidePhase === "falling" && (
+                                <ArrowDown className="h-4 w-4 text-black" />
+                              )}
                             </div>
-                            <div className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full ${getCrowdColor(crowdQuery.data.averageLevel)}`} />
+                            {currentConditions.tidePhase && (
+                              <p className="text-[10px] sm:text-xs font-normal text-gray-600 uppercase tracking-wider mt-1" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                {currentConditions.tidePhase}
+                              </p>
+                            )}
                           </div>
-                          {isAuthenticated ? (
-                            <span className="text-[10px] sm:text-xs font-bold text-black uppercase tracking-wider hover:underline" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                              {showCrowdReport ? 'Hide' : 'Click to Report'}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-gray-500 uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                              Sign in to report
-                            </span>
-                          )}
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => isAuthenticated && setShowCrowdReport(!showCrowdReport)}
-                          className="w-full text-left hover:opacity-80 transition-opacity"
-                          disabled={!isAuthenticated}
-                        >
-                          <p className="text-sm text-gray-600 uppercase tracking-wider mb-2" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                            No reports yet
-                          </p>
-                          {isAuthenticated ? (
-                            <span className="text-xs font-bold text-black uppercase tracking-wider hover:underline" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                              {showCrowdReport ? 'Hide' : 'Be the first →'}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-gray-500 uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                              Sign in to report
-                            </span>
-                          )}
-                        </button>
-                      )}
+                        ) : (
+                          <p className="text-xs text-gray-400 uppercase" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>—</p>
+                        )}
+                      </div>
+
+                      {/* Temperature */}
+                      <div className="bg-white p-3 sm:p-4">
+                        <p className="text-[9px] sm:text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                          Temp
+                        </p>
+                        {currentConditions.waterTempF !== null || currentConditions.airTempF !== null ? (
+                          <div>
+                            <p className="text-xl sm:text-2xl font-black text-black leading-none uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                              {currentConditions.waterTempF !== null ? `${Math.round(currentConditions.waterTempF)}°` : '—'}
+                              <span className="text-[10px] sm:text-xs font-normal text-gray-500 ml-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>water</span>
+                            </p>
+                            <p className="text-sm sm:text-base font-black text-gray-600 leading-none uppercase tracking-tight mt-1" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                              {currentConditions.airTempF !== null ? `${Math.round(currentConditions.airTempF)}°` : '—'}
+                              <span className="text-[10px] sm:text-xs font-normal text-gray-400 ml-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>air</span>
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-gray-400 uppercase" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>—</p>
+                        )}
+                      </div>
+
+                      {/* Wetsuit */}
+                      <div className="bg-white p-3 sm:p-4">
+                        <p className="text-[9px] sm:text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                          Wetsuit
+                        </p>
+                        {currentConditions.waterTempF !== null ? (
+                          <div>
+                            {(() => {
+                              const { thickness, color } = getWetsuitRecommendation(currentConditions.waterTempF);
+                              return (
+                                <p className={`text-lg sm:text-xl font-black leading-none uppercase tracking-tight ${color}`} style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                                  {thickness}
+                                </p>
+                              );
+                            })()}
+                            <p className="text-[9px] sm:text-[10px] font-normal text-gray-500 uppercase tracking-wider mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                              {getWetsuitAccessories(currentConditions.waterTempF, currentConditions.airTempF)}
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-gray-400 uppercase" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>—</p>
+                        )}
+                      </div>
                     </div>
+
+                    {/* Crowd Level - Full width row */}
+                    <div className="flex items-center justify-between p-3 sm:p-4 bg-gray-50">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-gray-400" />
+                        <span className="text-[9px] sm:text-[10px] font-semibold text-gray-500 uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                          Crowd
+                        </span>
+                        {crowdQuery.data?.averageLevel ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm sm:text-base font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                              {getCrowdLabel(crowdQuery.data.averageLevel)}
+                            </span>
+                            <div className={`w-2 h-2 rounded-full ${getCrowdColor(crowdQuery.data.averageLevel)}`} />
+                            <span className="text-[9px] text-gray-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                              ({crowdQuery.data.reports.length})
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400 uppercase" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                            No reports
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => isAuthenticated && setShowCrowdReport(!showCrowdReport)}
+                        disabled={!isAuthenticated}
+                        className="text-[10px] sm:text-xs font-semibold text-blue-600 uppercase tracking-wider hover:underline disabled:text-gray-400 disabled:no-underline"
+                        style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
+                      >
+                        {!isAuthenticated ? 'Sign in' : showCrowdReport ? 'Hide' : 'Report'}
+                      </button>
                     </div>
 
                     {/* Expandable Crowd Report Section */}
@@ -1953,18 +1934,6 @@ export default function SpotDetail() {
                   )}
                 </div>
               )}
-              
-              {/* Local Insight */}
-              {forecast && currentConditions && (
-                <div className="px-6 pb-6 border-t border-black pt-4">
-                  <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    LOCAL INSIGHT
-                  </span>
-                  <p className="mt-2 text-sm text-gray-700" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                    Coming soon...
-                  </p>
-                </div>
-              )}
             </div>
 
             {/* Forecast Timeline - Multi-Day Forecast - NYC Grit Style */}
@@ -1972,14 +1941,6 @@ export default function SpotDetail() {
               <div className="p-4 md:p-6 border-b border-black">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <div className="flex items-center gap-2 md:gap-3 mb-2">
-                      <div className="w-6 h-6 md:w-8 md:h-8 bg-black flex items-center justify-center">
-                        <Clock className="w-3 h-3 md:w-4 md:h-4 text-white" />
-                      </div>
-                      <span className="text-[8px] md:text-[10px] font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                        MARINE FORECAST
-                      </span>
-                    </div>
                     <h2 className="text-2xl md:text-4xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.02em' }}>
                       5-DAY FORECAST
                     </h2>
@@ -2185,109 +2146,241 @@ export default function SpotDetail() {
 
                               return (
                                 <div className="border border-black bg-white">
+                                  {/* Mobile: Compact 2x2 Grid Layout */}
+                                  <div className="md:hidden">
+                                    {/* Swell Section */}
+                                    <div className="grid grid-cols-3 gap-px bg-gray-200 border-b border-black">
+                                      {/* Primary */}
+                                      <div className="bg-white p-2.5">
+                                        <div className="flex items-center justify-between mb-1">
+                                          <span className="text-[8px] font-bold text-gray-500 uppercase tracking-wide" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Primary</span>
+                                          {point.dominantSwellHeightFt && <span className="text-[9px] font-semibold text-blue-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{primaryEnergy}%</span>}
+                                        </div>
+                                        {point.dominantSwellHeightFt && point.dominantSwellPeriodS ? (
+                                          <>
+                                            <div className="h-1 bg-gray-200 mb-1.5 rounded-full overflow-hidden">
+                                              <div className="h-full bg-blue-500 rounded-full" style={{ width: `${primaryEnergy}%` }} />
+                                            </div>
+                                            <div className="text-[11px] font-bold text-black" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+                                              {Number(point.dominantSwellHeightFt).toFixed(1)}FT @ {Number(point.dominantSwellPeriodS).toFixed(0)}S
+                                            </div>
+                                            <div className="text-[9px] text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                              {getSwellDirectionLabel(primaryDir)} {Math.round(primaryDir)}°
+                                            </div>
+                                          </>
+                                        ) : (
+                                          <div className="text-[10px] text-gray-400">—</div>
+                                        )}
+                                      </div>
+                                      {/* Secondary */}
+                                      <div className="bg-white p-2.5">
+                                        <div className="flex items-center justify-between mb-1">
+                                          <span className="text-[8px] font-bold text-gray-500 uppercase tracking-wide" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Secondary</span>
+                                          {point.secondarySwellHeightFt && <span className="text-[9px] font-semibold text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{secondaryEnergy}%</span>}
+                                        </div>
+                                        {point.secondarySwellHeightFt && point.secondarySwellPeriodS ? (
+                                          <>
+                                            <div className="h-1 bg-gray-200 mb-1.5 rounded-full overflow-hidden">
+                                              <div className="h-full bg-gray-400 rounded-full" style={{ width: `${secondaryEnergy}%` }} />
+                                            </div>
+                                            <div className="text-[11px] font-bold text-black" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+                                              {Number(point.secondarySwellHeightFt).toFixed(1)}FT @ {Number(point.secondarySwellPeriodS).toFixed(0)}S
+                                            </div>
+                                            <div className="text-[9px] text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                              {getSwellDirectionLabel(secondaryDir)} {Math.round(secondaryDir)}°
+                                            </div>
+                                          </>
+                                        ) : (
+                                          <div className="text-[10px] text-gray-400">—</div>
+                                        )}
+                                      </div>
+                                      {/* Wind Swell */}
+                                      <div className="bg-white p-2.5">
+                                        <div className="flex items-center justify-between mb-1">
+                                          <span className="text-[8px] font-bold text-gray-500 uppercase tracking-wide" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Wind</span>
+                                          {point.windWaveHeightFt && <span className="text-[9px] font-semibold text-orange-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{windSwellEnergy}%</span>}
+                                        </div>
+                                        {point.windWaveHeightFt && point.windWavePeriodS ? (
+                                          <>
+                                            <div className="h-1 bg-gray-200 mb-1.5 rounded-full overflow-hidden">
+                                              <div className="h-full bg-orange-400 rounded-full" style={{ width: `${windSwellEnergy}%` }} />
+                                            </div>
+                                            <div className="text-[11px] font-bold text-black" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+                                              {Number(point.windWaveHeightFt).toFixed(1)}FT @ {Number(point.windWavePeriodS).toFixed(0)}S
+                                            </div>
+                                            <div className="text-[9px] text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                              {getSwellDirectionLabel(windSwellDir)} {Math.round(windSwellDir)}°
+                                            </div>
+                                          </>
+                                        ) : (
+                                          <div className="text-[10px] text-gray-400">—</div>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Wind & Tide Row */}
+                                    <div className="grid grid-cols-2 gap-px bg-gray-200">
+                                      {/* Wind */}
+                                      <div className="bg-white p-2.5">
+                                        <span className="text-[8px] font-bold text-gray-500 uppercase tracking-wide block mb-1.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Wind</span>
+                                        {windDir !== null && windSpeed !== null ? (
+                                          <div className="flex items-center gap-2">
+                                            <div className="w-10 h-10 relative flex-shrink-0">
+                                              <svg viewBox="0 0 40 40" className="w-full h-full">
+                                                <circle cx="20" cy="20" r="18" fill="none" stroke="#e5e7eb" strokeWidth="1" />
+                                                <g transform={`rotate(${windDir + 180}, 20, 20)`}>
+                                                  <line x1="20" y1="28" x2="20" y2="8" stroke={windType === 'offshore' ? '#059669' : windType === 'onshore' ? '#ef4444' : '#6b7280'} strokeWidth="2" strokeLinecap="round" />
+                                                  <polygon points="20,6 16,12 24,12" fill={windType === 'offshore' ? '#059669' : windType === 'onshore' ? '#ef4444' : '#6b7280'} />
+                                                </g>
+                                                <circle cx="20" cy="20" r="2" fill={windType === 'offshore' ? '#059669' : windType === 'onshore' ? '#ef4444' : '#6b7280'} />
+                                              </svg>
+                                            </div>
+                                            <div>
+                                              <div className="text-sm font-bold text-black" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+                                                {getSwellDirectionLabel(windDir)} {Math.round(windSpeed)}MPH
+                                              </div>
+                                              {windType && (
+                                                <div className={`text-[10px] font-semibold ${windType === 'offshore' ? 'text-emerald-600' : windType === 'onshore' ? 'text-red-500' : 'text-gray-500'}`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                                  {formatWindType(windType)}
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <div className="text-[10px] text-gray-400">—</div>
+                                        )}
+                                      </div>
+                                      {/* Tide */}
+                                      <div className="bg-white p-2.5">
+                                        <span className="text-[8px] font-bold text-gray-500 uppercase tracking-wide block mb-1.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Tide</span>
+                                        {tideHeight !== null ? (
+                                          <div>
+                                            <div className="text-sm font-bold text-black flex items-center gap-1" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+                                              {tideHeight.toFixed(1)}FT
+                                              {(tidePhase === 'rising' || tidePhase === 'falling') && (
+                                                <TrendArrow rising={tidePhase === 'rising' || tidePhase === 'high'} size={12} />
+                                              )}
+                                              <span className="text-[10px] font-normal text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                                {tidePhase}
+                                              </span>
+                                            </div>
+                                            {nextTideTime && nextTideHeight !== null && (
+                                              <div className="text-[10px] text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                                {nextTidePhase === 'high' ? 'High' : 'Low'} @ {nextTideTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
+                                              </div>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          <div className="text-[10px] text-gray-400">—</div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Desktop: Original Layout */}
+                                  <div className="hidden md:block">
                                   {/* Row 1: Three Swell Columns */}
-                                  <div className="grid grid-cols-1 md:grid-cols-3 border-b border-black">
+                                  <div className="grid grid-cols-3 border-b border-black">
                                     {/* Primary Swell */}
-                                    <div className="p-3 md:p-5 border-b md:border-b-0 md:border-r border-black">
-                                      <div className="uppercase mb-1 md:mb-2" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', fontWeight: 700, color: '#64748b', letterSpacing: '0.5px' }}>
-                                        <span className="md:hidden">PRIMARY</span>
-                                        <span className="hidden md:inline">PRIMARY</span>
+                                    <div className="p-5 border-r border-black">
+                                      <div className="uppercase mb-2" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', fontWeight: 700, color: '#64748b', letterSpacing: '0.5px' }}>
+                                        PRIMARY
                                       </div>
                                       {point.dominantSwellHeightFt && point.dominantSwellPeriodS ? (
                                         <>
                                           {/* Energy Bar */}
-                                          <div className="flex items-center gap-1.5 md:gap-2 mb-2 md:mb-3">
+                                          <div className="flex items-center gap-2 mb-3">
                                             <div className="flex-1 h-2 bg-[#e2e8f0] relative" style={{ height: '8px' }}>
-                                              <div 
-                                                className="h-full bg-[#3b82f6]" 
+                                              <div
+                                                className="h-full bg-[#3b82f6]"
                                                 style={{ width: `${primaryEnergy}%` }}
                                               />
                                             </div>
-                                            <span className="text-[10px] md:text-xs font-semibold text-black" style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
+                                            <span className="text-xs font-semibold text-black" style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
                                               {primaryEnergy}%
                                             </span>
                                           </div>
                                           {/* Swell Info */}
-                                          <div className="text-[#1e293b] text-xs md:text-sm" style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
+                                          <div className="text-[#1e293b] text-sm" style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
                                             {getSwellDirectionLabel(primaryDir)} {Math.round(primaryDir)}° | {Number(point.dominantSwellHeightFt).toFixed(1)}ft @ {Number(point.dominantSwellPeriodS).toFixed(0)}s
                                           </div>
                                         </>
                                       ) : (
-                                        <div className="text-xs md:text-sm text-gray-500">—</div>
+                                        <div className="text-sm text-gray-500">—</div>
                                       )}
                                     </div>
 
                                     {/* Secondary Swell */}
-                                    <div className="p-3 md:p-5 border-b md:border-b-0 md:border-r border-black">
-                                      <div className="uppercase mb-1 md:mb-2" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', fontWeight: 700, color: '#64748b', letterSpacing: '0.5px' }}>
+                                    <div className="p-5 border-r border-black">
+                                      <div className="uppercase mb-2" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', fontWeight: 700, color: '#64748b', letterSpacing: '0.5px' }}>
                                         SECONDARY
                                       </div>
                                       {point.secondarySwellHeightFt && point.secondarySwellPeriodS ? (
                                         <>
                                           {/* Energy Bar */}
-                                          <div className="flex items-center gap-1.5 md:gap-2 mb-2 md:mb-3">
+                                          <div className="flex items-center gap-2 mb-3">
                                             <div className="flex-1 h-2 bg-[#e2e8f0] relative" style={{ height: '8px' }}>
-                                              <div 
-                                                className="h-full bg-[#94a3b8]" 
+                                              <div
+                                                className="h-full bg-[#94a3b8]"
                                                 style={{ width: `${secondaryEnergy}%` }}
                                               />
                                             </div>
-                                            <span className="text-[10px] md:text-xs font-semibold text-black" style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
+                                            <span className="text-xs font-semibold text-black" style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
                                               {secondaryEnergy}%
                                             </span>
                                           </div>
                                           {/* Swell Info */}
-                                          <div className="text-[#1e293b] text-xs md:text-sm" style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
+                                          <div className="text-[#1e293b] text-sm" style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
                                             {getSwellDirectionLabel(secondaryDir)} {Math.round(secondaryDir)}° | {Number(point.secondarySwellHeightFt).toFixed(1)}ft @ {Number(point.secondarySwellPeriodS).toFixed(0)}s
                                           </div>
                                         </>
                                       ) : (
-                                        <div className="text-xs md:text-sm text-gray-500">—</div>
+                                        <div className="text-sm text-gray-500">—</div>
                                       )}
                                     </div>
 
                                     {/* Wind Swell */}
-                                    <div className="p-3 md:p-5 md:border-b-0 md:border-r-0">
-                                      <div className="uppercase mb-1 md:mb-2" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', fontWeight: 700, color: '#64748b', letterSpacing: '0.5px' }}>
+                                    <div className="p-5">
+                                      <div className="uppercase mb-2" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', fontWeight: 700, color: '#64748b', letterSpacing: '0.5px' }}>
                                         WIND SWELL
                                       </div>
                                       {point.windWaveHeightFt && point.windWavePeriodS ? (
                                         <>
                                           {/* Energy Bar */}
-                                          <div className="flex items-center gap-1.5 md:gap-2 mb-2 md:mb-3">
+                                          <div className="flex items-center gap-2 mb-3">
                                             <div className="flex-1 h-2 bg-[#e2e8f0] relative" style={{ height: '8px' }}>
-                                              <div 
-                                                className="h-full bg-[#f97316]" 
+                                              <div
+                                                className="h-full bg-[#f97316]"
                                                 style={{ width: `${windSwellEnergy}%` }}
                                               />
                                             </div>
-                                            <span className="text-[10px] md:text-xs font-semibold text-black" style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
+                                            <span className="text-xs font-semibold text-black" style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
                                               {windSwellEnergy}%
                                             </span>
                                           </div>
                                           {/* Swell Info */}
-                                          <div className="text-[#1e293b] text-xs md:text-sm" style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
+                                          <div className="text-[#1e293b] text-sm" style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
                                             {getSwellDirectionLabel(windSwellDir)} {Math.round(windSwellDir)}° | {Number(point.windWaveHeightFt).toFixed(1)}ft @ {Number(point.windWavePeriodS).toFixed(0)}s
                                           </div>
                                         </>
                                       ) : (
-                                        <div className="text-xs md:text-sm text-gray-500">—</div>
+                                        <div className="text-sm text-gray-500">—</div>
                                       )}
                                     </div>
                                   </div>
 
                                   {/* Row 2: Wind and Tide */}
-                                  <div className="grid grid-cols-1 md:grid-cols-[40%_60%]">
+                                  <div className="grid grid-cols-[40%_60%]">
                                     {/* Wind Column */}
-                                    <div className="p-3 md:p-5 border-b md:border-b-0 md:border-r border-black">
+                                    <div className="p-5 border-r border-black">
                                       <div className="uppercase mb-2" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', fontWeight: 700, color: '#64748b', letterSpacing: '0.5px' }}>
                                         WIND
                                       </div>
                                       {windDir !== null && windSpeed !== null ? (
-                                        <div className="flex items-start gap-2 md:gap-4">
+                                        <div className="flex items-start gap-4">
                                           {/* Wind Compass Rose */}
                                           <div className="flex-shrink-0">
-                                            <svg className="w-12 h-12 md:w-14 md:h-14" viewBox="0 0 56 56">
+                                            <svg className="w-14 h-14" viewBox="0 0 56 56">
                                               {/* Outer circle */}
                                               <circle cx="28" cy="28" r="26" fill="none" stroke="#e2e8f0" strokeWidth="1.5" />
                                               {/* Inner circle */}
@@ -2311,10 +2404,10 @@ export default function SpotDetail() {
                                           </div>
                                           {/* Wind Info */}
                                           <div className="flex-1 min-w-0">
-                                            <div className="text-[#1e293b] mb-1 md:mb-1.5 text-sm md:text-base" style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
+                                            <div className="text-[#1e293b] mb-1.5 text-base" style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
                                               {getSwellDirectionLabel(windDir)} {Math.round(windDir)}°
                                             </div>
-                                            <div className="text-xs md:text-sm" style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
+                                            <div className="text-sm" style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
                                               <span className="text-[#64748b]">{Math.round(windSpeed)}mph </span>
                                               {windType && (
                                                 <span style={{
@@ -2328,12 +2421,12 @@ export default function SpotDetail() {
                                           </div>
                                         </div>
                                       ) : (
-                                        <div className="text-xs md:text-sm text-gray-500">—</div>
+                                        <div className="text-sm text-gray-500">—</div>
                                       )}
                                     </div>
 
                                     {/* Tide Column with Mini Sparkline */}
-                                    <div className="p-3 md:p-5 md:border-b-0 md:border-r-0">
+                                    <div className="p-5">
                                       <div className="uppercase mb-2" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', fontWeight: 700, color: '#64748b', letterSpacing: '0.5px' }}>
                                         TIDE
                                       </div>
@@ -2453,6 +2546,7 @@ export default function SpotDetail() {
                                     </div>
                                   </div>
                                 </div>
+                              </div>
                               );
                             })()}
                           </div>
@@ -2705,12 +2799,21 @@ export default function SpotDetail() {
                         // Format average height for display
                         const displayAvgHeight = avgHeight !== null ? formatSurfHeight(avgHeight) : "N/A";
 
+                        // Get accent color based on score
+                        const getAccentColor = (score: number) => {
+                          if (score >= 91) return 'border-l-emerald-500';
+                          if (score >= 76) return 'border-l-green-500';
+                          if (score >= 60) return 'border-l-lime-500';
+                          if (score >= 40) return 'border-l-yellow-400';
+                          return 'border-l-red-400';
+                        };
+
                         return (
                           <div
                             key={dayKey}
-                            className={`${showSurfableHoursCallout ? 'bg-white' : getCardBackgroundColor(avgScore)} transition-all`}
+                            className={`${showSurfableHoursCallout ? 'bg-white' : getCardBackgroundColor(avgScore)} border-l-4 ${getAccentColor(avgScore)} transition-all`}
                           >
-                            {/* Day Summary Card - Secondary Season Format */}
+                            {/* Day Summary Card */}
                             <button
                               onClick={() => {
                                 const newExpanded = new Set(expandedDays);
@@ -2721,59 +2824,50 @@ export default function SpotDetail() {
                                 }
                                 setExpandedDays(newExpanded);
                               }}
-                              className="w-full p-3 md:p-4 text-left"
+                              className="w-full px-3 py-2.5 md:p-4 text-left"
                             >
-                              <div className="flex items-start justify-between gap-2 md:gap-3">
+                              <div className="flex items-center justify-between gap-2">
                                 <div className="flex-1 min-w-0">
-                                  {/* Main verdict line: DAY - VERDICT BADGE - CONFIDENCE */}
-                                  <div className="flex items-center gap-1 md:gap-1.5 flex-wrap">
-                                    <h4 className="text-xl md:text-2xl font-black text-black uppercase" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                                  {/* Top line: Day name + Badge */}
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <h4 className="text-lg md:text-2xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                                       {fullDayName}
                                     </h4>
-                                    <span className={`${getScoreBadgeColors(avgScore).bg} ${getScoreBadgeColors(avgScore).text} px-1.5 py-0.5 md:px-2 md:py-0.5 text-[8px] md:text-[10px] font-medium tracking-widest uppercase`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                    <span className={`${getScoreBadgeColors(avgScore).bg} ${getScoreBadgeColors(avgScore).text} px-1.5 py-0.5 text-[7px] md:text-[9px] font-bold tracking-wider uppercase`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                                       {verdictLabel.toUpperCase()}
-                                    </span>
-                                    <span className="text-[8px] md:text-[10px] font-medium tracking-widest text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                                      {confidencePercentage}% CONFIDENCE
                                     </span>
                                   </div>
 
-                                  {/* Surfable hours callout - shows when day is "Don't Bother" but has some surfable hours */}
+                                  {/* Surfable hours callout */}
                                   {showSurfableHoursCallout && (
-                                    <div className="my-1.5">
-                                      <span className="inline-flex items-center gap-1 text-[9px] md:text-[10px] font-medium tracking-wide text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                                        <Clock className="h-3 w-3 md:h-3.5 md:w-3.5" />
-                                        {surfableDaylightHoursCount} {surfableDaylightHoursCount === 1 ? 'hour' : 'hours'} worth checking{bestQualityRating && (bestQualityRating === "Go Surf" || bestQualityRating === "Firing" || bestQualityRating === "All-Time") ? ` (${bestQualityRating})` : ''}
+                                    <div className="mb-1">
+                                      <span className="inline-flex items-center gap-1 text-[8px] md:text-[10px] font-medium tracking-wide text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                        <Clock className="h-2.5 w-2.5 md:h-3.5 md:w-3.5" />
+                                        {surfableDaylightHoursCount}hr surfable{bestQualityRating && (bestQualityRating === "Go Surf" || bestQualityRating === "Firing" || bestQualityRating === "All-Time") ? ` • ${bestQualityRating}` : ''}
                                       </span>
                                     </div>
                                   )}
 
-                                  {/* Date + Stats line */}
-                                  <p className="text-[10px] md:text-xs text-gray-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                                    <span className="font-semibold">{dayDate.toLocaleDateString("en-US", { weekday: 'short', month: "short", day: "numeric" })}</span>
-                                    <span className="mx-1.5">•</span>
-                                    <span className="font-bold text-black">{displayAvgHeight}</span>
+                                  {/* Stats line: Height + Wind */}
+                                  <div className="flex items-center gap-2 text-[10px] md:text-xs" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                    <span className="font-black text-black text-sm md:text-base" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                                      {displayAvgHeight}
+                                    </span>
                                     {avgWindSpeed !== null && windDirCardinal && (
-                                      <>
-                                        <span className="mx-1.5">•</span>
-                                        <span className="font-bold text-black inline-flex items-center gap-1">
-                                          {windDirCardinal.cardinal}
-                                          <Arrow degrees={(windDirCardinal.degrees + 180) % 360} size={12} color="#1e293b" />
-                                          {avgWindSpeed}mph
-                                        </span>
-                                      </>
+                                      <span className="text-gray-500 flex items-center gap-0.5">
+                                        {windDirCardinal.cardinal}
+                                        <Arrow degrees={(windDirCardinal.degrees + 180) % 360} size={10} color="#6b7280" />
+                                        {avgWindSpeed}mph
+                                      </span>
                                     )}
-                                  </p>
+                                    <span className="text-gray-400">
+                                      {confidencePercentage}% confidence
+                                    </span>
+                                  </div>
                                 </div>
 
                                 {/* Expand/Collapse Chevron */}
-                                <div className="flex-shrink-0 self-center">
-                                  {isExpanded ? (
-                                    <ChevronUp className="h-5 w-5 md:h-6 md:w-6 text-black" />
-                                  ) : (
-                                    <ChevronDown className="h-5 w-5 md:h-6 md:w-6 text-black" />
-                                  )}
-                                </div>
+                                <ChevronDown className={`h-5 w-5 md:h-6 md:w-6 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                               </div>
                             </button>
 
@@ -3374,19 +3468,19 @@ export default function SpotDetail() {
 
             {/* Tabbed Content Interface */}
             {spot && (spot.name === "Lido Beach" || spot.name === "Rockaway Beach" || spot.name === "Long Beach") && (
-              <div className="mt-12">
+              <div className="mt-8 sm:mt-12">
                 {/* Tab Navigation */}
-                <div className="bg-gray-50 border-2 border-black mb-8">
-                  <div className="p-4 border-b-2 border-black">
-                    <h2 className="text-3xl font-bold text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                <div className="bg-gray-50 border-2 border-black mb-4 sm:mb-8">
+                  <div className="px-3 py-2 sm:p-4 border-b-2 border-black">
+                    <h2 className="text-2xl sm:text-3xl font-bold text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                       SPOT GUIDE
                     </h2>
                   </div>
-                  <div className="flex gap-2 p-4 flex-wrap">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5 sm:gap-2 p-2 sm:p-4">
                     <button
                       onClick={() => setActiveTab("ideal-conditions")}
                       className={cn(
-                        "flex-1 px-6 py-4 text-base font-bold uppercase tracking-wide transition-all duration-200 relative border-2 whitespace-nowrap",
+                        "px-2 py-2.5 sm:px-4 sm:py-3 text-[11px] sm:text-sm font-bold uppercase tracking-wide transition-all duration-200 border-2",
                         activeTab === "ideal-conditions"
                           ? "bg-black text-white border-black"
                           : "bg-white text-black border-black hover:bg-gray-100"
@@ -3398,31 +3492,31 @@ export default function SpotDetail() {
                     <button
                       onClick={() => setActiveTab("when-to-go")}
                       className={cn(
-                        "flex-1 px-6 py-4 text-base font-bold uppercase tracking-wide transition-all duration-200 relative border-2 whitespace-nowrap",
+                        "px-2 py-2.5 sm:px-4 sm:py-3 text-[11px] sm:text-sm font-bold uppercase tracking-wide transition-all duration-200 border-2",
                         activeTab === "when-to-go"
                           ? "bg-black text-white border-black"
                           : "bg-white text-black border-black hover:bg-gray-100"
                       )}
                       style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
                     >
-                      When to go
+                      When to Go
                     </button>
                     <button
                       onClick={() => setActiveTab(spot.name === "Lido Beach" ? "offshore-bathymetry" : spot.name === "Rockaway Beach" || spot.name === "Long Beach" ? "getting-there" : "location")}
                       className={cn(
-                        "flex-1 px-6 py-4 text-base font-bold uppercase tracking-wide transition-all duration-200 relative border-2 whitespace-nowrap",
+                        "px-2 py-2.5 sm:px-4 sm:py-3 text-[11px] sm:text-sm font-bold uppercase tracking-wide transition-all duration-200 border-2",
                         (spot.name === "Lido Beach" ? activeTab === "offshore-bathymetry" : spot.name === "Rockaway Beach" || spot.name === "Long Beach" ? activeTab === "getting-there" : activeTab === "location")
                           ? "bg-black text-white border-black"
                           : "bg-white text-black border-black hover:bg-gray-100"
                       )}
                       style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
                     >
-                      {spot.name === "Lido Beach" ? "Offshore Bathymetry" : spot.name === "Rockaway Beach" || spot.name === "Long Beach" ? "Getting There" : "Location"}
+                      {spot.name === "Lido Beach" ? "Bathymetry" : spot.name === "Rockaway Beach" || spot.name === "Long Beach" ? "Getting There" : "Location"}
                     </button>
                     <button
                       onClick={() => setActiveTab("wave-mechanics")}
                       className={cn(
-                        "flex-1 px-6 py-4 text-base font-bold uppercase tracking-wide transition-all duration-200 relative border-2 whitespace-nowrap",
+                        "px-2 py-2.5 sm:px-4 sm:py-3 text-[11px] sm:text-sm font-bold uppercase tracking-wide transition-all duration-200 border-2",
                         activeTab === "wave-mechanics"
                           ? "bg-black text-white border-black"
                           : "bg-white text-black border-black hover:bg-gray-100"
@@ -3434,14 +3528,14 @@ export default function SpotDetail() {
                     <button
                       onClick={() => setActiveTab("surf-culture")}
                       className={cn(
-                        "flex-1 px-6 py-4 text-base font-bold uppercase tracking-wide transition-all duration-200 relative border-2 whitespace-nowrap",
+                        "col-span-2 sm:col-span-1 px-2 py-2.5 sm:px-4 sm:py-3 text-[11px] sm:text-sm font-bold uppercase tracking-wide transition-all duration-200 border-2",
                         activeTab === "surf-culture"
                           ? "bg-black text-white border-black"
                           : "bg-white text-black border-black hover:bg-gray-100"
                       )}
                       style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
                     >
-                      {spot.name === "Lido Beach" ? "Local Culture & Etiquette" : "Surf Culture"}
+                      {spot.name === "Lido Beach" ? "Culture & Etiquette" : "Surf Culture"}
                     </button>
                   </div>
                 </div>
@@ -3459,11 +3553,11 @@ export default function SpotDetail() {
                       {activeTab === "when-to-go" && (
                         <div className="bg-white border-2 border-black">
                           {/* Header */}
-                          <div className="border-b-2 border-black p-6">
-                            <div className="flex items-center gap-3 mb-2">
-                              <span className="text-[10px] font-medium tracking-widest text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>SEASONAL GUIDE</span>
+                          <div className="border-b-2 border-black p-3 sm:p-6">
+                            <div className="flex items-center gap-3 mb-1 sm:mb-2">
+                              <span className="text-[8px] sm:text-[10px] font-medium tracking-widest text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>SEASONAL GUIDE</span>
                             </div>
-                            <h3 className="text-4xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.02em' }}>
+                            <h3 className="text-2xl sm:text-4xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.02em' }}>
                               WHEN TO PADDLE OUT
                             </h3>
                           </div>
@@ -3471,25 +3565,23 @@ export default function SpotDetail() {
                           {/* Season Cards */}
                           <div className="divide-y-2 divide-black">
                             {/* Prime Season */}
-                            <div className="p-6 bg-emerald-50">
-                              <div className="flex items-start gap-4">
-                                <div className="w-16 h-16 bg-emerald-600 flex items-center justify-center shrink-0">
-                                  <span className="text-white font-black text-sm leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>SEP-OCT</span>
+                            <div className="p-3 sm:p-6 bg-emerald-50">
+                              <div className="flex items-start gap-3 sm:gap-4">
+                                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-emerald-600 flex items-center justify-center shrink-0">
+                                  <span className="text-white font-black text-[10px] sm:text-sm leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>SEP-OCT</span>
                                 </div>
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <h4 className="text-2xl font-black text-black uppercase" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>PRIME SEASON</h4>
-                                    <span className="text-[10px] font-medium tracking-widest bg-emerald-600 text-white px-2 py-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>GO</span>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1 sm:mb-2">
+                                    <h4 className="text-lg sm:text-2xl font-black text-black uppercase" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>PRIME SEASON</h4>
+                                    <span className="text-[8px] sm:text-[10px] font-medium tracking-widest bg-emerald-600 text-white px-1.5 sm:px-2 py-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>GO</span>
                                   </div>
-                                  <p className="text-sm text-gray-700 mb-4 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                                    Fall is the transition period where summer south winds fade and winter patterns emerge. This is prime time because it offers the highest probability of the "Magic Combo": <span className="font-bold">SE Swell + Northern Winds</span>.
+                                  <p className="text-xs sm:text-sm text-gray-700 mb-2 sm:mb-4 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    Fall offers the highest probability of the "Magic Combo": <span className="font-bold">SE Swell + Northern Winds</span>.
                                   </p>
-                                  <div className="bg-white border-2 border-black p-4">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>HURRICANE TRACKS</span>
-                                    </div>
-                                    <p className="text-sm text-gray-800 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                                      Tropical systems pump in swell from the Southeast. If a cold front moves through simultaneously, it provides the N/NW wind needed to groom that tropical energy into world-class waves.
+                                  <div className="bg-white border-2 border-black p-2 sm:p-4">
+                                    <span className="text-[8px] sm:text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>HURRICANE TRACKS</span>
+                                    <p className="text-xs sm:text-sm text-gray-800 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                      Tropical systems pump in SE swell. Cold fronts provide N/NW winds to groom waves.
                                     </p>
                                   </div>
                                 </div>
@@ -3497,27 +3589,27 @@ export default function SpotDetail() {
                             </div>
 
                             {/* Secondary Season */}
-                            <div className="p-6 bg-amber-50">
-                              <div className="flex items-start gap-4">
-                                <div className="w-16 h-16 bg-amber-500 flex items-center justify-center shrink-0">
-                                  <span className="text-white font-black text-sm leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>DEC-MAR</span>
+                            <div className="p-3 sm:p-6 bg-amber-50">
+                              <div className="flex items-start gap-3 sm:gap-4">
+                                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-amber-500 flex items-center justify-center shrink-0">
+                                  <span className="text-white font-black text-[10px] sm:text-sm leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>DEC-MAR</span>
                                 </div>
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <h4 className="text-2xl font-black text-black uppercase" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>SECONDARY SEASON</h4>
-                                    <span className="text-[10px] font-medium tracking-widest bg-amber-500 text-white px-2 py-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>MAYBE</span>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1 sm:mb-2">
+                                    <h4 className="text-lg sm:text-2xl font-black text-black uppercase" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>SECONDARY</h4>
+                                    <span className="text-[8px] sm:text-[10px] font-medium tracking-widest bg-amber-500 text-white px-1.5 sm:px-2 py-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>MAYBE</span>
                                   </div>
-                                  <p className="text-sm text-gray-700 mb-4 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                                    For hardcore surfers with 5mm wetsuits. Winter brings powerful lows, nor'easters, and offshore winds. Potential for all-time barrels, but conditions are inconsistent—quality windows are short-lived before winds turn side-shore.
+                                  <p className="text-xs sm:text-sm text-gray-700 mb-2 sm:mb-4 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    For hardcore surfers with 5mm wetsuits. Powerful lows bring potential for all-time barrels.
                                   </p>
-                                  <div className="grid md:grid-cols-2 gap-3">
-                                    <div className="bg-white border-2 border-black p-3">
-                                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>THE REALITY</span>
-                                      <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>NJ often gets the better end as westerly winds prevail.</p>
+                                  <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                                    <div className="bg-white border-2 border-black p-2 sm:p-3">
+                                      <span className="text-[8px] sm:text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-0.5 sm:mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>REALITY</span>
+                                      <p className="text-[10px] sm:text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>NJ often gets better westerly winds.</p>
                                     </div>
-                                    <div className="bg-white border-2 border-black p-3">
-                                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>THE KEY</span>
-                                      <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Wait for the "backside" of the storm—N/NW winds after the low passes.</p>
+                                    <div className="bg-white border-2 border-black p-2 sm:p-3">
+                                      <span className="text-[8px] sm:text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-0.5 sm:mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>KEY</span>
+                                      <p className="text-[10px] sm:text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Wait for N/NW winds after low passes.</p>
                                     </div>
                                   </div>
                                 </div>
@@ -3525,31 +3617,31 @@ export default function SpotDetail() {
                             </div>
 
                             {/* Off Season */}
-                            <div className="p-6 bg-red-50">
-                              <div className="flex items-start gap-4">
-                                <div className="w-16 h-16 bg-red-500 flex items-center justify-center shrink-0">
-                                  <span className="text-white font-black text-sm leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>JUN-AUG</span>
+                            <div className="p-3 sm:p-6 bg-red-50">
+                              <div className="flex items-start gap-3 sm:gap-4">
+                                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-red-500 flex items-center justify-center shrink-0">
+                                  <span className="text-white font-black text-[10px] sm:text-sm leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>JUN-AUG</span>
                                 </div>
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <h4 className="text-2xl font-black text-black uppercase" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>OFF-SEASON</h4>
-                                    <span className="text-[10px] font-medium tracking-widest bg-red-500 text-white px-2 py-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>SKIP</span>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1 sm:mb-2">
+                                    <h4 className="text-lg sm:text-2xl font-black text-black uppercase" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>OFF-SEASON</h4>
+                                    <span className="text-[8px] sm:text-[10px] font-medium tracking-widest bg-red-500 text-white px-1.5 sm:px-2 py-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>SKIP</span>
                                   </div>
-                                  <p className="text-sm text-gray-700 mb-4 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                                    The North Atlantic goes quiet. Small, weak pulses. Persistent S/SW sea breezes dominate afternoons, creating choppy, crumbly conditions better suited for longboards.
+                                  <p className="text-xs sm:text-sm text-gray-700 mb-2 sm:mb-4 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                                    Small waves, afternoon sea breezes. Better for longboards.
                                   </p>
-                                  <div className="grid md:grid-cols-3 gap-3">
-                                    <div className="bg-white border-2 border-black p-3">
-                                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>THE MOVE</span>
-                                      <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Dawn patrol before 8 AM when winds are friendliest.</p>
+                                  <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
+                                    <div className="bg-white border-2 border-black p-1.5 sm:p-3">
+                                      <span className="text-[7px] sm:text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>MOVE</span>
+                                      <p className="text-[9px] sm:text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Dawn patrol before 8 AM.</p>
                                     </div>
-                                    <div className="bg-white border-2 border-black p-3">
-                                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>CROWDS</span>
-                                      <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>High-traffic. Lifeguard restrictions 9 AM – 6 PM.</p>
+                                    <div className="bg-white border-2 border-black p-1.5 sm:p-3">
+                                      <span className="text-[7px] sm:text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>CROWDS</span>
+                                      <p className="text-[9px] sm:text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>High. Guards 9-6.</p>
                                     </div>
-                                    <div className="bg-white border-2 border-black p-3">
-                                      <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>ACCESS</span>
-                                      <p className="text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Daily passes or seasonal permits required.</p>
+                                    <div className="bg-white border-2 border-black p-1.5 sm:p-3">
+                                      <span className="text-[7px] sm:text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>ACCESS</span>
+                                      <p className="text-[9px] sm:text-sm text-gray-800" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Permits needed.</p>
                                     </div>
                                   </div>
                                 </div>

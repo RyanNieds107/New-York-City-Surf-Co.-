@@ -212,10 +212,11 @@ function SpotForecastCard({ spot, forecast, isExpanded, onToggleExpand, onNaviga
       ? Number(forecast.qualityScore)
       : (forecast?.probabilityScore != null ? Number(forecast.probabilityScore) : 0));
 
-  // Use buoy-based breaking height if available, otherwise fall back to timeline data
-  // Priority: buoyBasedHeight > dominantSwellHeightFt > waveHeightFt (fallback)
-  // Note: breakingWaveHeightFt can be 0 which breaks nullish coalescing, so we skip it
-  const heightUsed = buoyBasedHeight ??
+  // Use NOAA-based breaking height from currentConditions if available
+  // This comes from getCurrentConditionsForAll which uses buoy data
+  // Fallback to buoyBreakingHeightsQuery if currentConditions doesn't have it
+  const heightUsed = currentPoint?.breakingWaveHeightFt ??
+    buoyBasedHeight ??
     currentPoint?.dominantSwellHeightFt ??
     currentPoint?.waveHeightFt ??
     (forecast?.waveHeightTenthsFt ? forecast.waveHeightTenthsFt / 10 : null);
@@ -950,16 +951,24 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
   };
 
   // Format wave height as surf height description
-  const formatSurfHeight = (ft: number): string => {
-    if (ft < 1) return "Ankle high";
-    if (ft < 2) return "Knee to Waist high";
-    if (ft < 3) return "Waist high";
-    if (ft < 4) return "Waist to Shoulder high";
-    if (ft < 5) return "Shoulder to Head high";
-    if (ft < 6) return "Head high";
-    if (ft < 8) return "Overhead";
-    if (ft < 10) return "Double overhead";
-    return "Well overhead";
+  const formatSurfHeight = (ft: number | null): string => {
+    if (ft === null || ft <= 0) return "Flat";
+
+    if (ft < 1.5) return "Shin to Knee";
+
+    if (ft < 2.5) return "Knee to Waist";
+
+    if (ft < 3.5) return "Waist to Chest";
+
+    if (ft < 4.5) return "Chest to Shoulder";
+
+    if (ft < 5.5) return "Head High";
+
+    if (ft < 7.0) return "Overhead";
+
+    if (ft < 9.0) return "Well Overhead";
+
+    return "Double Overhead +";
   };
 
   // Generate directions URL

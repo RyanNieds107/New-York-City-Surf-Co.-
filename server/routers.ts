@@ -820,9 +820,10 @@ export const appRouter = router({
     getBreakingHeightsForSpots: publicProcedure.query(async () => {
       const reading = await fetchBuoy44065Cached();
       console.log('[Buoy Breaking Heights] Raw buoy reading:', reading ? {
-        waveHeight: reading.waveHeight,
-        dominantPeriod: reading.dominantPeriod,
-        waveDirection: reading.waveDirection,
+        swellHeight: reading.swellHeight,
+        swellPeriod: reading.swellPeriod,
+        windWaveHeight: reading.windWaveHeight,
+        windWavePeriod: reading.windWavePeriod,
         timestamp: reading.timestamp,
       } : 'NULL - buoy data unavailable');
 
@@ -830,7 +831,6 @@ export const appRouter = router({
         return null;
       }
 
-      const { waveHeight, dominantPeriod, waveDirection } = reading;
       const featuredSpotNames = ["Rockaway Beach", "Long Beach", "Lido Beach"];
       const results: Record<string, number> = {};
 
@@ -861,16 +861,47 @@ export const appRouter = router({
           console.warn(`[Buoy Breaking Heights] Failed to get tide info for ${spotName}:`, error);
         }
 
+        // Calculate energy for both components to determine which is dominant
+        const swellEnergy = reading.swellHeight !== null && reading.swellPeriod !== null
+          ? reading.swellHeight * reading.swellHeight * reading.swellPeriod
+          : 0;
+        
+        const windWaveEnergy = reading.windWaveHeight !== null && reading.windWavePeriod !== null
+          ? reading.windWaveHeight * reading.windWaveHeight * reading.windWavePeriod
+          : 0;
+
+        // Use the height and period that correspond to the dominant energy component
+        let waveHeight: number;
+        let dominantPeriod: number;
+        let waveDirection: number | null;
+
+        if (windWaveEnergy > swellEnergy && reading.windWaveHeight !== null && reading.windWavePeriod !== null) {
+          // Wind waves are dominant
+          waveHeight = reading.windWaveHeight;
+          dominantPeriod = reading.windWavePeriod;
+          waveDirection = reading.windWaveDirectionDeg;
+          console.log(`[Buoy Breaking Heights] ${spotName}: Using wind waves (energy: ${windWaveEnergy.toFixed(1)}) - ${waveHeight.toFixed(1)}ft @ ${dominantPeriod}s`);
+        } else if (reading.swellHeight !== null && reading.swellPeriod !== null) {
+          // Swell is dominant (or wind waves unavailable)
+          waveHeight = reading.swellHeight;
+          dominantPeriod = reading.swellPeriod;
+          waveDirection = reading.swellDirectionDeg;
+          console.log(`[Buoy Breaking Heights] ${spotName}: Using swell (energy: ${swellEnergy.toFixed(1)}) - ${waveHeight.toFixed(1)}ft @ ${dominantPeriod}s`);
+        } else {
+          console.warn(`[Buoy Breaking Heights] ${spotName}: No valid swell data available`);
+          continue;
+        }
+
         const breakingHeight = calculateBreakingWaveHeight(
           waveHeight,
           dominantPeriod,
           profile,
           waveDirection,
-          tideHeightFt, // Include tide data for accurate calculation
+          tideHeightFt,
           tidePhase
         );
 
-        console.log(`[Buoy Breaking Heights] ${spotName}: ${waveHeight.toFixed(1)}ft offshore → ${breakingHeight.toFixed(1)}ft breaking (tide: ${tideHeightFt?.toFixed(1) ?? 'N/A'}ft ${tidePhase ?? ''})`);
+        console.log(`[Buoy Breaking Heights] ${spotName}: ${waveHeight.toFixed(1)}ft @ ${dominantPeriod}s → ${breakingHeight.toFixed(1)}ft breaking (tide: ${tideHeightFt?.toFixed(1) ?? 'N/A'}ft ${tidePhase ?? ''})`);
         results[spotName] = breakingHeight;
       }
 
