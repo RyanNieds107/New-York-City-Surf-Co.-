@@ -17,8 +17,8 @@ export default function SignIn() {
   const signUpMutation = trpc.auth.signUp.useMutation({
     onSuccess: () => {
       toast.success("Account created successfully!");
-      // Redirect to home or dashboard
-      setLocation("/");
+      // Redirect to dashboard after successful sign-up
+      setLocation("/dashboard");
     },
     onError: (error) => {
       toast.error(error.message || "Failed to create account. Please try again.");
@@ -83,9 +83,14 @@ export default function SignIn() {
     <div className="min-h-screen bg-white flex flex-col">
       {/* Header */}
       <div className="border-b-2 border-black">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 sm:py-3">
           <div className="flex items-center justify-between">
-            <Logo />
+            <Logo
+              logoSize="h-10 sm:h-12 md:h-14"
+              textSize="text-xl sm:text-2xl md:text-3xl lg:text-4xl"
+              textColor="text-black hover:text-gray-600"
+              showLink={true}
+            />
             <button
               onClick={() => setLocation("/")}
               className="text-black hover:text-gray-600 transition-colors text-sm uppercase tracking-wide"

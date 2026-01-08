@@ -1,12 +1,19 @@
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, MapPin, Clock, Car, Train, ChevronDown, Users } from "lucide-react";
+import { ArrowRight, MapPin, Clock, Car, Train, ChevronDown, Users, User } from "lucide-react";
 import { SwellArrow, WindArrowBadge, Arrow } from "@/components/ui/arrow";
 import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import { Footer } from "@/components/Footer";
 import { Logo } from "@/components/Logo";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { selectCurrentTimelinePoint, formatSurfHeight } from "@/lib/forecastUtils";
 import { getScoreBadgeHexColor, getScoreBadgeTextHexColor } from "@/lib/ratingColors";
 import { isNighttime, calculateSunset } from "@/lib/sunTimes";
@@ -1282,6 +1289,7 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
 
 export default function LandingPage() {
   const [, setLocation] = useLocation();
+  const { user, isAuthenticated } = useAuth();
   const [travelMode, setTravelMode] = useState<"driving" | "transit">("driving");
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -1357,13 +1365,16 @@ export default function LandingPage() {
       <header className="fixed top-0 left-0 w-full z-50 bg-transparent">
         <div className="container py-2 sm:py-3">
           <div className="flex items-center justify-between gap-2">
+            {/* Logo - smaller and to the left */}
             <Logo
-              logoSize="h-10 sm:h-12 md:h-14"
-              textSize="text-xl sm:text-2xl md:text-3xl lg:text-4xl"
+              logoSize="h-8 sm:h-10 md:h-12"
+              textSize="text-lg sm:text-xl md:text-2xl"
               textColor="text-white hover:text-white/80"
               showLink={true}
             />
-            <div className="flex items-center">
+            
+            {/* Right side - buttons */}
+            <div className="flex items-center gap-2 sm:gap-3">
               <Button
                 onClick={() => {
                   setLocation("/dashboard");
@@ -1377,6 +1388,30 @@ export default function LandingPage() {
                 <span className="sm:hidden">All Spots</span>
                 <ArrowRight className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5" />
               </Button>
+              
+              {/* User menu dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="border-2 border-white text-white hover:bg-white/20 hover:border-white/80 bg-transparent py-1.5 px-1.5 sm:py-2 sm:px-2.5 md:py-2 md:px-3 h-auto"
+                    style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                  >
+                    <User className="h-3 w-3 sm:h-5 sm:w-5 md:h-6 md:w-6" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48 bg-white border-2 border-black rounded-none">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setLocation("/sign-in");
+                    }}
+                    className="cursor-pointer px-4 py-3 text-sm font-medium"
+                    style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
+                  >
+                    Login or Sign Up
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
@@ -1451,11 +1486,20 @@ export default function LandingPage() {
         
         {/* Content container */}
         <div className="relative z-10 w-full max-w-7xl mx-auto text-center px-4">
-          <h1 className="text-[2.5rem] sm:text-[3.5rem] md:text-[4rem] lg:text-[5rem] xl:text-[6rem] font-black text-white mb-4 sm:mb-6 md:mb-8 uppercase tracking-tight leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-            New York City Surf Co.
+          {/* Logo above headline */}
+          <div className="mb-6 sm:mb-8 md:mb-10 flex justify-center">
+            <Logo
+              logoSize="h-16 sm:h-20 md:h-24 lg:h-28"
+              textSize="text-2xl sm:text-3xl md:text-4xl lg:text-5xl"
+              textColor="text-white hover:text-white/80"
+              showLink={true}
+            />
+          </div>
+          <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white mb-4 sm:mb-6 md:mb-8 uppercase tracking-tighter sm:tracking-tight leading-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+            Know if it's worth the commute in 5 seconds
           </h1>
-          <p className="text-2xl sm:text-3xl md:text-2xl lg:text-3xl xl:text-4xl text-white font-light mb-6 sm:mb-8 md:mb-10">
-            We take the uncertainty out of surfing just outside NYC
+          <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-white font-light mb-6 sm:mb-8 md:mb-10">
+            Hyper-local surf forecasts that take the uncertainty out of surfing just outside NYC
           </p>
           <div className="flex justify-center">
             <button
@@ -1615,7 +1659,7 @@ export default function LandingPage() {
                   </div>
                   <div className="flex items-start gap-3">
                     <span className="text-black text-lg leading-none mt-0.5">→</span>
-                    <p className="text-sm leading-relaxed text-gray-700" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}><strong className="text-black">Local Warnings</strong> — Rips, sandbars, vibe checks.</p>
+                    <p className="text-sm leading-relaxed text-gray-700" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}><strong className="text-black">Alerts</strong> — don't miss a session. Sign up for swell notifications.</p>
                   </div>
                 </div>
 
