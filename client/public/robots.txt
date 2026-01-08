@@ -1,0 +1,11 @@
+# robots.txt for Long Island Surf Forecast
+
+User-agent: *
+Allow: /
+
+# Disallow API endpoints
+Disallow: /api/
+
+# Sitemap location
+Sitemap: https://www.nycsurfco.com/sitemap.xml
+

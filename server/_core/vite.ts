@@ -28,6 +28,11 @@ export async function setupVite(app: Express, server: Server) {
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
 
+    // Don't catch-all for sitemap or robots.txt - let the route handlers handle them
+    if (url === "/sitemap.xml" || url === "/robots.txt") {
+      return next();
+    }
+
     try {
       const clientTemplate = path.resolve(
         __dirname,
@@ -65,7 +70,12 @@ export function serveStatic(app: Express) {
   app.use(express.static(distPath));
 
   // fall through to index.html if the file doesn't exist
-  app.use("*", (_req, res) => {
+  // BUT exclude sitemap.xml and robots.txt from the catch-all
+  app.use("*", (req, res, next) => {
+    // Don't catch-all for sitemap or robots.txt - let the route handlers handle them
+    if (req.originalUrl === "/sitemap.xml" || req.originalUrl === "/robots.txt") {
+      return next();
+    }
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }

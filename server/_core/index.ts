@@ -157,6 +157,67 @@ async function startServer() {
       createContext,
     })
   );
+  // Sitemap endpoint for Google Search Console - must be before static middleware
+  app.get("/sitemap.xml", async (_req, res) => {
+    try {
+      const spots = await getAllSpots();
+      const baseUrl = process.env.BASE_URL || process.env.PUBLIC_URL || "https://www.nycsurfco.com";
+      const today = new Date().toISOString().split("T")[0];
+      
+      let sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>${baseUrl}/</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/dashboard</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>hourly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/surf-analysis</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/terms</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/privacy</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>`;
+
+      // Add all spot pages
+      for (const spot of spots) {
+        sitemap += `
+  <url>
+    <loc>${baseUrl}/spot/${spot.id}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>hourly</changefreq>
+    <priority>0.8</priority>
+  </url>`;
+      }
+
+      sitemap += `
+</urlset>`;
+
+      res.setHeader("Content-Type", "application/xml");
+      res.send(sitemap);
+    } catch (error) {
+      console.error("Error generating sitemap:", error);
+      res.status(500).setHeader("Content-Type", "text/plain").send("Error generating sitemap");
+    }
+  });
   // development mode uses Vite, production mode uses static files
   if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);
