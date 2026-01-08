@@ -161,7 +161,8 @@ async function startServer() {
   app.get("/sitemap.xml", async (_req, res) => {
     try {
       const spots = await getAllSpots();
-      const baseUrl = process.env.BASE_URL || process.env.PUBLIC_URL || "https://www.nycsurfco.com";
+      // Remove trailing slash from baseUrl if present
+      const baseUrl = (process.env.BASE_URL || process.env.PUBLIC_URL || "https://www.nycsurfco.com").replace(/\/$/, "");
       const today = new Date().toISOString().split("T")[0];
       
       let sitemap = `<?xml version="1.0" encoding="UTF-8"?>
