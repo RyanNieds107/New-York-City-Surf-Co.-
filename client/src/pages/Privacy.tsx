@@ -1,8 +1,11 @@
 import { Footer } from "@/components/Footer";
-import { Link } from "wouter";
+import { Logo } from "@/components/Logo";
+import { Link, useLocation } from "wouter";
 import { useEffect } from "react";
 
 export default function Privacy() {
+  const [, setLocation] = useLocation();
+  
   // Scroll to top when component mounts
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -10,8 +13,29 @@ export default function Privacy() {
 
   return (
     <div className="min-h-screen bg-white">
+      {/* Header Navigation */}
+      <div className="border-b-2 border-black">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 sm:py-3">
+          <div className="flex items-center justify-between">
+            <Logo
+              logoSize="h-10 sm:h-12 md:h-14"
+              textSize="text-xl sm:text-2xl md:text-3xl lg:text-4xl"
+              textColor="text-black hover:text-gray-600"
+              showLink={true}
+            />
+            <button
+              onClick={() => setLocation("/")}
+              className="text-black hover:text-gray-600 transition-colors text-sm uppercase tracking-wide"
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              Back to Home
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div className="container mx-auto px-4 py-12 max-w-4xl">
-        {/* Header */}
+        {/* Page Header */}
         <div className="mb-12">
           <h1
             className="text-5xl md:text-6xl font-black text-black uppercase tracking-tight mb-4"

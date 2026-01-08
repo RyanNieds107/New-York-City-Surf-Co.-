@@ -11,6 +11,7 @@ import SurfAnalysis from "./pages/SurfAnalysis";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import SignIn from "./pages/SignIn";
+import Mission from "./pages/Mission";
 
 function Router() {
   return (
@@ -22,6 +23,7 @@ function Router() {
       <Route path="/surf-analysis" component={SurfAnalysis} />
       <Route path="/terms" component={Terms} />
       <Route path="/privacy" component={Privacy} />
+      <Route path="/Our Mission" component={Mission} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

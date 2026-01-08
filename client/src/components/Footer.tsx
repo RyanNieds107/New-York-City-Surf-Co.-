@@ -168,7 +168,7 @@ export function Footer() {
               className="text-[10px] tracking-widest text-gray-600 uppercase"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}
             >
-              © 2025 New York City Surf Co.
+              © 2026 New York City Surf Co.
             </p>
             <p
               className="text-[10px] tracking-widest text-gray-600 uppercase"
