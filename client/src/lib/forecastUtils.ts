@@ -168,7 +168,7 @@ export interface ExtendedTimelinePoint {
   // Wind data
   windSpeedMph?: number | null;
   windDirectionDeg?: number | null;
-  windType?: "offshore" | "onshore" | "cross" | null;
+  windType?: "offshore" | "onshore" | "cross" | "cross-offshore" | null;
   // Tide data
   tideHeightFt?: number | null;
   tidePhase?: "rising" | "falling" | "high" | "low" | null;

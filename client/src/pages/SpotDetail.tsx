@@ -2129,7 +2129,7 @@ export default function SpotDetail() {
                               const windType = point.windType ?? null;
 
                               // Tide data
-                              const tideHeight = point.tideHeightFt !== null ? point.tideHeightFt / 10 : null;
+                              const tideHeight = point.tideHeightFt !== null && point.tideHeightFt !== undefined ? point.tideHeightFt / 10 : null;
                               const tidePhase = point.tidePhase;
                               const tideIsRising = tidePhase === 'rising' || tidePhase === 'high';
                               
@@ -2258,7 +2258,7 @@ export default function SpotDetail() {
                                             <div className="text-sm font-bold text-black flex items-center gap-1" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
                                               {tideHeight.toFixed(1)}FT
                                               {(tidePhase === 'rising' || tidePhase === 'falling') && (
-                                                <TrendArrow rising={tidePhase === 'rising' || tidePhase === 'high'} size={12} />
+                                                <TrendArrow rising={tidePhase === 'rising'} size={12} />
                                               )}
                                               <span className="text-[10px] font-normal text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                                                 {tidePhase}
@@ -2444,7 +2444,7 @@ export default function SpotDetail() {
                                             const dayTideData = (timelineQuery.data?.timeline ?? [])
                                               .filter(p => {
                                                 const t = new Date(p.forecastTimestamp);
-                                                return t >= dayStart && t <= dayEnd && p.tideHeightFt !== null;
+                                                return t >= dayStart && t <= dayEnd && p.tideHeightFt !== null && p.tideHeightFt !== undefined;
                                               })
                                               .map((p, idx) => ({
                                                 height: p.tideHeightFt! / 10,
