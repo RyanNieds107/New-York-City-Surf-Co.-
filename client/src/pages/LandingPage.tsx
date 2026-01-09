@@ -1403,7 +1403,7 @@ export default function LandingPage() {
                 <DropdownMenuContent align="end" className="w-48 bg-white border-2 border-black rounded-none">
                   <DropdownMenuItem
                     onClick={() => {
-                      setLocation("/sign-in");
+                      setLocation("/login");
                     }}
                     className="cursor-pointer px-4 py-3 text-sm font-medium"
                     style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}

@@ -57,7 +57,7 @@ export function Footer() {
                 </li>
                 <li>
                   <Link
-                    href="/sign-in"
+                    href="/login"
                     className="text-xs md:text-sm text-black hover:bg-black hover:text-white px-1 py-0.5 md:px-2 md:py-1 -ml-1 md:-ml-2 transition-colors inline-block font-medium"
                     style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
                   >

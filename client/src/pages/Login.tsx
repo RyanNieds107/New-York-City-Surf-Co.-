@@ -8,20 +8,18 @@ import { Logo } from "@/components/Logo";
 import { Loader2 } from "lucide-react";
 import { getLoginUrl } from "@/const";
 
-export default function SignIn() {
+export default function Login() {
   const [, setLocation] = useLocation();
-  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
 
-  const signUpMutation = trpc.auth.signUp.useMutation({
+  const loginMutation = trpc.auth.login.useMutation({
     onSuccess: () => {
-      toast.success("Account created successfully!");
-      // Redirect to welcome page after successful sign-up
-      setLocation("/welcome");
+      toast.success("Logged in successfully!");
+      setLocation("/members");
     },
     onError: (error) => {
-      toast.error(error.message || "Failed to create account. Please try again.");
+      toast.error(error.message || "Failed to login. Please check your email and phone number.");
     },
   });
 
@@ -29,10 +27,6 @@ export default function SignIn() {
     e.preventDefault();
     
     // Basic validation
-    if (!name.trim()) {
-      toast.error("Please enter your name");
-      return;
-    }
     if (!email.trim()) {
       toast.error("Please enter your email");
       return;
@@ -53,8 +47,7 @@ export default function SignIn() {
       return;
     }
 
-    signUpMutation.mutate({
-      name: name.trim(),
+    loginMutation.mutate({
       email: email.trim(),
       phone: phoneDigits,
     });
@@ -105,7 +98,7 @@ export default function SignIn() {
       {/* Main Content */}
       <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
         <div className="w-full max-w-md">
-          {/* Sign In Card */}
+          {/* Login Card */}
           <div className="bg-white border-2 border-black p-6 sm:p-8 md:p-10">
             {/* Header */}
             <div className="mb-6 sm:mb-8">
@@ -113,39 +106,18 @@ export default function SignIn() {
                 className="text-3xl sm:text-4xl md:text-5xl font-black text-black uppercase tracking-tight mb-2"
                 style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
               >
-                Sign Up
+                Log In
               </h1>
               <p
                 className="text-sm text-gray-600"
                 style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
               >
-                Create an account to get swell alerts and track your sessions
+                Enter your email and phone number to access your account
               </p>
             </div>
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
-              {/* Name Input */}
-              <div>
-                <label
-                  htmlFor="name"
-                  className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5"
-                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                >
-                  Name
-                </label>
-                <Input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="John Doe"
-                  required
-                  className="border-2 border-black rounded-none focus:ring-2 focus:ring-black focus:ring-offset-0"
-                  disabled={signUpMutation.isPending}
-                />
-              </div>
-
               {/* Email Input */}
               <div>
                 <label
@@ -163,7 +135,7 @@ export default function SignIn() {
                   placeholder="john@example.com"
                   required
                   className="border-2 border-black rounded-none focus:ring-2 focus:ring-black focus:ring-offset-0"
-                  disabled={signUpMutation.isPending}
+                  disabled={loginMutation.isPending}
                 />
               </div>
 
@@ -185,24 +157,24 @@ export default function SignIn() {
                   required
                   maxLength={14}
                   className="border-2 border-black rounded-none focus:ring-2 focus:ring-black focus:ring-offset-0"
-                  disabled={signUpMutation.isPending}
+                  disabled={loginMutation.isPending}
                 />
               </div>
 
               {/* Submit Button */}
               <Button
                 type="submit"
-                disabled={signUpMutation.isPending}
+                disabled={loginMutation.isPending}
                 className="w-full bg-black text-white hover:bg-gray-800 border-2 border-black rounded-none uppercase tracking-wide font-bold py-6 text-sm sm:text-base mt-6 sm:mt-8"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
-                {signUpMutation.isPending ? (
+                {loginMutation.isPending ? (
                   <span className="flex items-center justify-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Creating Account...
+                    Logging In...
                   </span>
                 ) : (
-                  "Create Account"
+                  "Log In"
                 )}
               </Button>
             </form>
@@ -222,6 +194,22 @@ export default function SignIn() {
               </div>
             </div>
 
+            {/* Sign Up Link */}
+            <div className="text-center">
+              <p
+                className="text-sm text-gray-600 mb-4"
+                style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
+              >
+                Don't have an account?{" "}
+                <button
+                  onClick={() => setLocation("/sign-in")}
+                  className="underline hover:text-black transition-colors font-medium"
+                >
+                  Sign up
+                </button>
+              </p>
+            </div>
+
             {/* OAuth Option */}
             <Button
               type="button"
@@ -235,27 +223,6 @@ export default function SignIn() {
               Sign In with OAuth
             </Button>
           </div>
-
-          {/* Footer Text */}
-          <p
-            className="mt-6 text-center text-xs text-gray-500"
-            style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
-          >
-            By signing up, you agree to our{" "}
-            <a
-              href="/terms"
-              className="underline hover:text-black transition-colors"
-            >
-              Terms of Service
-            </a>{" "}
-            and{" "}
-            <a
-              href="/privacy"
-              className="underline hover:text-black transition-colors"
-            >
-              Privacy Policy
-            </a>
-          </p>
         </div>
       </div>
     </div>

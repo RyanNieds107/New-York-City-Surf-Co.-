@@ -11,6 +11,8 @@ import SurfAnalysis from "./pages/SurfAnalysis";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import SignIn from "./pages/SignIn";
+import Login from "./pages/Login";
+import Welcome from "./pages/Welcome";
 import Mission from "./pages/Mission";
 import Members from "./pages/Members";
 
@@ -19,6 +21,8 @@ function Router() {
     <Switch>
       <Route path="/" component={LandingPage} />
       <Route path="/sign-in" component={SignIn} />
+      <Route path="/login" component={Login} />
+      <Route path="/welcome" component={Welcome} />
       <Route path="/members" component={Members} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/spot/:id" component={SpotDetail} />

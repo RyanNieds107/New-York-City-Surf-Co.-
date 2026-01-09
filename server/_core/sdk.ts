@@ -199,7 +199,7 @@ class SDKServer {
 
   async verifySession(
     cookieValue: string | undefined | null
-  ): Promise<{ openId: string; appId: string; name: string } | null> {
+  ): Promise<{ openId: string; appId?: string; name: string; type?: string } | null> {
     if (!cookieValue) {
       console.warn("[Auth] Missing session cookie");
       return null;
@@ -210,20 +210,39 @@ class SDKServer {
       const { payload } = await jwtVerify(cookieValue, secretKey, {
         algorithms: ["HS256"],
       });
-      const { openId, appId, name } = payload as Record<string, unknown>;
+      const { openId, appId, name, type } = payload as Record<string, unknown>;
 
+      // Validate required fields (openId and name are always required)
       if (
         !isNonEmptyString(openId) ||
-        !isNonEmptyString(appId) ||
         !isNonEmptyString(name)
       ) {
-        console.warn("[Auth] Session payload missing required fields");
+        console.warn("[Auth] Session payload missing required fields (openId or name)");
         return null;
       }
 
+      // Handle custom email sign-up tokens (have type: "custom", no appId required)
+      if (type === "custom") {
+        return {
+          openId,
+          name,
+          type: "custom",
+        };
+      }
+
+      // Handle Manus OAuth tokens (require appId)
+      if (isNonEmptyString(appId)) {
+        return {
+          openId,
+          appId,
+          name,
+        };
+      }
+
+      // If neither type nor appId is present, treat as legacy token
+      console.warn("[Auth] Session missing both type and appId, treating as basic session");
       return {
         openId,
-        appId,
         name,
       };
     } catch (error) {
@@ -270,8 +289,9 @@ class SDKServer {
     const signedInAt = new Date();
     let user = await db.getUserByOpenId(sessionUserId);
 
-    // If user not in DB, sync from OAuth server automatically
-    if (!user) {
+    // If user not in DB, sync from OAuth server automatically (only for Manus OAuth tokens)
+    // Custom email sign-up tokens (type: "custom") skip this step since user was created during sign-up
+    if (!user && session.type !== "custom") {
       try {
         const userInfo = await this.getUserInfoWithJwt(sessionCookie ?? "");
         await db.upsertUser({

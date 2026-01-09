@@ -68,7 +68,7 @@ export const appRouter = router({
       )
       .mutation(async ({ ctx, input }) => {
         const { upsertUser, getUserByOpenId } = await import("./db");
-        const { sdk } = await import("./_core/sdk");
+        const { signCustomSessionToken } = await import("./_core/jwt");
         const { COOKIE_NAME, ONE_YEAR_MS } = await import("@shared/const");
         const { getSessionCookieOptions } = await import("./_core/cookies");
         const crypto = await import("crypto");
@@ -97,27 +97,70 @@ export const appRouter = router({
           lastSignedIn: new Date(),
         });
 
-        // Create session token
-        try {
-          const sessionToken = await sdk.createSessionToken(customOpenId, {
-            name: input.name,
-            expiresInMs: ONE_YEAR_MS,
-          });
+        // Create custom session token (independent of Manus SDK)
+        const sessionToken = await signCustomSessionToken(
+          customOpenId,
+          input.name,
+          ONE_YEAR_MS
+        );
 
-          // Set cookie
-          const cookieOptions = getSessionCookieOptions(ctx.req);
-          ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+        // Set cookie
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
 
-          return { success: true };
-        } catch (error) {
-          console.error("[Auth] Failed to create session token for custom sign-up:", error);
-          // If SDK session creation fails, we still created the user
-          // They'll need to sign in via OAuth or we implement custom session management
+        return { success: true };
+    }),
+
+    login: publicProcedure
+      .input(
+        z.object({
+          email: z.string().email(),
+          phone: z.string().min(10).max(20),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const { getUserByOpenId } = await import("./db");
+        const { signCustomSessionToken } = await import("./_core/jwt");
+        const { COOKIE_NAME, ONE_YEAR_MS } = await import("@shared/const");
+        const { getSessionCookieOptions } = await import("./_core/cookies");
+        const crypto = await import("crypto");
+
+        // Generate openId hash from email (same logic as sign-up)
+        const openIdHash = crypto.createHash("sha256").update(input.email.toLowerCase()).digest("hex").substring(0, 32);
+        const customOpenId = `email:${openIdHash}`;
+
+        // Check if user exists
+        const user = await getUserByOpenId(customOpenId);
+        if (!user) {
           throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
-            message: "Account created but session setup failed. Please try signing in.",
+            code: "UNAUTHORIZED",
+            message: "No account found with this email",
           });
         }
+
+        // Verify phone matches (remove non-digits for comparison)
+        const inputPhoneDigits = input.phone.replace(/\D/g, "");
+        const userPhoneDigits = user.phone?.replace(/\D/g, "") || "";
+        
+        if (inputPhoneDigits !== userPhoneDigits) {
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Phone number does not match this account",
+          });
+        }
+
+        // Create session token
+        const sessionToken = await signCustomSessionToken(
+          customOpenId,
+          user.name || "",
+          ONE_YEAR_MS
+        );
+
+        // Set cookie
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+
+        return { success: true };
     }),
   }),
 
