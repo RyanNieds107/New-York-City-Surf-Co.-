@@ -123,9 +123,10 @@ export const appRouter = router({
         const { signCustomSessionToken } = await import("./_core/jwt");
         const { COOKIE_NAME, ONE_YEAR_MS } = await import("@shared/const");
         const { getSessionCookieOptions } = await import("./_core/cookies");
+        const crypto = await import("crypto");
 
         // Generate openId hash from email (same logic as sign-up)
-        const openIdHash = crypto.createHash("sha256").update(input.email.toLowerCase()).digest("hex").substring(0, 32);
+        const openIdHash = crypto.default.createHash("sha256").update(input.email.toLowerCase()).digest("hex").substring(0, 32);
         const customOpenId = `email:${openIdHash}`;
 
         // Check if user exists
