@@ -1,6 +1,6 @@
 import { COOKIE_NAME } from "@shared/const";
 import { z } from "zod";
-import crypto from "crypto";
+import * as crypto from "node:crypto";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
@@ -123,10 +123,9 @@ export const appRouter = router({
         const { signCustomSessionToken } = await import("./_core/jwt");
         const { COOKIE_NAME, ONE_YEAR_MS } = await import("@shared/const");
         const { getSessionCookieOptions } = await import("./_core/cookies");
-        const crypto = await import("crypto");
 
         // Generate openId hash from email (same logic as sign-up)
-        const openIdHash = crypto.default.createHash("sha256").update(input.email.toLowerCase()).digest("hex").substring(0, 32);
+        const openIdHash = crypto.createHash("sha256").update(input.email.toLowerCase()).digest("hex").substring(0, 32);
         const customOpenId = `email:${openIdHash}`;
 
         // Check if user exists
@@ -139,13 +138,25 @@ export const appRouter = router({
         }
 
         // Verify phone matches (remove non-digits for comparison)
+        // Note: OAuth users might not have phone numbers, so if user has no phone, require phone match
         const inputPhoneDigits = input.phone.replace(/\D/g, "");
         const userPhoneDigits = user.phone?.replace(/\D/g, "") || "";
         
-        if (inputPhoneDigits !== userPhoneDigits) {
+        // If user has a phone number, verify it matches
+        if (user.phone) {
+          if (inputPhoneDigits !== userPhoneDigits) {
+            throw new TRPCError({
+              code: "UNAUTHORIZED",
+              message: "Phone number does not match this account",
+            });
+          }
+        } else {
+          // User doesn't have a phone (likely OAuth user)
+          // For security, we can't let them login with email/phone if they don't have phone set
+          // They should use OAuth login instead
           throw new TRPCError({
             code: "UNAUTHORIZED",
-            message: "Phone number does not match this account",
+            message: "This account was created with OAuth. Please sign in with OAuth instead.",
           });
         }
 

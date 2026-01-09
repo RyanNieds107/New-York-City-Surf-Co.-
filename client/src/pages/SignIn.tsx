@@ -10,13 +10,16 @@ import { getLoginUrl } from "@/const";
 
 export default function SignIn() {
   const [, setLocation] = useLocation();
+  const utils = trpc.useUtils();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
 
   const signUpMutation = trpc.auth.signUp.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Account created successfully!");
+      // Invalidate auth state to refresh user info
+      await utils.auth.me.invalidate();
       // Redirect to welcome page after successful sign-up
       setLocation("/welcome");
     },
@@ -27,6 +30,11 @@ export default function SignIn() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Prevent double submission
+    if (signUpMutation.isPending) {
+      return;
+    }
     
     // Basic validation
     if (!name.trim()) {

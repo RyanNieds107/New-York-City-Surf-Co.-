@@ -1,13 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
-import { Loader2, Bell, Users, MessageSquare } from "lucide-react";
+import { Loader2, Bell, Users, MessageSquare, X, ChevronRight } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function Members() {
   const [, setLocation] = useLocation();
@@ -16,24 +16,27 @@ export default function Members() {
   const { data: alerts, refetch: refetchAlerts } = trpc.alerts.list.useQuery(undefined, {
     enabled: !!user,
   });
-  
+
+  // Scroll to top on mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   // Real-time alerts state
   const [alertSpotId, setAlertSpotId] = useState<number | null>(null);
   const [daysAdvanceNotice, setDaysAdvanceNotice] = useState<number>(7);
   const [minQualityScore, setMinQualityScore] = useState<number>(60);
-  const [notificationFrequency, setNotificationFrequency] = useState<"immediate" | "daily_digest" | "weekly_digest" | "per_swell">("immediate");
   const [emailEnabled, setEmailEnabled] = useState(true);
   const [smsEnabled, setSmsEnabled] = useState(true);
-  
+
   // Crowd report state
   const [crowdSpotId, setCrowdSpotId] = useState<number | null>(null);
   const [crowdLevel, setCrowdLevel] = useState<number>(3);
-  
+
   const createAlertMutation = trpc.alerts.create.useMutation({
     onSuccess: () => {
       toast.success("Alert created successfully!");
       refetchAlerts();
-      // Reset form
       setAlertSpotId(null);
       setDaysAdvanceNotice(7);
       setMinQualityScore(60);
@@ -42,20 +45,20 @@ export default function Members() {
       toast.error(error.message || "Failed to create alert");
     },
   });
-  
+
   const deleteAlertMutation = trpc.alerts.delete.useMutation({
     onSuccess: () => {
-      toast.success("Alert deleted successfully!");
+      toast.success("Alert deleted");
       refetchAlerts();
     },
     onError: (error) => {
       toast.error(error.message || "Failed to delete alert");
     },
   });
-  
+
   const submitCrowdMutation = trpc.crowd.submit.useMutation({
     onSuccess: () => {
-      toast.success("Crowd report submitted!");
+      toast.success("Report submitted!");
       setCrowdSpotId(null);
       setCrowdLevel(3);
     },
@@ -63,311 +66,352 @@ export default function Members() {
       toast.error(error.message || "Failed to submit report");
     },
   });
-  
+
   const handleCreateAlert = (e: React.FormEvent) => {
     e.preventDefault();
-    
     createAlertMutation.mutate({
       spotId: alertSpotId,
       minQualityScore,
       emailEnabled,
-      hoursAdvanceNotice: daysAdvanceNotice * 24, // Convert days to hours
+      hoursAdvanceNotice: daysAdvanceNotice * 24,
     });
   };
-  
+
   const handleSubmitCrowdReport = (e: React.FormEvent) => {
     e.preventDefault();
     if (!crowdSpotId) {
       toast.error("Please select a spot");
       return;
     }
-    
     submitCrowdMutation.mutate({
       spotId: crowdSpotId,
       crowdLevel,
     });
   };
-  
+
+  const selectStyles = "w-full bg-white border border-gray-300 px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all";
+  const labelStyles = "block text-[10px] font-semibold uppercase tracking-widest text-gray-700 mb-1.5";
+
   return (
-    <div className="min-h-screen bg-white flex flex-col">
-      {/* Header */}
-      <div className="border-b-2 border-black">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 sm:py-3">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Minimal Header */}
+      <header className="bg-white border-b border-gray-200">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3">
           <div className="flex items-center justify-between">
-            <Logo
-              logoSize="h-10 sm:h-12 md:h-14"
-              textSize="text-xl sm:text-2xl md:text-3xl lg:text-4xl"
-              textColor="text-black hover:text-gray-600"
-              showLink={true}
-            />
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setLocation("/dashboard")}
-                className="text-black hover:text-gray-600 transition-colors text-sm uppercase tracking-wide"
-                style={{ fontFamily: "'JetBrains Mono', monospace" }}
-              >
-                View All Spots
-              </button>
-            </div>
+            <Logo logoSize="h-9 sm:h-10" showLink={true} />
+            <button
+              onClick={() => setLocation("/dashboard")}
+              className="text-gray-600 hover:text-black transition-colors text-xs uppercase tracking-wider flex items-center gap-1"
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              All Spots
+              <ChevronRight className="h-3 w-3" />
+            </button>
           </div>
         </div>
-      </div>
-      
+      </header>
+
       {/* Main Content */}
-      <div className="flex-1 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 w-full">
-        <div className="mb-8 sm:mb-12">
+      <main className="flex-1 max-w-5xl mx-auto px-4 sm:px-6 py-8 w-full">
+        {/* Compact Header */}
+        <div className="mb-6">
           <h1
-            className="text-4xl sm:text-5xl md:text-6xl font-black text-black uppercase tracking-tight mb-4"
+            className="text-2xl sm:text-3xl font-black text-black uppercase tracking-tight"
             style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
           >
-            Welcome, Member
+            Member Dashboard
           </h1>
-          <p
-            className="text-lg text-gray-600"
-            style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
-          >
-            Get real-time alerts, join the community, and help improve forecasts
+          <p className="text-sm text-gray-600 mt-1" style={{ fontFamily: "'Inter', sans-serif" }}>
+            Alerts, community, and crowd reports
           </p>
         </div>
-        
-        {/* Three Main Sections */}
-        <div className="space-y-8 sm:space-y-12">
-          {/* 1. Real-Time Alerts */}
-          <Card className="border-2 border-black rounded-none">
-            <CardHeader className="border-b-2 border-black">
-              <div className="flex items-center gap-3">
-                <Bell className="h-6 w-6" />
-                <CardTitle className="text-2xl sm:text-3xl font-bold uppercase" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                  Real-Time Swell Alerts
-                </CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="p-6 sm:p-8">
-              <form onSubmit={handleCreateAlert} className="space-y-6">
+
+        {/* Tabbed Interface */}
+        <Tabs defaultValue="alerts" className="w-full">
+          <TabsList className="w-full sm:w-auto bg-white border border-gray-200 p-1 rounded-none h-auto mb-6">
+            <TabsTrigger
+              value="alerts"
+              className="flex-1 sm:flex-none data-[state=active]:bg-black data-[state=active]:text-white rounded-none px-4 py-2 text-xs uppercase tracking-wider transition-all"
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              <Bell className="h-3.5 w-3.5 mr-2" />
+              Alerts
+            </TabsTrigger>
+            <TabsTrigger
+              value="community"
+              className="flex-1 sm:flex-none data-[state=active]:bg-black data-[state=active]:text-white rounded-none px-4 py-2 text-xs uppercase tracking-wider transition-all"
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              <Users className="h-3.5 w-3.5 mr-2" />
+              Community
+            </TabsTrigger>
+            <TabsTrigger
+              value="crowd"
+              className="flex-1 sm:flex-none data-[state=active]:bg-black data-[state=active]:text-white rounded-none px-4 py-2 text-xs uppercase tracking-wider transition-all"
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              <MessageSquare className="h-3.5 w-3.5 mr-2" />
+              Crowd Reports
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Alerts Tab */}
+          <TabsContent value="alerts" className="mt-0">
+            <div className="bg-white border border-gray-200 p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Create Alert Form */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-black mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    Spot
-                  </label>
-                  <select
-                    value={alertSpotId || ""}
-                    onChange={(e) => setAlertSpotId(e.target.value ? parseInt(e.target.value) : null)}
-                    className="w-full border-2 border-black rounded-none px-3 py-2 text-sm focus:ring-2 focus:ring-black"
-                    style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
+                  <h2
+                    className="text-lg font-black text-black uppercase tracking-tight mb-4"
+                    style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
                   >
-                    <option value="">All spots</option>
-                    {spots?.map((spot) => (
-                      <option key={spot.id} value={spot.id}>
-                        {spot.name}
-                      </option>
-                    ))}
-                  </select>
+                    Create New Alert
+                  </h2>
+                  <form onSubmit={handleCreateAlert} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="col-span-2">
+                        <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                          Spot
+                        </label>
+                        <select
+                          value={alertSpotId || ""}
+                          onChange={(e) => setAlertSpotId(e.target.value ? parseInt(e.target.value) : null)}
+                          className={selectStyles}
+                          style={{ fontFamily: "'Inter', sans-serif" }}
+                        >
+                          <option value="">All spots</option>
+                          {spots?.map((spot) => (
+                            <option key={spot.id} value={spot.id}>{spot.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                          Days Notice
+                        </label>
+                        <select
+                          value={daysAdvanceNotice}
+                          onChange={(e) => setDaysAdvanceNotice(parseInt(e.target.value))}
+                          className={selectStyles}
+                          style={{ fontFamily: "'Inter', sans-serif" }}
+                        >
+                          <option value="1">1 day</option>
+                          <option value="3">3 days</option>
+                          <option value="5">5 days</option>
+                          <option value="7">7 days</option>
+                          <option value="14">14 days</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                          Min Quality
+                        </label>
+                        <select
+                          value={minQualityScore}
+                          onChange={(e) => setMinQualityScore(parseInt(e.target.value))}
+                          className={selectStyles}
+                          style={{ fontFamily: "'Inter', sans-serif" }}
+                        >
+                          <option value="40">40+ Fair</option>
+                          <option value="60">60+ Good</option>
+                          <option value="70">70+ Great</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-6 pt-2">
+                      <label className="flex items-center gap-2 cursor-pointer group">
+                        <input
+                          type="checkbox"
+                          checked={emailEnabled}
+                          onChange={(e) => setEmailEnabled(e.target.checked)}
+                          className="h-4 w-4 rounded-none border-gray-300 text-black focus:ring-black"
+                        />
+                        <span className="text-sm text-gray-600 group-hover:text-black transition-colors" style={{ fontFamily: "'Inter', sans-serif" }}>
+                          Email
+                        </span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer group">
+                        <input
+                          type="checkbox"
+                          checked={smsEnabled}
+                          onChange={(e) => setSmsEnabled(e.target.checked)}
+                          className="h-4 w-4 rounded-none border-gray-300 text-black focus:ring-black"
+                        />
+                        <span className="text-sm text-gray-600 group-hover:text-black transition-colors" style={{ fontFamily: "'Inter', sans-serif" }}>
+                          SMS
+                        </span>
+                      </label>
+                    </div>
+
+                    <Button
+                      type="submit"
+                      disabled={createAlertMutation.isPending}
+                      className="w-full bg-black text-white hover:bg-gray-900 rounded-none uppercase tracking-wider text-xs font-semibold py-3 h-auto transition-all"
+                      style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                    >
+                      {createAlertMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        "Create Alert"
+                      )}
+                    </Button>
+                  </form>
                 </div>
-                
+
+                {/* Active Alerts */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-black mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    Notify Me This Many Days Before
-                  </label>
-                  <select
-                    value={daysAdvanceNotice}
-                    onChange={(e) => setDaysAdvanceNotice(parseInt(e.target.value))}
-                    className="w-full border-2 border-black rounded-none px-3 py-2 text-sm focus:ring-2 focus:ring-black"
-                    style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
+                  <h2
+                    className="text-lg font-black text-black uppercase tracking-tight mb-4"
+                    style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
                   >
-                    <option value="1">1 day</option>
-                    <option value="3">3 days</option>
-                    <option value="5">5 days</option>
-                    <option value="7">7 days</option>
-                    <option value="10">10 days</option>
-                    <option value="14">14 days</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-black mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    Minimum Quality Score
-                  </label>
-                  <select
-                    value={minQualityScore}
-                    onChange={(e) => setMinQualityScore(parseInt(e.target.value))}
-                    className="w-full border-2 border-black rounded-none px-3 py-2 text-sm focus:ring-2 focus:ring-black"
-                    style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
-                  >
-                    <option value="40">Worth a Look (40+)</option>
-                    <option value="60">Go Surf (60+)</option>
-                    <option value="70">Excellent (70+)</option>
-                  </select>
-                </div>
-                
-                <div className="space-y-3">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={emailEnabled}
-                      onChange={(e) => setEmailEnabled(e.target.checked)}
-                      className="h-4 w-4 border-2 border-black rounded-none"
-                    />
-                    <span className="text-sm" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Email notifications</span>
-                  </label>
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={smsEnabled}
-                      onChange={(e) => setSmsEnabled(e.target.checked)}
-                      className="h-4 w-4 border-2 border-black rounded-none"
-                    />
-                    <span className="text-sm" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Text notifications</span>
-                  </label>
-                </div>
-                
-                <Button
-                  type="submit"
-                  disabled={createAlertMutation.isPending}
-                  className="w-full bg-black text-white hover:bg-gray-800 border-2 border-black rounded-none uppercase tracking-wide font-bold py-6"
-                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                >
-                  {createAlertMutation.isPending ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Creating Alert...
-                    </span>
-                  ) : (
-                    "Create Alert"
-                  )}
-                </Button>
-              </form>
-              
-              {/* List existing alerts */}
-              {alerts && alerts.length > 0 && (
-                <div className="mt-8 pt-8 border-t-2 border-gray-200">
-                  <h3 className="text-lg font-bold mb-4" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>Your Active Alerts</h3>
-                  <div className="space-y-2">
-                    {alerts.map((alert) => (
-                      <div key={alert.id} className="p-3 bg-gray-50 border border-gray-200 rounded">
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <p className="font-semibold" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                    Active Alerts
+                    {alerts && alerts.length > 0 && (
+                      <span className="ml-2 text-sm font-normal text-gray-500">({alerts.length})</span>
+                    )}
+                  </h2>
+                  {alerts && alerts.length > 0 ? (
+                    <div className="space-y-2">
+                      {alerts.map((alert) => (
+                        <div
+                          key={alert.id}
+                          className="flex items-center justify-between p-3 bg-gray-50 border border-gray-100 group hover:border-gray-200 transition-all"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-sm truncate" style={{ fontFamily: "'Inter', sans-serif" }}>
                               {alert.spotId ? spots?.find(s => s.id === alert.spotId)?.name : "All spots"}
                             </p>
-                            <p className="text-sm text-gray-600" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                              {Math.round((alert.hoursAdvanceNotice || 24) / 24)} days notice • Quality {alert.minQualityScore}+
+                            <p className="text-xs text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                              {Math.round((alert.hoursAdvanceNotice || 24) / 24)}d · {alert.minQualityScore}+
                             </p>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
+                          <button
                             onClick={() => deleteAlertMutation.mutate({ alertId: alert.id })}
                             disabled={deleteAlertMutation.isPending}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all rounded"
                           >
-                            Remove
-                          </Button>
+                            <X className="h-4 w-4" />
+                          </button>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 bg-gray-50 border border-dashed border-gray-300">
+                      <Bell className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-600" style={{ fontFamily: "'Inter', sans-serif" }}>
+                        No alerts yet
+                      </p>
+                    </div>
+                  )}
                 </div>
-              )}
-            </CardContent>
-          </Card>
-          
-          {/* 2. Join the Community */}
-          <Card className="border-2 border-black rounded-none">
-            <CardHeader className="border-b-2 border-black">
-              <div className="flex items-center gap-3">
-                <Users className="h-6 w-6" />
-                <CardTitle className="text-2xl sm:text-3xl font-bold uppercase" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                  Join the Community
-                </CardTitle>
               </div>
-            </CardHeader>
-            <CardContent className="p-6 sm:p-8">
-              <p className="text-gray-700 mb-6" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                Connect with fellow NYC surfers. Share conditions, tips, and stoke.
-              </p>
-              <Button
-                className="w-full sm:w-auto bg-black text-white hover:bg-gray-800 border-2 border-black rounded-none uppercase tracking-wide font-bold py-6 px-8"
-                style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                disabled
-              >
-                Coming Soon
-              </Button>
-            </CardContent>
-          </Card>
-          
-          {/* 3. Submit Crowd Reports */}
-          <Card className="border-2 border-black rounded-none">
-            <CardHeader className="border-b-2 border-black">
-              <div className="flex items-center gap-3">
-                <MessageSquare className="h-6 w-6" />
-                <CardTitle className="text-2xl sm:text-3xl font-bold uppercase" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                  Submit Crowd Report
-                </CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="p-6 sm:p-8">
-              <p className="text-gray-700 mb-6" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                Help other surfers by reporting current crowd levels at your spot.
-              </p>
-              <form onSubmit={handleSubmitCrowdReport} className="space-y-6">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-black mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    Spot
-                  </label>
-                  <select
-                    value={crowdSpotId || ""}
-                    onChange={(e) => setCrowdSpotId(e.target.value ? parseInt(e.target.value) : null)}
-                    className="w-full border-2 border-black rounded-none px-3 py-2 text-sm focus:ring-2 focus:ring-black"
-                    style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
-                    required
-                  >
-                    <option value="">Select a spot...</option>
-                    {spots?.map((spot) => (
-                      <option key={spot.id} value={spot.id}>
-                        {spot.name}
-                      </option>
-                    ))}
-                  </select>
+            </div>
+          </TabsContent>
+
+          {/* Community Tab */}
+          <TabsContent value="community" className="mt-0">
+            <div className="bg-white border border-gray-200 p-8 text-center">
+              <div className="max-w-md mx-auto">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Users className="h-8 w-8 text-gray-500" />
                 </div>
-                
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-black mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    Crowd Level
-                  </label>
-                  <select
-                    value={crowdLevel}
-                    onChange={(e) => setCrowdLevel(parseInt(e.target.value))}
-                    className="w-full border-2 border-black rounded-none px-3 py-2 text-sm focus:ring-2 focus:ring-black"
-                    style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
-                  >
-                    <option value="1">1 - Empty</option>
-                    <option value="2">2 - Light</option>
-                    <option value="3">3 - Moderate</option>
-                    <option value="4">4 - Busy</option>
-                    <option value="5">5 - Crowded</option>
-                  </select>
-                </div>
-                
-                <Button
-                  type="submit"
-                  disabled={submitCrowdMutation.isPending}
-                  className="w-full bg-black text-white hover:bg-gray-800 border-2 border-black rounded-none uppercase tracking-wide font-bold py-6"
+                <h2
+                  className="text-xl font-black text-black uppercase tracking-tight mb-2"
+                  style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
+                >
+                  Community Hub
+                </h2>
+                <p className="text-sm text-gray-600 mb-6" style={{ fontFamily: "'Inter', sans-serif" }}>
+                  Connect with NYC surfers. Share conditions, tips, and session reports.
+                </p>
+                <span
+                  className="inline-block px-4 py-2 bg-gray-200 text-gray-600 text-xs uppercase tracking-wider font-semibold"
                   style={{ fontFamily: "'JetBrains Mono', monospace" }}
                 >
-                  {submitCrowdMutation.isPending ? (
-                    <span className="flex items-center justify-center gap-2">
+                  Coming Soon
+                </span>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Crowd Report Tab */}
+          <TabsContent value="crowd" className="mt-0">
+            <div className="bg-white border border-gray-200 p-6">
+              <div className="max-w-md">
+                <h2
+                  className="text-lg font-black text-black uppercase tracking-tight mb-2"
+                  style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
+                >
+                  Submit Crowd Report
+                </h2>
+                <p className="text-sm text-gray-600 mb-6" style={{ fontFamily: "'Inter', sans-serif" }}>
+                  Help other surfers know what to expect.
+                </p>
+                <form onSubmit={handleSubmitCrowdReport} className="space-y-4">
+                  <div>
+                    <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      Spot
+                    </label>
+                    <select
+                      value={crowdSpotId || ""}
+                      onChange={(e) => setCrowdSpotId(e.target.value ? parseInt(e.target.value) : null)}
+                      className={selectStyles}
+                      style={{ fontFamily: "'Inter', sans-serif" }}
+                      required
+                    >
+                      <option value="">Select a spot...</option>
+                      {spots?.map((spot) => (
+                        <option key={spot.id} value={spot.id}>{spot.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      Crowd Level
+                    </label>
+                    <div className="grid grid-cols-5 gap-2">
+                      {[1, 2, 3, 4, 5].map((level) => (
+                        <button
+                          key={level}
+                          type="button"
+                          onClick={() => setCrowdLevel(level)}
+                          className={`py-3 text-sm font-medium transition-all border ${
+                            crowdLevel === level
+                              ? "bg-black text-white border-black"
+                              : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
+                          }`}
+                          style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                        >
+                          {level}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex justify-between mt-1.5 text-[10px] text-gray-500 uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      <span>Empty</span>
+                      <span>Packed</span>
+                    </div>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={submitCrowdMutation.isPending}
+                    className="w-full bg-black text-white hover:bg-gray-900 rounded-none uppercase tracking-wider text-xs font-semibold py-3 h-auto transition-all"
+                    style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                  >
+                    {submitCrowdMutation.isPending ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Submitting...
-                    </span>
-                  ) : (
-                    "Submit Report"
-                  )}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-      
+                    ) : (
+                      "Submit Report"
+                    )}
+                  </Button>
+                </form>
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </main>
+
       <Footer />
     </div>
   );
