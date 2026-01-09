@@ -1,5 +1,6 @@
 import { COOKIE_NAME } from "@shared/const";
 import { z } from "zod";
+import crypto from "crypto";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
@@ -71,7 +72,6 @@ export const appRouter = router({
         const { signCustomSessionToken } = await import("./_core/jwt");
         const { COOKIE_NAME, ONE_YEAR_MS } = await import("@shared/const");
         const { getSessionCookieOptions } = await import("./_core/cookies");
-        const crypto = await import("crypto");
 
         // Generate a custom openId for email-based sign-ups
         // Use a hash of email to create unique identifier
@@ -123,7 +123,6 @@ export const appRouter = router({
         const { signCustomSessionToken } = await import("./_core/jwt");
         const { COOKIE_NAME, ONE_YEAR_MS } = await import("@shared/const");
         const { getSessionCookieOptions } = await import("./_core/cookies");
-        const crypto = await import("crypto");
 
         // Generate openId hash from email (same logic as sign-up)
         const openIdHash = crypto.createHash("sha256").update(input.email.toLowerCase()).digest("hex").substring(0, 32);
