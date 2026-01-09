@@ -65,9 +65,20 @@ export async function detectUpcomingSwells(
     });
 
     // Calculate advance notice window
-    const advanceNoticeMs = (alert.hoursAdvanceNotice || 24) * 60 * 60 * 1000;
+    // Use daysAdvanceNotice if set, otherwise fall back to hoursAdvanceNotice
+    let advanceNoticeMs: number;
+    if (alert.daysAdvanceNotice !== null && alert.daysAdvanceNotice !== undefined) {
+      advanceNoticeMs = alert.daysAdvanceNotice * 24 * 60 * 60 * 1000;
+    } else {
+      advanceNoticeMs = (alert.hoursAdvanceNotice || 24) * 60 * 60 * 1000;
+    }
+    
     const earliestTime = new Date(now.getTime() + advanceNoticeMs);
-    const latestTime = new Date(now.getTime() + (120 * 60 * 60 * 1000)); // Max 120 hours out
+    // Extend latest time if using daysAdvanceNotice (up to 20 days out for long-range forecasts)
+    const maxHoursOut = alert.daysAdvanceNotice !== null && alert.daysAdvanceNotice !== undefined 
+      ? Math.min(alert.daysAdvanceNotice * 24 + 48, 480) // Add 48 hours buffer, max 20 days
+      : 120; // Default 120 hours (5 days)
+    const latestTime = new Date(now.getTime() + (maxHoursOut * 60 * 60 * 1000));
 
     // Find swell windows that match criteria
     const matchingWindows = findMatchingSwellWindows(

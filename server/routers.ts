@@ -118,7 +118,7 @@ export const appRouter = router({
             message: "Account created but session setup failed. Please try signing in.",
           });
         }
-      }),
+    }),
   }),
 
   // ==================== SPOTS ROUTER ====================
@@ -1105,7 +1105,7 @@ export const appRouter = router({
           })),
         };
       }),
-      }),
+  }),
 
   // ==================== ALERTS ROUTER ====================
   alerts: router({

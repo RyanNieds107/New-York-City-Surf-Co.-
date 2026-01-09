@@ -141,6 +141,35 @@ function setupAutomaticRefresh(): void {
   }, intervalMs);
 }
 
+/**
+ * Sets up automatic swell alert checking on a schedule.
+ */
+function setupSwellAlertChecking(): void {
+  // Get check interval from environment variable (default: 6 hours)
+  const intervalHours = process.env.SWELL_ALERT_CHECK_INTERVAL_HOURS
+    ? parseInt(process.env.SWELL_ALERT_CHECK_INTERVAL_HOURS, 10)
+    : 6;
+
+  const intervalMs = intervalHours * 60 * 60 * 1000;
+
+  console.log(`[Swell Alerts] Automatic checking enabled - will run every ${intervalHours} hour(s)`);
+
+  // Import the check function dynamically
+  import("../jobs/checkSwellAlerts").then(({ checkSwellAlerts }) => {
+    // Run immediately on startup (after a short delay to let forecasts load)
+    setTimeout(() => {
+      checkSwellAlerts().catch(console.error);
+    }, 5 * 60 * 1000); // Wait 5 minutes for forecasts to refresh
+
+    // Set up interval to run periodically
+    setInterval(() => {
+      checkSwellAlerts().catch(console.error);
+    }, intervalMs);
+  }).catch((error) => {
+    console.error("[Swell Alerts] Failed to load alert checking module:", error);
+  });
+}
+
 async function startServer() {
   const app = express();
   const server = createServer(app);
@@ -238,6 +267,9 @@ async function startServer() {
     
     // Set up automatic forecast refresh
     setupAutomaticRefresh();
+    
+    // Set up automatic swell alert checking
+    setupSwellAlertChecking();
   });
 }
 

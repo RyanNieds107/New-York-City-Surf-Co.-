@@ -12,12 +12,14 @@ import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import SignIn from "./pages/SignIn";
 import Mission from "./pages/Mission";
+import Members from "./pages/Members";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={LandingPage} />
       <Route path="/sign-in" component={SignIn} />
+      <Route path="/members" component={Members} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/spot/:id" component={SpotDetail} />
       <Route path="/surf-analysis" component={SurfAnalysis} />

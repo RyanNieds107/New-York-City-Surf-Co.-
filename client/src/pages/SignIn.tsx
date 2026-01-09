@@ -17,8 +17,8 @@ export default function SignIn() {
   const signUpMutation = trpc.auth.signUp.useMutation({
     onSuccess: () => {
       toast.success("Account created successfully!");
-      // Redirect to dashboard after successful sign-up
-      setLocation("/dashboard");
+      // Redirect to members page after successful sign-up
+      setLocation("/members");
     },
     onError: (error) => {
       toast.error(error.message || "Failed to create account. Please try again.");

@@ -18,11 +18,12 @@ async function runMigration() {
   const connection = await mysql.createConnection(dbUrl);
 
   try {
-    // Read the migration file
-    const migrationFile = join(__dirname, "..", "drizzle", "0011_add_phone_to_users.sql");
+    // Get migration file from command line argument, or use default
+    const migrationFileName = process.argv[2] || "0012_add_real_time_updates.sql";
+    const migrationFile = join(__dirname, "..", "drizzle", migrationFileName);
     const sql = readFileSync(migrationFile, "utf-8");
 
-    console.log("🔄 Running migration: 0011_add_phone_to_users.sql");
+    console.log(`🔄 Running migration: ${migrationFileName}`);
     console.log("SQL:", sql.trim());
     
     // Split by semicolon and execute each statement

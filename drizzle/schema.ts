@@ -180,9 +180,15 @@ export const swellAlerts = mysqlTable("swell_alerts", {
   idealWindOnly: int("idealWindOnly").default(0), // 0 = any wind, 1 = offshore/cross-offshore only
   // Notification preferences
   emailEnabled: int("emailEnabled").default(1), // 0/1 boolean
+  smsEnabled: int("smsEnabled").default(0), // 0/1 boolean for text/SMS notifications
   pushEnabled: int("pushEnabled").default(0), // 0/1 boolean (future: web push)
   // Alert timing
   hoursAdvanceNotice: int("hoursAdvanceNotice").default(24), // Alert X hours before swell arrives
+  daysAdvanceNotice: int("daysAdvanceNotice"), // Alert X days before swell arrives (alternative to hours, more user-friendly)
+  notificationFrequency: varchar("notificationFrequency", { length: 32 }).default("immediate"), // "immediate" | "daily_digest" | "weekly_digest" | "per_swell"
+  // Content preferences
+  includeConfidenceIntervals: int("includeConfidenceIntervals").default(1), // 0/1 boolean
+  includeExplanation: int("includeExplanation").default(1), // 0/1 boolean (why they should target)
   // Status
   isActive: int("isActive").default(1), // 0/1 boolean
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -207,8 +213,10 @@ export const swellAlertLogs = mysqlTable("swell_alert_logs", {
   avgPeriodSec: int("avgPeriodSec"),
   // Delivery status
   emailSent: int("emailSent").default(0), // 0/1 boolean
+  smsSent: int("smsSent").default(0), // 0/1 boolean
   pushSent: int("pushSent").default(0), // 0/1 boolean
   emailSentAt: timestamp("emailSentAt"),
+  smsSentAt: timestamp("smsSentAt"),
   pushSentAt: timestamp("pushSentAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });

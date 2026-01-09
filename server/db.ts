@@ -114,6 +114,18 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+export async function getUserById(userId: number) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get user: database not available");
+    return undefined;
+  }
+
+  const result = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+
+  return result.length > 0 ? result[0] : undefined;
+}
+
 // ==================== SURF SPOTS ====================
 
 export async function getAllSpots(): Promise<SurfSpot[]> {
@@ -535,6 +547,7 @@ export async function deleteSwellAlert(alertId: number, userId: number): Promise
 
 export async function checkIfAlertAlreadySent(
   alertId: number,
+  spotId: number,
   swellStartTime: Date,
   swellEndTime: Date
 ): Promise<boolean> {
@@ -553,6 +566,7 @@ export async function checkIfAlertAlreadySent(
     .where(
       and(
         eq(swellAlertLogs.alertId, alertId),
+        eq(swellAlertLogs.spotId, spotId),
         gte(swellAlertLogs.swellStartTime, startTimeMin),
         lte(swellAlertLogs.swellStartTime, startTimeMax)
       )
@@ -577,7 +591,7 @@ export async function logSwellAlertSent(alertLog: InsertSwellAlertLog): Promise<
 
 export async function updateSwellAlertLogEmailSent(
   logId: number,
-  sentAt: Date
+  sentAt?: Date
 ): Promise<void> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -586,7 +600,23 @@ export async function updateSwellAlertLogEmailSent(
     .update(swellAlertLogs)
     .set({
       emailSent: 1,
-      emailSentAt: sentAt,
+      emailSentAt: sentAt || new Date(),
+    })
+    .where(eq(swellAlertLogs.id, logId));
+}
+
+export async function updateSwellAlertLogSmsSent(
+  logId: number,
+  sentAt?: Date
+): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db
+    .update(swellAlertLogs)
+    .set({
+      smsSent: 1,
+      smsSentAt: sentAt || new Date(),
     })
     .where(eq(swellAlertLogs.id, logId));
 }
