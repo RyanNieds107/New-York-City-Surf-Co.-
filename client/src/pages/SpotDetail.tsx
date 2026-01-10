@@ -3128,19 +3128,33 @@ export default function SpotDetail() {
                                         const starCount = getStarCount(qualityScore);
                                         const tideInfo = getTideInfo(point, index, uniquePoints);
 
-                                        // Calculate surf height range for display
+                                        // Calculate surf height for display
                                         const surfHeight = point.breakingWaveHeightFt !== null
                                           ? point.breakingWaveHeightFt
                                           : (primarySwellHeight ?? 0);
+                                        // Format surf height range:
+                                        // - At integer boundary (e.g., 4.0) → show range ending at that value (3-4ft)
+                                        // - Slightly above (.1-.4) → add "+" modifier (3-4ft+)
+                                        // - Near next range (.5+) → show next range (4-5ft)
                                         const formatSurfRange = (height: number): string => {
                                           if (height < 0.5) return 'Flat';
-                                          if (height < 1) return '0-1';
-                                          const low = Math.floor(height);
-                                          const high = Math.ceil(height);
-                                          if (height >= 4) return `${low}-${high}+`;
-                                          return low === high ? `${low}` : `${low}-${high}`;
+                                          if (height < 1) return '1ft';
+                                          if (height <= 1.4) return '1ft+';
+                                          if (height <= 2) return '1-2ft';
+                                          if (height <= 2.4) return '1-2ft+';
+                                          if (height <= 3) return '2-3ft';
+                                          if (height <= 3.4) return '2-3ft+';
+                                          if (height <= 4) return '3-4ft';
+                                          if (height <= 4.4) return '3-4ft+';
+                                          if (height <= 5) return '4-5ft';
+                                          if (height <= 5.4) return '4-5ft+';
+                                          if (height <= 6) return '5-6ft';
+                                          if (height <= 6.4) return '5-6ft+';
+                                          if (height <= 7) return '6-7ft';
+                                          if (height <= 8) return '7-8ft';
+                                          if (height <= 10) return '8-10ft';
+                                          return '10ft+';
                                         };
-
 
                                         // Wind type for color coding
                                         const windType = point.windType ?? null;
@@ -3302,6 +3316,14 @@ export default function SpotDetail() {
                 </div>
               )}
             </div>
+            {/* Confidence Intervals Footnote */}
+            {timelineQuery.data?.timeline && timelineQuery.data.timeline.length > 0 && (
+              <div className="-mt-4 px-4 md:px-0">
+                <p className="text-[10px] md:text-xs text-gray-600" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                  Note: Confidence intervals indicate the reliability of the forecast
+                </p>
+              </div>
+            )}
 
             {/* The Swell Signal - Long Range Forecast Teaser */}
             <div className="mt-12">

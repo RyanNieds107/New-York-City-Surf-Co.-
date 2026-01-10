@@ -4,6 +4,15 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
+
+// SHA-256 hash using Web Crypto API (works in Node.js 16+ and all modern runtimes)
+async function sha256(message: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(message);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
 import {
   getAllSpots,
   getSpotById,
@@ -71,11 +80,10 @@ export const appRouter = router({
         const { signCustomSessionToken } = await import("./_core/jwt");
         const { COOKIE_NAME, ONE_YEAR_MS } = await import("@shared/const");
         const { getSessionCookieOptions } = await import("./_core/cookies");
-        const { createHash } = await import("node:crypto");
 
         // Generate a custom openId for email-based sign-ups
         // Use a hash of email to create unique identifier
-        const openIdHash = createHash("sha256").update(input.email.toLowerCase()).digest("hex").substring(0, 32);
+        const openIdHash = (await sha256(input.email.toLowerCase())).substring(0, 32);
         const customOpenId = `email:${openIdHash}`;
 
         // Check if user already exists
@@ -123,10 +131,9 @@ export const appRouter = router({
         const { signCustomSessionToken } = await import("./_core/jwt");
         const { COOKIE_NAME, ONE_YEAR_MS } = await import("@shared/const");
         const { getSessionCookieOptions } = await import("./_core/cookies");
-        const { createHash } = await import("node:crypto");
 
         // Generate openId hash from email (same logic as sign-up)
-        const openIdHash = createHash("sha256").update(input.email.toLowerCase()).digest("hex").substring(0, 32);
+        const openIdHash = (await sha256(input.email.toLowerCase())).substring(0, 32);
         const customOpenId = `email:${openIdHash}`;
 
         // Check if user exists
