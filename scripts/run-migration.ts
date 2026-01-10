@@ -7,7 +7,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 async function runMigration() {
-  const dbUrl = process.env.DATABASE_URL || process.env.MYSQL_URL || process.env.MYSQL_PRIVATE_URL;
+  // Prioritize internal Railway URL first for better reliability
+  const dbUrl = process.env.MYSQL_URL || process.env.DATABASE_URL;
   
   if (!dbUrl) {
     console.error("❌ DATABASE_URL or MYSQL_URL environment variable not set");

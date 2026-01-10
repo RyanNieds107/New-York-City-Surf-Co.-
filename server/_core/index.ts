@@ -12,6 +12,13 @@ import { getAllSpots, getAverageCrowdLevel, insertForecast, getDb } from "../db"
 import { getCurrentTideInfo } from "../services/tides";
 import { generateForecast } from "../services/forecast";
 import { getCurrentConditionsFromOpenMeteo } from "../services/openMeteo";
+import { readFileSync, readdirSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+import mysql from "mysql2/promise";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 /**
  * Runs database migrations at server startup.
@@ -21,15 +28,75 @@ async function runMigrations(): Promise<void> {
   console.log("[Migrations] Starting database migrations...");
 
   try {
-    const db = await getDb();
-
-    if (!db) {
-      console.warn("[Migrations] Database connection not available - skipping migrations");
-      return;
+    // Prioritize internal Railway URL first for better reliability
+    // MYSQL_URL points to mysql.railway.internal (internal network, faster)
+    // DATABASE_URL is the external proxy which can timeout
+    const dbUrl = process.env.MYSQL_URL || process.env.DATABASE_URL;
+    
+    if (!dbUrl) {
+      console.error("[Migrations] ❌ No database connection URL found!");
+      console.error("[Migrations] Check: MYSQL_URL or DATABASE_URL");
+      throw new Error("Database connection URL not configured");
     }
 
-    await migrate(db, { migrationsFolder: "./drizzle" });
-    console.log("[Migrations] Database migrations completed successfully");
+    // Log which URL type is being used
+    const urlType = dbUrl.includes('internal') || dbUrl.includes('.railway.internal') 
+      ? 'Internal Railway URL' 
+      : dbUrl.includes('proxy.rlwy.net') 
+        ? 'External Railway Proxy' 
+        : 'Custom URL';
+    console.log(`[Migrations] Using: ${urlType}`);
+
+    // Add a small delay to ensure connection is stable
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Try direct SQL execution first (more reliable)
+    try {
+      const connection = await mysql.createConnection(dbUrl);
+      const migrationsDir = join(__dirname, "..", "..", "drizzle");
+      const files = readdirSync(migrationsDir)
+        .filter(f => f.endsWith(".sql"))
+        .sort();
+
+      console.log(`[Migrations] Found ${files.length} migration files, executing directly...`);
+
+      let executed = 0;
+      let skipped = 0;
+
+      for (const file of files) {
+        const filePath = join(migrationsDir, file);
+        const sql = readFileSync(filePath, "utf-8");
+        
+        const statements = sql.split("--> statement-breakpoint").filter(s => s.trim().length > 0);
+        
+        for (const statement of statements) {
+          const trimmed = statement.trim();
+          if (trimmed && !trimmed.startsWith("--")) {
+            try {
+              await connection.execute(trimmed);
+              executed++;
+            } catch (error: any) {
+              if (error.code === "ER_TABLE_EXISTS_ERROR" || error.message?.includes("already exists")) {
+                skipped++;
+              } else {
+                console.warn(`[Migrations] Warning in ${file}: ${error.message}`);
+              }
+            }
+          }
+        }
+      }
+
+      await connection.end();
+      console.log(`[Migrations] Database migrations completed: ${executed} executed, ${skipped} skipped`);
+    } catch (error: any) {
+      console.warn("[Migrations] Direct SQL execution failed, trying drizzle migrate:", error.message);
+      // Fallback to drizzle migrate
+      const db = await getDb();
+      if (db) {
+        await migrate(db, { migrationsFolder: "./drizzle" });
+        console.log("[Migrations] Database migrations completed successfully (via drizzle)");
+      }
+    }
   } catch (error) {
     console.error("[Migrations] Failed to run migrations:", error);
     // Don't crash the server - log the error and continue
@@ -63,6 +130,14 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 async function refreshAllForecasts(): Promise<void> {
   try {
     console.log("[Forecast Refresh] Starting automatic forecast refresh...");
+    
+    // Check database connection first
+    const db = await getDb();
+    if (!db) {
+      console.warn("[Forecast Refresh] Database not available - skipping refresh");
+      return;
+    }
+    
     const spots = await getAllSpots();
     const results = { success: 0, failed: 0 };
 

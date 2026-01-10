@@ -1,6 +1,7 @@
 import { defineConfig } from "drizzle-kit";
 
-const connectionString = process.env.DATABASE_URL || process.env.MYSQL_URL || process.env.MYSQL_PRIVATE_URL;
+// Prioritize internal Railway URL first for better reliability
+const connectionString = process.env.MYSQL_URL || process.env.DATABASE_URL;
 if (!connectionString) {
   throw new Error("DATABASE_URL is required to run drizzle commands. Available env vars: " + Object.keys(process.env).filter(k => k.includes('SQL') || k.includes('DB')).join(', '));
 }

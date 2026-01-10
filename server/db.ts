@@ -1,5 +1,6 @@
 import { eq, desc, and, gte, lte, lt, isNull, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
+import mysql from "mysql2/promise";
 import {
   InsertUser,
   users,
@@ -28,16 +29,49 @@ import {
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
+let _pool: mysql.Pool | null = null;
 
 // Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
-  const dbUrl = process.env.DATABASE_URL || process.env.MYSQL_URL || process.env.MYSQL_PRIVATE_URL;
+  // Prioritize internal Railway URL first for better reliability
+  // MYSQL_URL points to mysql.railway.internal (faster, more reliable, internal network)
+  // DATABASE_URL is the external proxy (turntable.proxy.rlwy.net) which can timeout
+  const dbUrl = process.env.MYSQL_URL || process.env.DATABASE_URL;
+  
   if (!_db && dbUrl) {
     try {
-      _db = drizzle(dbUrl);
+      // Create a connection pool with proper configuration for Railway
+      // mysql2 createPool can accept a connection string as first argument with options as second
+      _pool = mysql.createPool(dbUrl, {
+        waitForConnections: true,
+        connectionLimit: 10,
+        queueLimit: 0,
+        enableKeepAlive: true,
+        keepAliveInitialDelay: 0,
+        // Connection timeout settings
+        connectTimeout: 60000, // 60 seconds
+        acquireTimeout: 60000, // 60 seconds for acquiring connection from pool
+      });
+
+      // Test the connection immediately to catch connection issues early
+      const testConnection = await _pool.getConnection();
+      await testConnection.ping();
+      testConnection.release();
+      
+      _db = drizzle(_pool);
+      
+      // Log which URL type is being used for debugging
+      const urlType = dbUrl.includes('internal') || dbUrl.includes('.railway.internal') 
+        ? 'Internal Railway URL' 
+        : dbUrl.includes('proxy.rlwy.net') 
+          ? 'External Railway Proxy' 
+          : 'Custom URL';
+      console.log(`[Database] Connection pool created successfully (${urlType})`);
     } catch (error) {
-      console.warn("[Database] Failed to connect:", error);
+      console.error("[Database] Failed to connect:", error);
       _db = null;
+      _pool = null;
+      throw error; // Re-throw to prevent silent failures and help with debugging
     }
   }
   return _db;
@@ -109,9 +143,18 @@ export async function getUserByOpenId(openId: string) {
     return undefined;
   }
 
-  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-
-  return result.length > 0 ? result[0] : undefined;
+  try {
+    const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
+    return result.length > 0 ? result[0] : undefined;
+  } catch (error) {
+    console.error("[Database] Failed to get user by openId:", {
+      openId,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    // Return undefined on error instead of throwing, to allow graceful degradation
+    return undefined;
+  }
 }
 
 export async function getUserById(userId: number) {
