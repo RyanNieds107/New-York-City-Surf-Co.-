@@ -374,12 +374,20 @@ export async function insertForecastPoints(forecastPointsArray: InsertForecastPo
     console.log('✅ Successfully inserted', forecastPointsArray.length, 'forecast points');
     console.log(`📊 Net result: ${deletedCount} deleted → ${forecastPointsArray.length} inserted (spot ${spotId})`);
   } catch (error: any) {
-    // Check if error is due to missing windGustsKts column (schema mismatch)
-    if (error.code === "ER_BAD_FIELD_ERROR" || 
-        error.message?.includes("Unknown column 'windGustsKts'") || 
-        error.message?.includes("doesn't exist") ||
-        error.sqlMessage?.includes("windGustsKts") ||
-        error.sqlMessage?.includes("Unknown column")) {
+    // DrizzleQueryError wraps the actual MySQL error in error.cause
+    const actualError = error.cause || error;
+    const errorStr = JSON.stringify(error);
+    
+    // Check if this is a windGustsKts column error
+    const isWindGustsError = 
+      actualError.code === "ER_BAD_FIELD_ERROR" ||
+      actualError.sqlMessage?.includes("windGustsKts") ||
+      actualError.sqlMessage?.includes("Unknown column 'windGustsKts'") ||
+      actualError.message?.includes("windGustsKts") ||
+      error.message?.includes("windGustsKts") ||
+      errorStr.includes("windGustsKts");
+    
+    if (isWindGustsError) {
       console.warn(`[insertForecastPoints] Schema mismatch: windGustsKts column doesn't exist. Using backward-compatible insert...`);
       
       // Use raw SQL insert without windGustsKts column
@@ -481,19 +489,26 @@ export async function getForecastTimeline(
     
     return result;
   } catch (error: any) {
+    // DrizzleQueryError wraps the actual MySQL error in error.cause
+    const actualError = error.cause || error;
+    const errorStr = JSON.stringify(error);
+    
+    // Check if this is a windGustsKts column error - check both error and cause
+    const isWindGustsError = 
+      actualError.code === "ER_BAD_FIELD_ERROR" ||
+      actualError.sqlMessage?.includes("windGustsKts") ||
+      actualError.sqlMessage?.includes("Unknown column 'windGustsKts'") ||
+      actualError.message?.includes("windGustsKts") ||
+      error.message?.includes("windGustsKts") ||
+      errorStr.includes("windGustsKts");
+    
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/db.ts:385',message:'getForecastTimeline query error',data:{spotId,maxHoursOut,errorCode:error.code,errorMessage:error.message,sqlMessage:error.sqlMessage,hasWindGustsError:error.code === "ER_BAD_FIELD_ERROR" || error.message?.includes("windGustsKts") || error.sqlMessage?.includes("windGustsKts")},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/db.ts:483',message:'getForecastTimeline query error',data:{spotId,maxHoursOut,errorCode:error.code,causeCode:actualError.code,errorMessage:error.message,causeMessage:actualError.message,sqlMessage:error.sqlMessage,causeSqlMessage:actualError.sqlMessage,isWindGustsError},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
     // #endregion
     
-    // Check if error is due to missing windGustsKts column (schema mismatch)
-    if (error.code === "ER_BAD_FIELD_ERROR" || 
-        error.message?.includes("Unknown column 'windGustsKts'") || 
-        error.message?.includes("doesn't exist") ||
-        error.sqlMessage?.includes("windGustsKts") ||
-        error.sqlMessage?.includes("Unknown column")) {
-      console.error(`[getForecastTimeline] ❌ Schema mismatch: windGustsKts column doesn't exist in database.`);
-      console.error(`[getForecastTimeline] Migration 0014_add_wind_gusts.sql needs to be run.`);
-      console.error(`[getForecastTimeline] Error details:`, error.message || error.sqlMessage);
+    if (isWindGustsError) {
+      console.warn(`[getForecastTimeline] Schema mismatch: windGustsKts column doesn't exist. Using backward-compatible query...`);
+      console.warn(`[getForecastTimeline] Error details:`, actualError.message || actualError.sqlMessage || error.message);
       
       // TEMPORARY FIX: Try query without windGustsKts to allow backward compatibility
       // This allows the app to work while waiting for migration
@@ -561,12 +576,20 @@ export async function getLatestModelRunTime(spotId?: number): Promise<Date | nul
     const result = await query;
     return result.length > 0 ? result[0].modelRunTime : null;
   } catch (error: any) {
-    // Check if error is due to missing windGustsKts column (schema mismatch)
-    if (error.code === "ER_BAD_FIELD_ERROR" || 
-        error.message?.includes("Unknown column 'windGustsKts'") || 
-        error.message?.includes("doesn't exist") ||
-        error.sqlMessage?.includes("windGustsKts") ||
-        error.sqlMessage?.includes("Unknown column")) {
+    // DrizzleQueryError wraps the actual MySQL error in error.cause
+    const actualError = error.cause || error;
+    const errorStr = JSON.stringify(error);
+    
+    // Check if this is a windGustsKts column error
+    const isWindGustsError = 
+      actualError.code === "ER_BAD_FIELD_ERROR" ||
+      actualError.sqlMessage?.includes("windGustsKts") ||
+      actualError.sqlMessage?.includes("Unknown column 'windGustsKts'") ||
+      actualError.message?.includes("windGustsKts") ||
+      error.message?.includes("windGustsKts") ||
+      errorStr.includes("windGustsKts");
+    
+    if (isWindGustsError) {
       console.warn(`[getLatestModelRunTime] Schema mismatch: windGustsKts column doesn't exist. Using backward-compatible query...`);
       
       // Use raw SQL query - even column projection might fail if schema validation happens
@@ -627,16 +650,24 @@ export async function isForecastDataStale(
     
     return result.length === 0;
   } catch (error: any) {
+    // DrizzleQueryError wraps the actual MySQL error in error.cause
+    const actualError = error.cause || error;
+    const errorStr = JSON.stringify(error);
+    
+    // Check if this is a windGustsKts column error
+    const isWindGustsError = 
+      actualError.code === "ER_BAD_FIELD_ERROR" ||
+      actualError.sqlMessage?.includes("windGustsKts") ||
+      actualError.sqlMessage?.includes("Unknown column 'windGustsKts'") ||
+      actualError.message?.includes("windGustsKts") ||
+      error.message?.includes("windGustsKts") ||
+      errorStr.includes("windGustsKts");
+    
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/db.ts:490',message:'isForecastDataStale query error',data:{spotId,maxAgeHours,errorCode:error.code,errorMessage:error.message,sqlMessage:error.sqlMessage,hasWindGustsError:error.code === "ER_BAD_FIELD_ERROR" || error.message?.includes("windGustsKts") || error.sqlMessage?.includes("windGustsKts")},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/db.ts:647',message:'isForecastDataStale query error',data:{spotId,maxAgeHours,errorCode:error.code,causeCode:actualError.code,errorMessage:error.message,causeMessage:actualError.message,sqlMessage:error.sqlMessage,causeSqlMessage:actualError.sqlMessage,isWindGustsError},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
     // #endregion
     
-    // Check if error is due to missing windGustsKts column (schema mismatch)
-    if (error.code === "ER_BAD_FIELD_ERROR" || 
-        error.message?.includes("Unknown column 'windGustsKts'") || 
-        error.message?.includes("doesn't exist") ||
-        error.sqlMessage?.includes("windGustsKts") ||
-        error.sqlMessage?.includes("Unknown column")) {
+    if (isWindGustsError) {
       console.warn(`[isForecastDataStale] Schema mismatch: windGustsKts column doesn't exist. Using backward-compatible query...`);
       
       // TEMPORARY FIX: Use raw SQL query excluding windGustsKts
