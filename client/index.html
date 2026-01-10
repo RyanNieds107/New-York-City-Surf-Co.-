@@ -2,6 +2,17 @@
 <html lang="en">
 
   <head>
+    <!-- Absolute first-priority crypto shim -->
+    <script>
+      // Absolute first-priority shim
+      (function() {
+        window.global = window;
+        if (!window.crypto) {
+          window.crypto = window.msCrypto || {};
+        }
+      })();
+    </script>
+    
     <meta charset="UTF-8" />
     <meta
       name="viewport"

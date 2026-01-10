@@ -19,7 +19,13 @@ export default defineConfig({
       "@": path.resolve(__dirname, "client", "src"),
       "@shared": path.resolve(__dirname, "shared"),
       "@assets": path.resolve(__dirname, "attached_assets"),
+      // This tells Vite: "When a library asks for 'crypto', use this browser-safe version"
+      crypto: "crypto-browserify",
     },
+  },
+  define: {
+    // This provides a global 'global' variable that some older auth libraries expect
+    global: "globalThis",
   },
   envDir: path.resolve(__dirname),
   root: path.resolve(__dirname, "client"),
