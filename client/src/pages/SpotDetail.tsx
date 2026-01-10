@@ -1640,7 +1640,9 @@ export default function SpotDetail() {
                         {currentConditions.windSpeedMph !== null && currentConditions.windDirectionDeg !== null ? (
                           <div>
                             <p className="text-xl sm:text-2xl font-black text-black leading-none uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                              {Math.round(currentConditions.windSpeedMph)}<span className="text-base sm:text-lg">MPH</span> {(() => {
+                              {Math.round(currentConditions.windSpeedMph)}{currentConditions.windGustsMph !== null && currentConditions.windGustsMph > currentConditions.windSpeedMph && (
+                                <sup className="text-sm sm:text-base font-bold ml-0.5">{Math.round(currentConditions.windGustsMph)}</sup>
+                              )}<span className="text-base sm:text-lg">mph</span> {(() => {
                                 const directions = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
                                 const index = Math.round(currentConditions.windDirectionDeg / 22.5) % 16;
                                 return directions[index];
@@ -1911,7 +1913,15 @@ export default function SpotDetail() {
                              currentConditions.windType === 'cross-offshore' ? '~' : '~'}
                           </div>
                           <div className="text-[10px] text-gray-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                            {currentConditions.windSpeedMph ? `${Math.round(currentConditions.windSpeedMph)}mph ${currentConditions.windType ?? ''}` : '—'}
+                            {currentConditions.windSpeedMph ? (
+                              <>
+                                {Math.round(currentConditions.windSpeedMph)}
+                                {currentConditions.windGustsMph && currentConditions.windGustsMph > currentConditions.windSpeedMph && (
+                                  <sup className="text-[8px]">{Math.round(currentConditions.windGustsMph)}</sup>
+                                )}
+                                mph {currentConditions.windType ?? ''}
+                              </>
+                            ) : '—'}
                           </div>
                         </div>
 
@@ -2139,6 +2149,7 @@ export default function SpotDetail() {
                               // Wind data
                               const windDir = point.windDirectionDeg ?? 0;
                               const windSpeed = point.windSpeedMph ?? null;
+                              const windGust = point.windGustsMph ?? null;
                               const windType = point.windType ?? null;
 
                               // Tide data
@@ -2250,7 +2261,9 @@ export default function SpotDetail() {
                                             </div>
                                             <div>
                                               <div className="text-sm font-bold text-black" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
-                                                {getSwellDirectionLabel(windDir)} {Math.round(windSpeed)}MPH
+                                                {getSwellDirectionLabel(windDir)} {Math.round(windSpeed)}{windGust !== null && windSpeed !== null && windGust > windSpeed && (
+                                                  <sup className="text-[9px] font-bold">{Math.round(windGust)}</sup>
+                                                )}mph
                                               </div>
                                               {windType && (
                                                 <div className={`text-[10px] font-semibold ${windType === 'offshore' ? 'text-emerald-600' : windType === 'onshore' ? 'text-red-500' : 'text-gray-500'}`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
@@ -2421,7 +2434,9 @@ export default function SpotDetail() {
                                               {getSwellDirectionLabel(windDir)} {Math.round(windDir)}°
                                             </div>
                                             <div className="text-sm" style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
-                                              <span className="text-[#64748b]">{Math.round(windSpeed)}mph </span>
+                                              <span className="text-[#64748b]">{Math.round(windSpeed)}{windGust !== null && windSpeed !== null && windGust > windSpeed && (
+                                                <sup className="text-[10px] font-bold">{Math.round(windGust)}</sup>
+                                              )}mph </span>
                                               {windType && (
                                                 <span style={{
                                                   color: windType === 'offshore' ? '#059669' : windType === 'onshore' ? '#ef4444' : windType === 'cross-offshore' ? '#6b7280' : '#64748b',
@@ -3102,6 +3117,7 @@ export default function SpotDetail() {
 
                                         // Wind data
                                         const windSpeed = point.windSpeedMph !== null ? Math.round(point.windSpeedMph) : null;
+                                        const windGust = point.windGustsMph !== null ? Math.round(point.windGustsMph) : null;
                                         const windDir = point.windDirectionDeg !== null ? formatDirection(point.windDirectionDeg) : null;
 
                                         // Primary swell data (dominant swell or fallback to primary)
@@ -3222,6 +3238,9 @@ export default function SpotDetail() {
                                             <div className="flex items-center gap-1 md:gap-2">
                                               <span className="text-xs md:text-sm font-bold text-gray-900">
                                                 {windSpeed !== null ? `${windSpeed}` : '—'}
+                                                {windGust !== null && windSpeed !== null && windGust > windSpeed && (
+                                                  <sup className="text-[8px] md:text-[10px] font-bold ml-0.5">{windGust}</sup>
+                                                )}
                                                 <span className="text-[9px] md:text-[11px] font-medium text-gray-500">mph</span>
                                               </span>
                                               {point.windDirectionDeg !== null && (

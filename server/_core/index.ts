@@ -70,16 +70,30 @@ async function runMigrations(): Promise<void> {
         const statements = sql.split("--> statement-breakpoint").filter(s => s.trim().length > 0);
         
         for (const statement of statements) {
-          const trimmed = statement.trim();
-          if (trimmed && !trimmed.startsWith("--")) {
+          // Extract SQL statements, removing comment lines but keeping actual SQL
+          const sqlLines = statement.split('\n').filter(line => {
+            const cleanLine = line.trim();
+            return cleanLine && !cleanLine.startsWith('--') && cleanLine !== '--> statement-breakpoint';
+          });
+          const actualSQL = sqlLines.join('\n').trim();
+          
+          if (actualSQL) {
             try {
-              await connection.execute(trimmed);
+              await connection.execute(actualSQL);
               executed++;
+              console.log(`[Migrations] ✓ Executed migration from ${file}`);
             } catch (error: any) {
-              if (error.code === "ER_TABLE_EXISTS_ERROR" || error.message?.includes("already exists")) {
+              if (error.code === "ER_TABLE_EXISTS_ERROR" || 
+                  error.code === "ER_DUP_FIELDNAME" || 
+                  error.message?.includes("already exists") || 
+                  error.message?.includes("Duplicate column name") || 
+                  error.message?.includes("Duplicate column") ||
+                  error.sqlMessage?.includes("Duplicate column")) {
                 skipped++;
+                console.log(`[Migrations] ⊘ Skipped (already applied): ${file} - ${error.message}`);
               } else {
-                console.warn(`[Migrations] Warning in ${file}: ${error.message}`);
+                console.warn(`[Migrations] ⚠️ Warning in ${file}: ${error.message}`);
+                // Don't throw - continue with other migrations
               }
             }
           }

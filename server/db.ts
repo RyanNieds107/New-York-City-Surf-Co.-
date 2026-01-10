@@ -349,37 +349,52 @@ export async function getForecastTimeline(
   const db = await getDb();
   if (!db) return [];
   
-  const result = await db
-    .select()
-    .from(forecastPoints)
-    .where(
-      and(
-        eq(forecastPoints.spotId, spotId),
-        lte(forecastPoints.hoursOut, maxHoursOut)
+  try {
+    const result = await db
+      .select()
+      .from(forecastPoints)
+      .where(
+        and(
+          eq(forecastPoints.spotId, spotId),
+          lte(forecastPoints.hoursOut, maxHoursOut)
+        )
       )
-    )
-    .orderBy(forecastPoints.forecastTimestamp);
-  
-  // 📖 STEP 4: Reading from Database
-  if (result.length > 0) {
-    const sample = result[0];
-    console.log('📖 STEP 4: Reading from Database');
-    console.log('Total points retrieved:', result.length);
-    console.log('Database has secondary swell?', !!sample.secondarySwellHeightFt);
-    console.log('Database has wind waves?', !!sample.windWaveHeightFt);
-    console.log('Database sample:', {
-      secondarySwellHeightFt: sample.secondarySwellHeightFt,
-      secondarySwellPeriodS: sample.secondarySwellPeriodS,
-      secondarySwellDirectionDeg: sample.secondarySwellDirectionDeg,
-      windWaveHeightFt: sample.windWaveHeightFt,
-      windWavePeriodS: sample.windWavePeriodS,
-      windWaveDirectionDeg: sample.windWaveDirectionDeg,
-    });
-  } else {
-    console.log('📖 STEP 4: Reading from Database - No data found');
+      .orderBy(forecastPoints.forecastTimestamp);
+    
+    // 📖 STEP 4: Reading from Database
+    if (result.length > 0) {
+      const sample = result[0];
+      console.log('📖 STEP 4: Reading from Database');
+      console.log('Total points retrieved:', result.length);
+      console.log('Database has secondary swell?', !!sample.secondarySwellHeightFt);
+      console.log('Database has wind waves?', !!sample.windWaveHeightFt);
+      console.log('Database sample:', {
+        secondarySwellHeightFt: sample.secondarySwellHeightFt,
+        secondarySwellPeriodS: sample.secondarySwellPeriodS,
+        secondarySwellDirectionDeg: sample.secondarySwellDirectionDeg,
+        windWaveHeightFt: sample.windWaveHeightFt,
+        windWavePeriodS: sample.windWavePeriodS,
+        windWaveDirectionDeg: sample.windWaveDirectionDeg,
+      });
+    } else {
+      console.log('📖 STEP 4: Reading from Database - No data found');
+    }
+    
+    return result;
+  } catch (error: any) {
+    // Check if error is due to missing windGustsKts column (schema mismatch)
+    if (error.code === "ER_BAD_FIELD_ERROR" || 
+        error.message?.includes("Unknown column 'windGustsKts'") || 
+        error.message?.includes("doesn't exist") ||
+        error.sqlMessage?.includes("windGustsKts")) {
+      console.error(`[getForecastTimeline] ❌ Schema mismatch: windGustsKts column doesn't exist in database.`);
+      console.error(`[getForecastTimeline] Migration 0014_add_wind_gusts.sql needs to be run.`);
+      console.error(`[getForecastTimeline] Error details:`, error.message || error.sqlMessage);
+      throw new Error("Database schema is out of sync. The windGustsKts column is missing. Please ensure migration 0014_add_wind_gusts.sql has been applied to the database.");
+    }
+    console.error(`[getForecastTimeline] Database query error:`, error);
+    throw error;
   }
-  
-  return result;
 }
 
 export async function getLatestModelRunTime(spotId?: number): Promise<Date | null> {
