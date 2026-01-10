@@ -178,7 +178,7 @@ export const swellAlerts = mysqlTable("swell_alerts", {
   minWaveHeightFt: decimal("minWaveHeightFt", { precision: 4, scale: 1 }), // e.g., 3.0ft
   minQualityScore: int("minQualityScore"), // e.g., 60 (Go Surf or better)
   minPeriodSec: int("minPeriodSec"), // e.g., 8s minimum period
-  idealWindOnly: int("idealWindOnly").default(0), // 0 = any wind, 1 = offshore/cross-offshore only
+  idealWindOnly: int("idealWindOnly").default(0), // 0 = any wind, 1 = offshore/side-offshore only
   // Notification preferences
   emailEnabled: int("emailEnabled").default(1), // 0/1 boolean
   smsEnabled: int("smsEnabled").default(0), // 0/1 boolean for text/SMS notifications

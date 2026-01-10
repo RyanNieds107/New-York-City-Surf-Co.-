@@ -502,7 +502,7 @@ export default function SpotDetail() {
   const getWindBadgeType = (windType: string | null): "offshore" | "onshore" | "cross" | "unknown" => {
     if (!windType) return "unknown";
     const lower = windType.toLowerCase();
-    if (lower === "cross-offshore") return "cross"; // Treat cross-offshore as cross for badge
+    if (lower === "side-offshore") return "cross"; // Treat side-offshore as cross for badge
     if (lower.includes("offshore")) return "offshore";
     if (lower.includes("onshore")) return "onshore";
     if (lower.includes("cross") || lower.includes("side")) return "cross";
@@ -512,7 +512,7 @@ export default function SpotDetail() {
   // Format wind type for display
   const formatWindType = (windType: string | null): string => {
     if (!windType) return '';
-    if (windType === 'cross-offshore') return 'Cross-Offshore';
+    if (windType === 'side-offshore') return 'Side-Off';
     const capitalized = windType.charAt(0).toUpperCase() + windType.slice(1);
     return capitalized.replace('-', '-');
   };
@@ -1652,10 +1652,10 @@ export default function SpotDetail() {
                               <p className={`text-[10px] sm:text-xs font-semibold uppercase tracking-wider mt-1 ${
                                 currentConditions.windType === 'offshore' ? 'text-emerald-600' :
                                 currentConditions.windType === 'onshore' ? 'text-red-500' :
-                                currentConditions.windType === 'cross-offshore' ? 'text-gray-500' :
+                                currentConditions.windType === 'side-offshore' ? 'text-gray-500' :
                                 'text-amber-500'
                               }`} style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                                {currentConditions.windType === 'cross-offshore' ? 'Cross-Off' : currentConditions.windType}
+                                {currentConditions.windType === 'side-offshore' ? 'Side-Off' : currentConditions.windType}
                               </p>
                             )}
                           </div>
@@ -1905,12 +1905,12 @@ export default function SpotDetail() {
                           <div className={`text-2xl font-black ${
                             currentConditions.windType === 'offshore' ? 'text-emerald-600' :
                             currentConditions.windType === 'onshore' ? 'text-red-500' :
-                            currentConditions.windType === 'cross-offshore' ? 'text-gray-500' :
+                            currentConditions.windType === 'side-offshore' ? 'text-gray-500' :
                             'text-amber-500'
                           }`} style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                             {currentConditions.windType === 'offshore' ? '✓' :
-                             currentConditions.windType === 'onshore' ? '✗' : 
-                             currentConditions.windType === 'cross-offshore' ? '~' : '~'}
+                             currentConditions.windType === 'onshore' ? '✗' :
+                             currentConditions.windType === 'side-offshore' ? '~' : '~'}
                           </div>
                           <div className="text-[10px] text-gray-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                             {currentConditions.windSpeedMph ? (
@@ -2418,14 +2418,14 @@ export default function SpotDetail() {
                                               <text x="6" y="31" textAnchor="middle" fontSize="7" fill="#94a3b8" fontWeight="600" style={{ fontFamily: 'JetBrains Mono, monospace' }}>W</text>
                                               {/* Wind direction arrow - points FROM where wind is coming */}
                                               <g transform={`rotate(${windDir + 180}, 28, 28)`}>
-                                                <line x1="28" y1="38" x2="28" y2="14" stroke={windType === 'offshore' ? '#059669' : windType === 'onshore' ? '#ef4444' : windType === 'cross-offshore' ? '#6b7280' : '#64748b'} strokeWidth="2.5" strokeLinecap="round" />
+                                                <line x1="28" y1="38" x2="28" y2="14" stroke={windType === 'offshore' ? '#059669' : windType === 'onshore' ? '#ef4444' : windType === 'side-offshore' ? '#6b7280' : '#64748b'} strokeWidth="2.5" strokeLinecap="round" />
                                                 <polygon
                                                   points="28,10 23,18 33,18"
-                                                  fill={windType === 'offshore' ? '#059669' : windType === 'onshore' ? '#ef4444' : windType === 'cross-offshore' ? '#6b7280' : '#64748b'}
+                                                  fill={windType === 'offshore' ? '#059669' : windType === 'onshore' ? '#ef4444' : windType === 'side-offshore' ? '#6b7280' : '#64748b'}
                                                 />
                                               </g>
                                               {/* Center dot */}
-                                              <circle cx="28" cy="28" r="3" fill={windType === 'offshore' ? '#059669' : windType === 'onshore' ? '#ef4444' : windType === 'cross-offshore' ? '#6b7280' : '#64748b'} />
+                                              <circle cx="28" cy="28" r="3" fill={windType === 'offshore' ? '#059669' : windType === 'onshore' ? '#ef4444' : windType === 'side-offshore' ? '#6b7280' : '#64748b'} />
                                             </svg>
                                           </div>
                                           {/* Wind Info */}
@@ -2439,7 +2439,7 @@ export default function SpotDetail() {
                                               )}mph </span>
                                               {windType && (
                                                 <span style={{
-                                                  color: windType === 'offshore' ? '#059669' : windType === 'onshore' ? '#ef4444' : windType === 'cross-offshore' ? '#6b7280' : '#64748b',
+                                                  color: windType === 'offshore' ? '#059669' : windType === 'onshore' ? '#ef4444' : windType === 'side-offshore' ? '#6b7280' : '#64748b',
                                                   fontWeight: 700
                                                 }}>
                                                   {formatWindType(windType)}
@@ -3174,7 +3174,7 @@ export default function SpotDetail() {
 
                                         // Wind type for color coding
                                         const windType = point.windType ?? null;
-                                        const windColor = windType === 'offshore' ? '#059669' : windType === 'onshore' ? '#ef4444' : windType === 'cross-offshore' ? '#6b7280' : '#64748b';
+                                        const windColor = windType === 'offshore' ? '#059669' : windType === 'onshore' ? '#ef4444' : windType === 'side-offshore' ? '#6b7280' : '#64748b';
 
                                         return (
                                           <div

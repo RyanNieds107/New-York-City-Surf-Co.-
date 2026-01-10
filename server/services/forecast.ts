@@ -29,7 +29,7 @@ export interface ForecastResult {
   // Wind data
   windSpeedMph: number | null;
   windDirectionDeg: number | null;
-  windType: "offshore" | "onshore" | "cross" | "cross-offshore" | null;
+  windType: "offshore" | "onshore" | "cross" | "side-offshore" | null;
   // Tide data
   tideHeightFt: number | null; // in tenths of feet
   tidePhase: "rising" | "falling" | "high" | "low" | null;
@@ -163,19 +163,20 @@ export function generateForecast(input: ForecastInput): ForecastResult {
 
 /**
  * Determines wind type based on direction for Long Island.
- * North (315-45) = offshore, South (135-225) = onshore, 
- * WNW (285-300) = cross-offshore, else = cross
+ * North (315-45) = offshore, South (135-225) = onshore,
+ * WNW (295-315) = side-offshore, else = cross
+ * Updated: 293° WNW is now "side-offshore" (was "cross-offshore")
  */
-function calculateWindType(windDir: number | null): "offshore" | "onshore" | "cross" | "cross-offshore" | null {
+function calculateWindType(windDir: number | null): "offshore" | "onshore" | "cross" | "side-offshore" | null {
   if (windDir === null) return null;
-  
+
   if (windDir >= 315 || windDir <= 45) {
     return "offshore";
   } else if (windDir >= 135 && windDir <= 225) {
     return "onshore";
-  } else if (windDir >= 285 && windDir <= 300) {
-    // WNW range (292.5° ± 7.5°)
-    return "cross-offshore";
+  } else if (windDir >= 295 && windDir < 315) {
+    // WNW range (295-315°) - side-offshore
+    return "side-offshore";
   } else {
     return "cross";
   }
@@ -383,7 +384,7 @@ export interface ForecastTimelineResult {
   windSpeedMph: number | null;
   windGustsMph: number | null;
   windDirectionDeg: number | null;
-  windType: "offshore" | "onshore" | "cross" | "cross-offshore" | null;
+  windType: "offshore" | "onshore" | "cross" | "side-offshore" | null;
   // Tide data
   tideHeightFt: number | null; // in tenths of feet
   tidePhase: "rising" | "falling" | "high" | "low" | null;

@@ -224,7 +224,7 @@ function pointMatchesCriteria(
   // Check wind (if ideal wind only)
   if (alert.idealWindOnly === 1) {
     const windType = point.windType;
-    if (windType !== "offshore" && windType !== "cross-offshore") {
+    if (windType !== "offshore" && windType !== "side-offshore") {
       return false;
     }
   }
