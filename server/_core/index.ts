@@ -67,6 +67,10 @@ async function runMigrations(): Promise<void> {
         const filePath = join(migrationsDir, file);
         const sql = readFileSync(filePath, "utf-8");
         
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/_core/index.ts:66',message:'Processing migration file',data:{fileName:file},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+        // #endregion
+        
         const statements = sql.split("--> statement-breakpoint").filter(s => s.trim().length > 0);
         
         for (const statement of statements) {
@@ -79,10 +83,22 @@ async function runMigrations(): Promise<void> {
           
           if (actualSQL) {
             try {
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/_core/index.ts:81',message:'Executing migration SQL',data:{fileName:file,sqlPreview:actualSQL.substring(0,100)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+              // #endregion
+              
               await connection.execute(actualSQL);
               executed++;
               console.log(`[Migrations] ✓ Executed migration from ${file}`);
+              
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/_core/index.ts:83',message:'Migration executed successfully',data:{fileName:file},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+              // #endregion
             } catch (error: any) {
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/_core/index.ts:85',message:'Migration execution error',data:{fileName:file,errorCode:error.code,errorMessage:error.message,sqlMessage:error.sqlMessage,isDuplicateColumn:error.code === "ER_DUP_FIELDNAME" || error.message?.includes("Duplicate column")},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+              // #endregion
+              
               if (error.code === "ER_TABLE_EXISTS_ERROR" || 
                   error.code === "ER_DUP_FIELDNAME" || 
                   error.message?.includes("already exists") || 

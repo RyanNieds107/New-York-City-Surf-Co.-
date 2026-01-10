@@ -309,12 +309,29 @@ export const appRouter = router({
       const results = await Promise.all(
         spots.map(async (spot) => {
           try {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/routers.ts:311',message:'getCurrentConditionsForAll starting for spot',data:{spotId:spot.id,spotName:spot.name},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
+            
             // Check if data is stale or missing
             const isStale = await isForecastDataStale(spot.id, 0.5); // 30 minutes stale threshold
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/routers.ts:313',message:'Checking forecast data staleness',data:{spotId:spot.id,isStale},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
+            
             let forecastPoints = await getForecastTimeline(spot.id, 3); // Only need 3 hours for current conditions
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/routers.ts:314',message:'getForecastTimeline completed',data:{spotId:spot.id,pointCount:forecastPoints.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
 
             // If data is stale or missing, fetch fresh data from Open-Meteo
             if (isStale || forecastPoints.length === 0) {
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/routers.ts:317',message:'Data is stale or missing, fetching fresh',data:{spotId:spot.id,isStale,pointCount:forecastPoints.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+              // #endregion
+              
               const { fetchOpenMeteoForecastForSpot, convertToDbFormat } = await import("./services/openMeteo");
               const { insertForecastPoints } = await import("./db");
 
@@ -322,14 +339,31 @@ export const appRouter = router({
                 // IMPORTANT: Fetch 120 hours to match getTimeline behavior
                 // Previously was fetching 3 hours, which would delete full 120-hour data
                 const fetchedPoints = await fetchOpenMeteoForecastForSpot(spot, { maxHoursOut: 120 });
+                
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/routers.ts:324',message:'Fetched points from Open-Meteo',data:{spotId:spot.id,fetchedCount:fetchedPoints.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                // #endregion
+                
                 const dbPoints = fetchedPoints.map((point) => convertToDbFormat(point, spot.id));
 
                 // Store in database (auto-cleanup happens inside insertForecastPoints)
                 await insertForecastPoints(dbPoints);
+                
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/routers.ts:328',message:'Inserted points into database',data:{spotId:spot.id,insertedCount:dbPoints.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                // #endregion
 
                 // Re-fetch from database after insert
                 forecastPoints = await getForecastTimeline(spot.id, 3);
+                
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/routers.ts:331',message:'Re-fetched points after insert',data:{spotId:spot.id,refetchedCount:forecastPoints.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                // #endregion
               } catch (error) {
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/routers.ts:332',message:'Failed to fetch fresh data',data:{spotId:spot.id,errorMessage:error instanceof Error ? error.message : String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                // #endregion
+                
                 // If fetch fails, continue with existing data or empty
                 console.warn(`Failed to fetch fresh data for spot ${spot.id}:`, error);
               }
@@ -339,17 +373,33 @@ export const appRouter = router({
             const avgCrowdLevel = await getAverageCrowdLevel(spot.id);
 
             // Generate timeline with quality scores
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/routers.ts:341',message:'Generating forecast timeline',data:{spotId:spot.id,forecastPointCount:forecastPoints.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+            // #endregion
+            
             const timeline = await generateForecastTimeline({
               forecastPoints,
               spot,
               tideStationId: spot.tideStationId,
               avgCrowdLevel,
             });
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/routers.ts:347',message:'Timeline generated',data:{spotId:spot.id,timelineLength:timeline.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+            // #endregion
 
             // Get current conditions point (nearest to now)
             const currentPoint = selectCurrentTimelinePoint(timeline);
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/routers.ts:349',message:'Selected current timeline point',data:{spotId:spot.id,hasCurrentPoint:!!currentPoint},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+            // #endregion
 
             if (!currentPoint) {
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/routers.ts:352',message:'No current point found, returning null',data:{spotId:spot.id,timelineLength:timeline.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+              // #endregion
+              
               return {
                 spotId: spot.id,
                 spot,
@@ -449,6 +499,10 @@ export const appRouter = router({
               },
             };
           } catch (error) {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/routers.ts:451',message:'Error in getCurrentConditionsForAll',data:{spotId:spot.id,errorMessage:error instanceof Error ? error.message : String(error),errorStack:error instanceof Error ? error.stack : undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+            // #endregion
+            
             console.error(`Failed to get current conditions for spot ${spot.id}:`, error);
             return {
               spotId: spot.id,
