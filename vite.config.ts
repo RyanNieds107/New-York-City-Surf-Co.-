@@ -27,6 +27,18 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      external: (id) => {
+        // Exclude node: protocol imports from client bundle
+        if (id.startsWith("node:")) {
+          return true;
+        }
+        return false;
+      },
+    },
+  },
+  optimizeDeps: {
+    exclude: ["node:crypto"],
   },
   server: {
     host: true,

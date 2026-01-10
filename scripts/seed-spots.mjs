@@ -46,6 +46,36 @@ const LONG_ISLAND_SPOTS = [
     idealSwellDirMin: 130,
     idealSwellDirMax: 200,
   },
+  {
+    name: "Montauk",
+    latitude: "41.0359",
+    longitude: "-71.9545",
+    buoyId: "44017", // Montauk Point buoy
+    tideStationId: "8510560", // Montauk
+    bathymetryFactor: 7,
+    idealSwellDirMin: 90,
+    idealSwellDirMax: 180,
+  },
+  {
+    name: "Gilgo Beach",
+    latitude: "40.6260",
+    longitude: "-73.3940",
+    buoyId: "44025", // Ambrose Light buoy
+    tideStationId: "8516945", // Cedar Beach
+    bathymetryFactor: 5,
+    idealSwellDirMin: 120,
+    idealSwellDirMax: 200,
+  },
+  {
+    name: "Belmar",
+    latitude: "40.1784",
+    longitude: "-74.0140",
+    buoyId: "44025", // Ambrose Light buoy
+    tideStationId: "8534720", // Atlantic City
+    bathymetryFactor: 5,
+    idealSwellDirMin: 90,
+    idealSwellDirMax: 180,
+  },
 ];
 
 async function seed() {

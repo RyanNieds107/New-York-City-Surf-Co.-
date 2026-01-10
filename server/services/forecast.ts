@@ -381,6 +381,7 @@ export interface ForecastTimelineResult {
   windWaveDirectionDeg: number | null;
   // Wind data
   windSpeedMph: number | null;
+  windGustsMph: number | null;
   windDirectionDeg: number | null;
   windType: "offshore" | "onshore" | "cross" | "cross-offshore" | null;
   // Tide data
@@ -487,6 +488,9 @@ export async function generateForecastTimeline(
     const windSpeedMph = point.windSpeedKts !== null 
       ? Math.round(point.windSpeedKts * 1.15078)
       : null;
+    const windGustsMph = point.windGustsKts !== null 
+      ? Math.round(point.windGustsKts * 1.15078)
+      : null;
     const windDirectionDeg = point.windDirectionDeg !== null 
       ? point.windDirectionDeg 
       : null;
@@ -501,6 +505,8 @@ export async function generateForecastTimeline(
       console.log('🌬️ Wind data for first timeline point:', {
         windSpeedKts: point.windSpeedKts,
         windSpeedMph,
+        windGustsKts: point.windGustsKts,
+        windGustsMph,
         windDirectionDeg: point.windDirectionDeg,
         windType,
       });
@@ -630,6 +636,7 @@ export async function generateForecastTimeline(
       windWaveDirectionDeg,
       // Wind data
       windSpeedMph,
+      windGustsMph,
       windDirectionDeg,
       windType,
       // Tide data

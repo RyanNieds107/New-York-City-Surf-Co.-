@@ -12,6 +12,7 @@
     "test": "vitest run",
     "db:push": "drizzle-kit generate && drizzle-kit migrate",
     "db:migrate": "tsx scripts/run-migration.ts",
+    "db:recreate": "tsx scripts/recreate-tables.ts",
     "validate:algorithm": "tsx scripts/validateAlgorithm.ts",
     "import:openmeteo:test": "tsx server/jobs/importOpenMeteoMarine.ts"
   },

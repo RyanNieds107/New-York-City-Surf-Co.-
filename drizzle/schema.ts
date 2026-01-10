@@ -109,6 +109,7 @@ export const forecastPoints = mysqlTable("forecast_points", {
   // Wind data
   windSpeedKts: int("windSpeedKts"), // knots
   windDirectionDeg: int("windDirectionDeg"), // degrees
+  windGustsKts: int("windGustsKts"), // knots (wind gusts)
   // Temperature data (NEW)
   waterTempF: decimal("waterTempF", { precision: 4, scale: 1 }), // Fahrenheit
   airTempF: decimal("airTempF", { precision: 4, scale: 1 }), // Fahrenheit

@@ -2,6 +2,10 @@ import mysql from "mysql2/promise";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { config } from "dotenv";
+
+// Load environment variables from .env file if it exists
+config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -42,9 +46,16 @@ async function runMigration() {
   } catch (error: any) {
     // Check if error is because column already exists
     if (error.code === "ER_DUP_FIELDNAME") {
-      console.log("ℹ️  Column 'phone' already exists - migration already applied");
+      console.log("ℹ️  Column already exists - migration may have already been applied");
+      console.log("   Error details:", error.message);
+    } else if (error.sqlMessage && error.sqlMessage.includes("Duplicate column name")) {
+      console.log("ℹ️  Column already exists - migration already applied");
+      console.log("   SQL Message:", error.sqlMessage);
     } else {
       console.error("❌ Migration failed:", error.message);
+      if (error.sqlMessage) {
+        console.error("   SQL Message:", error.sqlMessage);
+      }
       throw error;
     }
   } finally {

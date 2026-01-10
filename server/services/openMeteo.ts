@@ -32,6 +32,7 @@ export interface NomadsForecastPoint {
   // Wind data
   windSpeedKts: number | null;
   windDirectionDeg: number | null;
+  windGustsKts: number | null;
   // Temperature data
   waterTempF: number | null;
   airTempF: number | null;
@@ -74,6 +75,7 @@ interface OpenMeteoResponse {
     // Wind data
     wind_speed_10m?: (number | null)[]; // km/h
     wind_direction_10m?: (number | null)[]; // degrees (0-360)
+    wind_gusts_10m?: (number | null)[]; // km/h (wind gusts)
     // Temperature data
     sea_surface_temperature?: (number | null)[]; // Celsius (from Marine API)
     temperature_2m?: (number | null)[]; // Celsius (from Weather API)
@@ -180,12 +182,12 @@ export async function fetchOpenMeteoForecastForSpot(
   const weatherParams = {
     latitude: lat.toString(),
     longitude: lon.toString(),
-    hourly: 'wind_speed_10m,wind_direction_10m,temperature_2m',
+    hourly: 'wind_speed_10m,wind_direction_10m,wind_gusts_10m,temperature_2m',
     timezone: "auto",
     forecast_days: forecastDays,
     past_days: 1, // Include earlier hours of today (otherwise API only returns from current hour forward)
   };
-  const weatherFullUrl = `${weatherApiUrl}?latitude=${lat}&longitude=${lon}&hourly=wind_speed_10m,wind_direction_10m,temperature_2m&timezone=${weatherParams.timezone}&forecast_days=${weatherParams.forecast_days}`;
+  const weatherFullUrl = `${weatherApiUrl}?latitude=${lat}&longitude=${lon}&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m,temperature_2m&timezone=${weatherParams.timezone}&forecast_days=${weatherParams.forecast_days}`;
   console.log('[Open-Meteo] Full Weather request URL:', weatherFullUrl);
 
   try {
@@ -327,6 +329,7 @@ export async function fetchOpenMeteoForecastForSpot(
       // Extract wind data (Weather API returns km/h, not m/s)
       const windSpeedKmh = hourly.wind_speed_10m?.[i] ?? null;
       const windDirectionDegRaw = hourly.wind_direction_10m?.[i] ?? null;
+      const windGustsKmh = hourly.wind_gusts_10m?.[i] ?? null;
 
       // Extract temperature data (both are in Celsius)
       const waterTempC = hourly.sea_surface_temperature?.[i] ?? null;
@@ -359,6 +362,10 @@ export async function fetchOpenMeteoForecastForSpot(
         ? windSpeedKmh * 0.539957 // km/h to knots
         : null;
 
+      const windGustsKts = windGustsKmh !== null && !isNaN(windGustsKmh) && windGustsKmh >= 0
+        ? windGustsKmh * 0.539957 // km/h to knots
+        : null;
+
       const windDirection = validateDirection(windDirectionDegRaw);
 
       // Convert temperatures from Celsius to Fahrenheit
@@ -388,6 +395,7 @@ export async function fetchOpenMeteoForecastForSpot(
         // Wind data
         windSpeedKts,
         windDirectionDeg: windDirection,
+        windGustsKts,
         // Temperature data
         waterTempF,
         airTempF,
@@ -454,6 +462,7 @@ export function convertToDbFormat(
     // Wind data
     windSpeedKts: forecastPoint.windSpeedKts !== null ? Math.round(forecastPoint.windSpeedKts) : null,
     windDirectionDeg: forecastPoint.windDirectionDeg !== null ? Math.round(forecastPoint.windDirectionDeg) : null,
+    windGustsKts: forecastPoint.windGustsKts !== null ? Math.round(forecastPoint.windGustsKts) : null,
     // Temperature data (stored as decimal Fahrenheit - convert to string for decimal type)
     waterTempF: forecastPoint.waterTempF !== null ? forecastPoint.waterTempF.toFixed(1) : null,
     airTempF: forecastPoint.airTempF !== null ? forecastPoint.airTempF.toFixed(1) : null,
