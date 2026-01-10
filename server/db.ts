@@ -30,6 +30,38 @@ import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
 let _pool: mysql.Pool | null = null;
+let _windGustsKtsColumnExists: boolean | null = null; // Cache column existence check
+
+// Check if windGustsKts column exists in the database
+async function checkWindGustsKtsColumnExists(): Promise<boolean> {
+  if (_windGustsKtsColumnExists !== null) {
+    return _windGustsKtsColumnExists; // Return cached result
+  }
+  
+  try {
+    const dbUrl = process.env.MYSQL_URL || process.env.DATABASE_URL;
+    if (!dbUrl) {
+      console.warn('[checkWindGustsKtsColumnExists] No database URL, assuming column does not exist');
+      _windGustsKtsColumnExists = false;
+      return false;
+    }
+    
+    const connection = await mysql.createConnection(dbUrl);
+    const [rows] = await connection.execute(
+      `SELECT COUNT(*) as count FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'forecast_points' AND COLUMN_NAME = 'windGustsKts'`
+    );
+    await connection.end();
+    
+    const count = (rows as any[])[0]?.count ?? 0;
+    _windGustsKtsColumnExists = count > 0;
+    console.log(`[checkWindGustsKtsColumnExists] Column windGustsKts exists: ${_windGustsKtsColumnExists}`);
+    return _windGustsKtsColumnExists;
+  } catch (error: any) {
+    console.warn('[checkWindGustsKtsColumnExists] Error checking column existence:', error.message);
+    _windGustsKtsColumnExists = false;
+    return false;
+  }
+}
 
 // Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
@@ -515,18 +547,57 @@ export async function getLatestModelRunTime(spotId?: number): Promise<Date | nul
   const db = await getDb();
   if (!db) return null;
   
-  let query = db
-    .select({ modelRunTime: forecastPoints.modelRunTime })
-    .from(forecastPoints)
-    .orderBy(desc(forecastPoints.modelRunTime))
-    .limit(1);
-  
-  if (spotId !== undefined) {
-    query = query.where(eq(forecastPoints.spotId, spotId)) as typeof query;
+  try {
+    let query = db
+      .select({ modelRunTime: forecastPoints.modelRunTime })
+      .from(forecastPoints)
+      .orderBy(desc(forecastPoints.modelRunTime))
+      .limit(1);
+    
+    if (spotId !== undefined) {
+      query = query.where(eq(forecastPoints.spotId, spotId)) as typeof query;
+    }
+    
+    const result = await query;
+    return result.length > 0 ? result[0].modelRunTime : null;
+  } catch (error: any) {
+    // Check if error is due to missing windGustsKts column (schema mismatch)
+    if (error.code === "ER_BAD_FIELD_ERROR" || 
+        error.message?.includes("Unknown column 'windGustsKts'") || 
+        error.message?.includes("doesn't exist") ||
+        error.sqlMessage?.includes("windGustsKts") ||
+        error.sqlMessage?.includes("Unknown column")) {
+      console.warn(`[getLatestModelRunTime] Schema mismatch: windGustsKts column doesn't exist. Using backward-compatible query...`);
+      
+      // Use raw SQL query - even column projection might fail if schema validation happens
+      try {
+        const dbUrl = process.env.MYSQL_URL || process.env.DATABASE_URL;
+        if (!dbUrl) {
+          console.warn(`[getLatestModelRunTime] Database URL not available, returning null`);
+          return null;
+        }
+        
+        const connection = await mysql.createConnection(dbUrl);
+        const sql = spotId !== undefined
+          ? `SELECT modelRunTime FROM forecast_points WHERE spotId = ? ORDER BY modelRunTime DESC LIMIT 1`
+          : `SELECT modelRunTime FROM forecast_points ORDER BY modelRunTime DESC LIMIT 1`;
+        const params = spotId !== undefined ? [spotId] : [];
+        
+        const [rows] = await connection.execute(sql, params);
+        await connection.end();
+        
+        const rowArray = rows as any[];
+        return rowArray.length > 0 ? rowArray[0].modelRunTime : null;
+      } catch (fallbackError: any) {
+        console.error(`[getLatestModelRunTime] Backward-compatible query also failed:`, fallbackError);
+        return null;
+      }
+    }
+    
+    // Re-throw other errors
+    console.error(`[getLatestModelRunTime] Query error:`, error);
+    throw error;
   }
-  
-  const result = await query;
-  return result.length > 0 ? result[0].modelRunTime : null;
 }
 
 export async function isForecastDataStale(
