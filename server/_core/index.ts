@@ -1,4 +1,4 @@
-import "dotenv/config";
+import { config } from "dotenv";
 import express from "express";
 import { createServer } from "http";
 import net from "net";
@@ -13,12 +13,15 @@ import { getCurrentTideInfo } from "../services/tides";
 import { generateForecast } from "../services/forecast";
 import { getCurrentConditionsFromOpenMeteo } from "../services/openMeteo";
 import { readFileSync, readdirSync } from "fs";
-import { join, dirname } from "path";
+import { join, dirname, resolve } from "path";
 import { fileURLToPath } from "url";
 import mysql from "mysql2/promise";
 
+// Load .env file from project root (two levels up from this file)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+const projectRoot = resolve(__dirname, "../..");
+config({ path: resolve(projectRoot, ".env") });
 
 /**
  * Runs database migrations at server startup.

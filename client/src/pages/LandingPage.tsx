@@ -1225,12 +1225,24 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
     }
 
     // Cross-shore making it difficult - only when there's actual swell (period >= 6s)
-    if (isCrossShore && windSpeed > 15) {
+    // Strong cross-shore (> 20 mph) = mess
+    if (isCrossShore && windSpeed > 20) {
       return {
         headline: "CROSS-SHORE MESS",
         description: buoyData
           ? `${buoyWaveHeight?.toFixed(1)}ft @ ${buoyPeriod}s but cross-shore winds (${Math.round(windSpeed)}mph) are making lineup conditions difficult.`
           : `Cross-shore winds (${Math.round(windSpeed)}mph) are making lineup conditions difficult.`,
+        reason: "cross_shore"
+      };
+    }
+
+    // Moderate cross-shore (15-20 mph) = less than ideal
+    if (isCrossShore && windSpeed > 15) {
+      return {
+        headline: "CROSS-SHORE CONDITIONS",
+        description: buoyData
+          ? `${buoyWaveHeight?.toFixed(1)}ft @ ${buoyPeriod}s but cross-shore winds (${Math.round(windSpeed)}mph) are making conditions less than ideal.`
+          : `Cross-shore winds (${Math.round(windSpeed)}mph) are making conditions less than ideal.`,
         reason: "cross_shore"
       };
     }
