@@ -26,15 +26,15 @@ export const SPOT_PROFILES: Record<string, SpotProfile> = {
   },
   'long-beach': {
     name: 'Long Beach',
-    swell_target_deg: 130, // SE
-    swell_tolerance_deg: 40,
+    swell_target_deg: 135, // SE
+    swell_tolerance_deg: 45, // Covers 100° (ESE) to 180° (S)
     min_period_s: 5,
     multiplier: 1.3, // Fixed wave height multiplier
   },
   'rockaway': {
     name: 'Rockaway Beach',
-    swell_target_deg: 110, // ESE
-    swell_tolerance_deg: 35,
+    swell_target_deg: 135, // SE
+    swell_tolerance_deg: 45, // Covers 100° (ESE) to 180° (S)
     min_period_s: 5,
     multiplier: 1.1, // Fixed wave height multiplier
   },
@@ -107,18 +107,18 @@ export function calculateSpotMultiplier(
     case 'LIDO_BEACH':
       // Lido Beach: Hudson Canyon refraction + inlet shoaling
       if (periodS < 12) {
-        return 1.2; // Tier A: Inlet shoaling only
+        return 1.1; // Tier A: Inlet shoaling only
       } else {
-        return 1.5; // Tier B: Hudson Canyon refraction + inlet
+        return 1.1; // Tier B: Hudson Canyon refraction + inlet
       }
 
     case 'long-beach':
     case 'LONG_BEACH':
       // Long Beach: Jetty-driven sandbars
       if (periodS < 12) {
-        return 1.1; // Tier A
+        return 1.05; // Tier A
       } else {
-        return 1.3; // Tier B
+        return 1.05; // Tier B
       }
 
     case 'rockaway':

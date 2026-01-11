@@ -112,13 +112,13 @@ export function getDirectionalPenalty(directionDeg: number | null): number {
  * High tide reduces breaking wave height (waves break in deeper water, sandbars submerged,
  * inlet/canyon effects dampened). Low tide increases it (shallow water, sandbars exposed).
  * 
- * SPECIAL RULE FOR LIDO & LONG BEACH:
+ * SPECIAL RULE FOR LIDO, LONG BEACH & ROCKAWAY:
  * - Rising tide between 1ft-2.1ft: 1.2x multiplier (20% boost)
  * - This is NOT a generic low tide multiplier, but specifically for rising tide conditions
  *
  * TIDE RANGES:
  * - <1.0ft: No boost (1.0x multiplier)
- * - Rising tide window (Lido/Long Beach only): 1.0-2.1ft during rising tide: 1.2x boost
+ * - Rising tide window (Lido, Long Beach & Rockaway): 1.0-2.1ft during rising tide: 1.2x boost
  * - Mid-tide (2.1-3.2ft): Linear interpolation from 1.2x to 0.85x
  * - High tide (>3.2ft): 0.7x penalty
  *
@@ -135,10 +135,10 @@ export function getTideMultiplier(
   // If no tide data, return neutral multiplier
   if (tideHeightFt === null || tideHeightFt === undefined) return 1.0;
 
-  // SPECIAL RULE: Rising tide boost for Lido Beach and Long Beach only
+  // SPECIAL RULE: Rising tide boost for Lido Beach, Long Beach, and Rockaway Beach
   // Only applies during rising tide between 1ft-2.1ft
   if (
-    (spotName === "Lido Beach" || spotName === "Long Beach") &&
+    (spotName === "Lido Beach" || spotName === "Long Beach" || spotName === "Rockaway Beach") &&
     tidePhase === "rising" &&
     tideHeightFt >= 1.0 &&
     tideHeightFt <= 2.1
@@ -353,7 +353,7 @@ export function getDominantSwell(
  *
  * Formula (in order):
  * 1. Period-adjusted base height: H × (T / 9)^0.5 - power function with 9s baseline
- * 2. Apply spot multiplier (Lido: 1.2x-1.5x, Long Beach: 1.1x-1.3x, Rockaway: 1.0x-1.1x)
+ * 2. Apply spot multiplier (Lido: 1.1x, Long Beach: 1.05x, Rockaway: 1.0x-1.1x)
  * 3. Apply tide multiplier (special: Lido/Long Beach rising tide 1-2.1ft: 1.2x, mid-tide 2.1-3.2ft: interpolated 1.2x-0.85x, high tide >3.2ft: 0.7x)
  * 4. Apply directional kill switch (250-310° West) → 0
  * 5. Apply directional wrap penalty (< 110° East) → 0.7x
@@ -433,7 +433,7 @@ export function calculateBreakingWaveHeight(
   // STEP 3: Apply Tide Multiplier
   // High tide reduces breaking height (deeper water, submerged sandbars)
   // Low tide increases breaking height (shallow water, exposed sandbars)
-  // SPECIAL: Lido & Long Beach get 1.2x boost during rising tide (1ft-2.1ft only)
+  // SPECIAL: Lido, Long Beach & Rockaway get 1.2x boost during rising tide (1ft-2.1ft only)
   const tideMultiplier = getTideMultiplier(
     tideHeightFt ?? null,
     tidePhase ?? null,
