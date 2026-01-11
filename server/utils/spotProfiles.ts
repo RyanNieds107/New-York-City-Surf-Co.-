@@ -125,7 +125,7 @@ export function calculateSpotMultiplier(
     case 'ROCKAWAY':
       // Rockaway Beach: Deep in NY Bight shadow
       if (periodS < 11) {
-        return 1.0; // Tier A
+        return 1.1; // Tier A
       } else {
         return 1.1; // Tier B
       }

@@ -353,7 +353,7 @@ export function getDominantSwell(
  *
  * Formula (in order):
  * 1. Period-adjusted base height: H × (T / 9)^0.5 - power function with 9s baseline
- * 2. Apply spot multiplier (Lido: 1.1x, Long Beach: 1.05x, Rockaway: 1.0x-1.1x)
+ * 2. Apply spot multiplier (Lido: 1.1x, Long Beach: 1.05x, Rockaway: 1.1x)
  * 3. Apply tide multiplier (special: Lido/Long Beach rising tide 1-2.1ft: 1.2x, mid-tide 2.1-3.2ft: interpolated 1.2x-0.85x, high tide >3.2ft: 0.7x)
  * 4. Apply directional kill switch (250-310° West) → 0
  * 5. Apply directional wrap penalty (< 110° East) → 0.7x
