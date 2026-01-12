@@ -1,7 +1,6 @@
 import { config } from "dotenv";
 import express from "express";
 import { createServer } from "http";
-import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { migrate } from "drizzle-orm/mysql2/migrator";
 import { registerOAuthRoutes } from "./oauth";
@@ -24,22 +23,50 @@ const projectRoot = resolve(__dirname, "../..");
 config({ path: resolve(projectRoot, ".env") });
 
 /**
+ * Tests database connection with retry logic
+ */
+async function testDatabaseConnection(dbUrl: string, maxRetries: number = 5): Promise<mysql.Connection | null> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`[Database] Connection attempt ${attempt}/${maxRetries}...`);
+      const connection = await mysql.createConnection({
+        uri: dbUrl,
+        connectTimeout: 60000, // 60 seconds
+      });
+      await connection.ping();
+      console.log(`[Database] ✓ Connection established on attempt ${attempt}`);
+      return connection;
+    } catch (error: any) {
+      console.error(`[Database] Connection attempt ${attempt} failed: ${error.code || error.message}`);
+      if (attempt < maxRetries) {
+        const delay = 2000 * Math.pow(2, attempt - 1); // Exponential backoff: 2s, 4s, 8s, 16s, 32s
+        console.log(`[Database] Waiting ${delay}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * Runs database migrations at server startup.
  * This ensures the database schema is up-to-date before accepting requests.
  */
 async function runMigrations(): Promise<void> {
   console.log("[Migrations] Starting database migrations...");
+  console.log(`[Server] PORT env: ${process.env.PORT || '(not set, using 3000)'}`);
 
   try {
     // Prioritize internal Railway URL first for better reliability
     // MYSQL_URL points to mysql.railway.internal (internal network, faster)
     // DATABASE_URL is the external proxy which can timeout
     const dbUrl = process.env.MYSQL_URL || process.env.DATABASE_URL;
-    
+
     if (!dbUrl) {
       console.error("[Migrations] ❌ No database connection URL found!");
       console.error("[Migrations] Check: MYSQL_URL or DATABASE_URL");
-      throw new Error("Database connection URL not configured");
+      console.log("[Migrations] Skipping migrations - server will start without database");
+      return; // Don't throw, just skip migrations
     }
 
     // Log which URL type is being used
@@ -53,10 +80,18 @@ async function runMigrations(): Promise<void> {
     // Pre-flight delay: Wait 5 seconds to ensure Railway internal network is fully resolved
     console.log(`[Migrations] Pre-flight check: waiting 5 seconds for network initialization...`);
     await new Promise(resolve => setTimeout(resolve, 5000));
-    
-    // Try direct SQL execution first (more reliable)
+
+    // Test database connection first before running migrations
+    const connection = await testDatabaseConnection(dbUrl, 5);
+
+    if (!connection) {
+      console.error("[Migrations] ❌ Could not establish database connection after retries");
+      console.log("[Migrations] Skipping migrations - server will start without running migrations");
+      return; // Don't crash, just skip migrations
+    }
+
+    // Connection successful - now run migrations
     try {
-      const connection = await mysql.createConnection(dbUrl);
       const migrationsDir = join(__dirname, "..", "..", "drizzle");
       const files = readdirSync(migrationsDir)
         .filter(f => f.endsWith(".sql"))
@@ -136,25 +171,6 @@ async function runMigrations(): Promise<void> {
     // Don't crash the server - log the error and continue
     // The app may still work if the schema is already up-to-date
   }
-}
-
-function isPortAvailable(port: number): Promise<boolean> {
-  return new Promise(resolve => {
-    const server = net.createServer();
-    server.listen(port, () => {
-      server.close(() => resolve(true));
-    });
-    server.on("error", () => resolve(false));
-  });
-}
-
-async function findAvailablePort(startPort: number = 3000): Promise<number> {
-  for (let port = startPort; port < startPort + 20; port++) {
-    if (await isPortAvailable(port)) {
-      return port;
-    }
-  }
-  throw new Error(`No available port found starting from ${startPort}`);
 }
 
 /**
@@ -364,21 +380,32 @@ async function startServer() {
     serveStatic(app);
   }
 
-  const preferredPort = parseInt(process.env.PORT || "3000");
-  const port = await findAvailablePort(preferredPort);
+  // Use Railway's PORT or default to 3000
+  const port = parseInt(process.env.PORT || "3000", 10);
 
-  if (port !== preferredPort) {
-    console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
-  }
+  console.log(`[Server] Starting server...`);
+  console.log(`[Server] PORT from env: ${process.env.PORT || '(not set)'}`);
+  console.log(`[Server] Using port: ${port}`);
 
-  server.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}/`);
-    
+  // Listen on 0.0.0.0 to accept connections from any interface (required for Railway/Docker)
+  server.listen(port, "0.0.0.0", () => {
+    console.log(`[Server] ✓ Server running on http://0.0.0.0:${port}/`);
+
     // Set up automatic forecast refresh
     setupAutomaticRefresh();
-    
+
     // Set up automatic swell alert checking
     setupSwellAlertChecking();
+  });
+
+  server.on("error", (error: any) => {
+    if (error.code === "EADDRINUSE") {
+      console.error(`[Server] ❌ Port ${port} is already in use!`);
+      console.error(`[Server] Make sure no other service is using this port.`);
+    } else {
+      console.error(`[Server] ❌ Server error:`, error);
+    }
+    process.exit(1);
   });
 }
 
