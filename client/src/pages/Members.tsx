@@ -255,9 +255,43 @@ export default function Members() {
                   </div>
                 </div>
 
-                {/* Section 03: Alert Frequency */}
+                {/* Section 03: Forecast Window */}
                 <div className="p-5 border-b-2 border-gray-200">
                   <div className="text-xs text-gray-500 font-semibold tracking-widest mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>03</div>
+                  <h3 className="text-xl font-black text-black uppercase tracking-tight mb-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                    Forecast Window
+                  </h3>
+                  <p className="text-xs text-gray-600 uppercase tracking-widest mb-4" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    How far ahead should we look?
+                  </p>
+                  <div className="space-y-3">
+                    {[
+                      { value: 3, label: "3 Days", desc: "Short-term accuracy" },
+                      { value: 5, label: "5 Days", desc: "Week-ahead planning" },
+                      { value: 7, label: "7 Days", desc: "Full week visibility" },
+                      { value: 10, label: "10 Days", desc: "Extended outlook for trip planning" },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setDaysAdvanceNotice(option.value)}
+                        className={`w-full p-4 text-left transition-all ${
+                          daysAdvanceNotice === option.value
+                            ? "bg-black text-white border-black"
+                            : "bg-white text-black border-black hover:bg-gray-50"
+                        }`}
+                        style={{ borderWidth: "3px" }}
+                      >
+                        <div className="font-bold text-sm uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{option.label}</div>
+                        <div className={`text-[11px] mt-1 ${daysAdvanceNotice === option.value ? "text-gray-300" : "text-gray-500"}`}>{option.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Section 04: Alert Frequency */}
+                <div className="p-5 border-b-2 border-gray-200">
+                  <div className="text-xs text-gray-500 font-semibold tracking-widest mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>04</div>
                   <h3 className="text-xl font-black text-black uppercase tracking-tight mb-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                     Alert Frequency
                   </h3>
@@ -289,9 +323,9 @@ export default function Members() {
                   </div>
                 </div>
 
-                {/* Section 04: How Should We Notify You */}
+                {/* Section 05: How Should We Notify You */}
                 <div className="p-5 border-b-2 border-gray-200">
-                  <div className="text-xs text-gray-500 font-semibold tracking-widest mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>04</div>
+                  <div className="text-xs text-gray-500 font-semibold tracking-widest mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>05</div>
                   <h3 className="text-xl font-black text-black uppercase tracking-tight mb-4" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                     How Should We Notify You?
                   </h3>
