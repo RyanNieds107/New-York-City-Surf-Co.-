@@ -4,7 +4,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
-import { Loader2, Bell, Users, MessageSquare, X, ChevronRight, ChevronDown, Check } from "lucide-react";
+import { Loader2, Bell, Users, Briefcase, X, ChevronRight, ChevronDown, Check, Phone, Store, GraduationCap, Wrench } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -138,12 +138,12 @@ export default function Members() {
                 Community
               </TabsTrigger>
               <TabsTrigger
-                value="crowd"
+                value="services"
                 className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-white data-[state=inactive]:text-black border-2 border-black border-b-0 border-l-0 rounded-none px-3 sm:px-6 py-2.5 sm:py-3 text-[10px] sm:text-xs uppercase tracking-widest font-semibold transition-all -mb-[2px] data-[state=active]:z-10"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
-                <MessageSquare className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
-                Crowd
+                <Briefcase className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
+                Services
               </TabsTrigger>
             </TabsList>
           </div>
@@ -437,78 +437,113 @@ export default function Members() {
             </div>
           </TabsContent>
 
-          {/* Crowd Report Tab */}
-          <TabsContent value="crowd" className="mt-0">
+          {/* Services Tab */}
+          <TabsContent value="services" className="mt-0">
             <div className="bg-white border-2 border-black border-t-0 p-5 sm:p-10">
               <h1 className="text-4xl sm:text-6xl font-black text-black uppercase tracking-tight leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                Crowd Report
+                Services
               </h1>
               <p className="text-xs sm:text-sm text-gray-500 uppercase tracking-widest mt-2 sm:mt-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                Help other surfers know what to expect
+                Local expertise & business directory
               </p>
             </div>
-            <div className="bg-white border-2 border-black border-t-0 p-4 sm:p-6">
-              <form onSubmit={handleSubmitCrowdReport} className="space-y-4 sm:space-y-5">
-                <div>
-                  <label className="block text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-gray-700 mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    Spot
-                  </label>
-                  <select
-                    value={crowdSpotId || ""}
-                    onChange={(e) => setCrowdSpotId(e.target.value ? parseInt(e.target.value) : null)}
-                    className="w-full bg-white border-2 border-black px-3 sm:px-4 py-2.5 sm:py-3 text-sm focus:outline-none focus:ring-0"
-                    style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                    required
-                  >
-                    <option value="">Select a spot...</option>
-                    {spots?.map((spot) => (
-                      <option key={spot.id} value={spot.id}>{spot.name}</option>
-                    ))}
-                  </select>
-                </div>
+            <div className="bg-white border-2 border-black border-t-0">
+              {/* Coming Soon Banner */}
+              <div className="p-4 sm:p-6 bg-black text-white text-center">
+                <p className="text-[10px] sm:text-xs uppercase tracking-widest font-semibold" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  Coming Soon
+                </p>
+              </div>
 
-                <div>
-                  <label className="block text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-gray-700 mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    Crowd Level
-                  </label>
-                  <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
-                    {[1, 2, 3, 4, 5].map((level) => (
-                      <button
-                        key={level}
-                        type="button"
-                        onClick={() => setCrowdLevel(level)}
-                        className={`py-3 sm:py-4 text-xs sm:text-sm font-bold transition-all ${
-                          crowdLevel === level
-                            ? "bg-black text-white border-2 border-black"
-                            : "bg-white text-black border-2 border-black hover:bg-gray-50"
-                        }`}
-                        style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                      >
-                        {level}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex justify-between mt-1.5 sm:mt-2 text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    <span>Empty</span>
-                    <span>Packed</span>
+              {/* Service Categories Preview */}
+              <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
+                {/* Expert Calls */}
+                <div className="p-4 sm:p-5 border-2 border-gray-200 hover:border-black transition-all">
+                  <div className="flex items-start gap-3 sm:gap-4">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-black flex items-center justify-center flex-shrink-0">
+                      <Phone className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base sm:text-lg font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                        Expert Calls
+                      </h3>
+                      <p className="text-[10px] sm:text-xs text-gray-600 mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        Book 1-on-1 calls with local surf experts. Get personalized advice on spots, conditions, and technique from surfers who know these breaks inside out.
+                      </p>
+                    </div>
                   </div>
                 </div>
 
-                <div className="pt-1 sm:pt-2">
-                  <Button
-                    type="submit"
-                    disabled={submitCrowdMutation.isPending}
-                    className="w-full bg-black text-white hover:bg-gray-800 rounded-none uppercase tracking-widest text-xs sm:text-sm font-bold py-3 sm:py-4 h-auto transition-all"
+                {/* Lessons & Coaching */}
+                <div className="p-4 sm:p-5 border-2 border-gray-200 hover:border-black transition-all">
+                  <div className="flex items-start gap-3 sm:gap-4">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-black flex items-center justify-center flex-shrink-0">
+                      <GraduationCap className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base sm:text-lg font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                        Lessons & Coaching
+                      </h3>
+                      <p className="text-[10px] sm:text-xs text-gray-600 mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        Connect with certified instructors for private or group lessons. From beginners to advanced surfers looking to level up.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Local Shops */}
+                <div className="p-4 sm:p-5 border-2 border-gray-200 hover:border-black transition-all">
+                  <div className="flex items-start gap-3 sm:gap-4">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-black flex items-center justify-center flex-shrink-0">
+                      <Store className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base sm:text-lg font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                        Local Shops & Rentals
+                      </h3>
+                      <p className="text-[10px] sm:text-xs text-gray-600 mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        Discover local surf shops, board rentals, and gear. Support the businesses that keep our surf community thriving.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Board Repair */}
+                <div className="p-4 sm:p-5 border-2 border-gray-200 hover:border-black transition-all">
+                  <div className="flex items-start gap-3 sm:gap-4">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-black flex items-center justify-center flex-shrink-0">
+                      <Wrench className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base sm:text-lg font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                        Board Repair & Ding Fix
+                      </h3>
+                      <p className="text-[10px] sm:text-xs text-gray-600 mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        Find trusted local shapers and repair specialists. Get your board back in the water fast with quality craftsmanship.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Business Interest CTA */}
+              <div className="p-4 sm:p-6 bg-gray-100 border-t-2 border-gray-200">
+                <div className="text-center">
+                  <p className="text-[10px] sm:text-xs text-gray-500 uppercase tracking-widest mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    Are you a local business or expert?
+                  </p>
+                  <p className="text-xs sm:text-sm text-gray-700" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    We're building a directory of trusted local surf services. Get in touch to be featured when we launch.
+                  </p>
+                  <a
+                    href="mailto:hello@nycsurfco.com?subject=Services Directory Interest"
+                    className="inline-block mt-3 sm:mt-4 px-4 sm:px-6 py-2 sm:py-3 bg-black text-white text-[10px] sm:text-xs uppercase tracking-widest font-semibold hover:bg-gray-800 transition-all"
                     style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
-                    {submitCrowdMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      "Submit Report"
-                    )}
-                  </Button>
+                    Get In Touch
+                  </a>
                 </div>
-              </form>
+              </div>
             </div>
           </TabsContent>
         </Tabs>
