@@ -9,6 +9,7 @@ import { Loader2, Bell, Users, Briefcase, X, ChevronRight, ChevronDown, Check, P
 import { Footer } from "@/components/Footer";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getScoreBadgeHexColor } from "@/lib/ratingColors";
 
 export default function Members() {
   const [, setLocation] = useLocation();
@@ -28,7 +29,7 @@ export default function Members() {
   const [selectedSpots, setSelectedSpots] = useState<number[]>([]);
   const [spotsDropdownOpen, setSpotsDropdownOpen] = useState(false);
   const [daysAdvanceNotice, setDaysAdvanceNotice] = useState<number>(7);
-  const [minQualityScore, setMinQualityScore] = useState<number>(70);
+  const [minQualityScore, setMinQualityScore] = useState<number>(60);
   const [alertFrequency, setAlertFrequency] = useState<string>("once");
   const [emailEnabled, setEmailEnabled] = useState(false);
   const [smsEnabled, setSmsEnabled] = useState(false);
@@ -264,26 +265,67 @@ export default function Members() {
                   <p className="text-[10px] sm:text-xs text-gray-600 uppercase tracking-widest mb-3 sm:mb-4" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                     Minimum quality to trigger alert
                   </p>
+
+                  {/* Color-coded gradient bar */}
                   <div className="mb-4 sm:mb-6">
-                    <input
-                      type="range"
-                      min="50"
-                      max="95"
-                      step="5"
-                      value={minQualityScore}
-                      onChange={(e) => setMinQualityScore(parseInt(e.target.value))}
-                      className="w-full h-2 bg-black appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 sm:[&::-webkit-slider-thumb]:w-7 sm:[&::-webkit-slider-thumb]:h-7 [&::-webkit-slider-thumb]:bg-black [&::-webkit-slider-thumb]:border-4 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-[0_0_0_2px_black] sm:[&::-webkit-slider-thumb]:shadow-[0_0_0_3px_black] [&::-webkit-slider-thumb]:cursor-pointer"
-                    />
-                    <div className="flex justify-between mt-2 text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      <span>50 - Rideable</span>
-                      <span>70 - Good</span>
-                      <span>95 - Epic</span>
+                    <div className="relative">
+                      {/* Gradient background bar */}
+                      <div className="h-3 sm:h-4 rounded-full overflow-hidden flex">
+                        <div className="flex-1 bg-yellow-500" title="Worth a Look (40-59)" />
+                        <div className="flex-1 bg-lime-500" title="Go Surf (60-75)" />
+                        <div className="flex-1 bg-green-600" title="Firing (76-90)" />
+                        <div className="flex-[0.5] bg-emerald-600" title="All-Time (91+)" />
+                      </div>
+
+                      {/* Slider positioned over the gradient */}
+                      <input
+                        type="range"
+                        min="40"
+                        max="95"
+                        step="5"
+                        value={minQualityScore}
+                        onChange={(e) => setMinQualityScore(parseInt(e.target.value))}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        style={{ margin: 0 }}
+                      />
+
+                      {/* Custom thumb indicator */}
+                      <div
+                        className="absolute top-1/2 -translate-y-1/2 w-5 h-5 sm:w-6 sm:h-6 bg-white border-[3px] border-black rounded-full shadow-lg pointer-events-none transition-all"
+                        style={{
+                          left: `${((minQualityScore - 40) / (95 - 40)) * 100}%`,
+                          transform: 'translate(-50%, -50%)',
+                        }}
+                      />
+                    </div>
+
+                    {/* Labels */}
+                    <div className="flex justify-between mt-2 sm:mt-3 text-[8px] sm:text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      <span className="text-yellow-600">Worth a Look</span>
+                      <span className="text-lime-600">Go Surf</span>
+                      <span className="text-green-600">Firing</span>
+                      <span className="text-emerald-600">All-Time</span>
                     </div>
                   </div>
-                  <div className="text-center py-2 sm:py-4">
-                    <div className="text-5xl sm:text-6xl font-black leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>{minQualityScore}+</div>
-                    <div className="text-[10px] sm:text-xs text-gray-600 uppercase tracking-widest mt-1 sm:mt-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      {minQualityScore <= 55 ? "Rideable Sessions" : minQualityScore <= 65 ? "Decent Sessions" : minQualityScore <= 75 ? "Good Sessions" : minQualityScore <= 85 ? "Great Sessions" : "Epic Sessions"}
+
+                  {/* Score display with dynamic color */}
+                  <div className="text-center py-3 sm:py-5">
+                    <div
+                      className="inline-block px-6 sm:px-8 py-3 sm:py-4 rounded-lg"
+                      style={{ backgroundColor: getScoreBadgeHexColor(minQualityScore) }}
+                    >
+                      <div
+                        className="text-5xl sm:text-6xl font-black leading-none"
+                        style={{
+                          fontFamily: "'Bebas Neue', 'Oswald', sans-serif",
+                          color: minQualityScore >= 40 && minQualityScore <= 75 ? '#000000' : '#ffffff'
+                        }}
+                      >
+                        {minQualityScore}+
+                      </div>
+                    </div>
+                    <div className="text-[10px] sm:text-xs text-gray-600 uppercase tracking-widest mt-3 sm:mt-4" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      {minQualityScore <= 59 ? "Worth a Look & Better" : minQualityScore <= 75 ? "Go Surf & Better" : minQualityScore <= 90 ? "Firing & Better" : "All-Time Only"}
                     </div>
                   </div>
                 </div>
