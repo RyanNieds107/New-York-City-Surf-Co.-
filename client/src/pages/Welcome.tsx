@@ -2,7 +2,7 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/Logo";
 import { Footer } from "@/components/Footer";
-import { CheckCircle2, Users, Bell, MessageSquare, ArrowRight } from "lucide-react";
+import { CheckCircle2, Users, Bell, MessageSquare, ArrowRight, Briefcase } from "lucide-react";
 
 export default function Welcome() {
   const [, setLocation] = useLocation();
@@ -74,24 +74,24 @@ export default function Welcome() {
             </p>
           </div>
 
-          {/* Crowd Intel */}
+          {/* Services */}
           <div className="bg-white border-2 border-black p-6 sm:p-8">
             <div className="flex items-center gap-4 mb-4">
               <div className="p-3 bg-black rounded-none">
-                <MessageSquare className="h-6 w-6 text-white" />
+                <Briefcase className="h-6 w-6 text-white" />
               </div>
               <h2
                 className="text-2xl sm:text-3xl font-bold uppercase"
                 style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
               >
-                Crowd Intel
+                Services
               </h2>
             </div>
             <p
               className="text-gray-700 mb-4"
               style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
             >
-              Real-time lineup reports. Know before you go. Share and see what's happening at each spot.
+              Board repairs, rentals, lessons, and more. Connect with local services to level up your surf game.
             </p>
           </div>
 
