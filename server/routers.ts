@@ -48,8 +48,9 @@ import { eq, desc } from "drizzle-orm";
 import { getDb } from "./db";
 import { fetchBuoy44065Cached, clearBuoyCache } from "./services/buoy44065";
 import { adminProcedure } from "./_core/trpc";
-import { sendBatchEmails } from "./services/email";
+import { sendBatchEmails, sendEmail } from "./services/email";
 import { sendSMS } from "./services/sms";
+import { formatSwellAlertNotification } from "./services/notificationFormatter";
 
 // In-memory cache for distance results (keyed by rounded origin + mode)
 const distanceCache = new Map<string, {
@@ -1466,6 +1467,103 @@ export const appRouter = router({
             emailErrors: emailErrorCount,
             smsSent: smsSuccessCount,
             smsErrors: smsErrorCount,
+          };
+        }),
+
+      // Send a test alert email to the admin with fake swell data
+      sendTestAlert: adminProcedure
+        .input(
+          z.object({
+            spotName: z.enum(["Long Beach", "Rockaway Beach", "Lido Beach"]).default("Long Beach"),
+            waveHeightFt: z.number().min(1).max(15).default(5),
+            periodSec: z.number().min(5).max(20).default(10),
+            qualityScore: z.number().min(0).max(100).default(75),
+          })
+        )
+        .mutation(async ({ ctx, input }) => {
+          if (!ctx.user?.email) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Admin email not found",
+            });
+          }
+
+          // Create fake detected swell data
+          const now = new Date();
+          const swellStartTime = new Date(now.getTime() + 24 * 60 * 60 * 1000); // Tomorrow
+          const swellEndTime = new Date(swellStartTime.getTime() + 36 * 60 * 60 * 1000); // 36 hours later
+
+          const fakeDetectedSwell = {
+            spotId: input.spotName === "Long Beach" ? 2 : input.spotName === "Rockaway Beach" ? 1 : 3,
+            swellStartTime,
+            swellEndTime,
+            peakWaveHeightFt: input.waveHeightFt,
+            peakQualityScore: input.qualityScore,
+            avgPeriodSec: input.periodSec,
+            bestDay: swellStartTime,
+            confidenceScore: 85,
+          };
+
+          const fakeAlert = {
+            id: 0,
+            userId: ctx.user.id,
+            spotId: fakeDetectedSwell.spotId,
+            minWaveHeightFt: null,
+            minQualityScore: 60,
+            minPeriodSec: null,
+            idealWindOnly: 0,
+            hoursAdvanceNotice: 24,
+            emailEnabled: 1,
+            smsEnabled: 0,
+            pushEnabled: 0,
+            notificationFrequency: "immediate",
+            includeConfidenceIntervals: 1,
+            includeExplanation: 1,
+            isActive: 1,
+            lastNotifiedScore: null,
+            createdAt: now,
+            updatedAt: now,
+          };
+
+          const fakeSpot = {
+            id: fakeDetectedSwell.spotId,
+            name: input.spotName,
+            latitude: "40.5885",
+            longitude: "-73.6579",
+            orientation: "S",
+            description: "Test spot",
+            buoyId: "44065",
+            idealSwellDirection: "S",
+            createdAt: now,
+            updatedAt: now,
+          };
+
+          // Format the notification using the real formatter
+          const notification = formatSwellAlertNotification(
+            fakeDetectedSwell,
+            fakeAlert,
+            fakeSpot
+          );
+
+          // Send the test email to the admin
+          const emailSent = await sendEmail({
+            to: ctx.user.email,
+            subject: `[TEST] ${notification.subject}`,
+            html: notification.emailHtml,
+            text: notification.emailText,
+          });
+
+          if (!emailSent) {
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: "Failed to send test email",
+            });
+          }
+
+          return {
+            success: true,
+            sentTo: ctx.user.email,
+            subject: `[TEST] ${notification.subject}`,
           };
         }),
     }),

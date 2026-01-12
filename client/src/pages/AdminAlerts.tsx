@@ -19,7 +19,14 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { Loader2, Send, CheckCircle, XCircle } from "lucide-react";
+import { Loader2, Send, CheckCircle, XCircle, TestTube } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function AdminAlerts() {
   const [, setLocation] = useLocation();
@@ -36,6 +43,12 @@ export default function AdminAlerts() {
   const [sendEmail, setSendEmail] = useState(true);
   const [sendSMS, setSendSMS] = useState(false);
 
+  // Test alert state
+  const [testSpot, setTestSpot] = useState<"Long Beach" | "Rockaway Beach" | "Lido Beach">("Long Beach");
+  const [testWaveHeight, setTestWaveHeight] = useState("5");
+  const [testPeriod, setTestPeriod] = useState("10");
+  const [testQuality, setTestQuality] = useState("75");
+
   const sendBulkAlertMutation = trpc.admin.alerts.sendBulkAlert.useMutation({
     onSuccess: (result) => {
       toast.success(
@@ -45,6 +58,15 @@ export default function AdminAlerts() {
     },
     onError: (error) => {
       toast.error(error.message || "Failed to send alerts");
+    },
+  });
+
+  const sendTestAlertMutation = trpc.admin.alerts.sendTestAlert.useMutation({
+    onSuccess: (result) => {
+      toast.success(`Test email sent to ${result.sentTo}`);
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to send test alert");
     },
   });
 
@@ -154,6 +176,94 @@ export default function AdminAlerts() {
                 />
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Test Alert Sender */}
+        <Card className="mb-6 border-2 border-dashed border-blue-300 bg-blue-50/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TestTube className="h-5 w-5 text-blue-600" />
+              Send Test Alert
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Send a test swell alert email to yourself ({user?.email}) to preview how it looks.
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="test-spot">Spot</Label>
+                <Select value={testSpot} onValueChange={(v) => setTestSpot(v as typeof testSpot)}>
+                  <SelectTrigger id="test-spot">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Long Beach">Long Beach</SelectItem>
+                    <SelectItem value="Rockaway Beach">Rockaway Beach</SelectItem>
+                    <SelectItem value="Lido Beach">Lido Beach</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="test-height">Wave Height (ft)</Label>
+                <Input
+                  id="test-height"
+                  type="number"
+                  min="1"
+                  max="15"
+                  value={testWaveHeight}
+                  onChange={(e) => setTestWaveHeight(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="test-period">Period (s)</Label>
+                <Input
+                  id="test-period"
+                  type="number"
+                  min="5"
+                  max="20"
+                  value={testPeriod}
+                  onChange={(e) => setTestPeriod(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="test-quality">Quality Score</Label>
+                <Input
+                  id="test-quality"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={testQuality}
+                  onChange={(e) => setTestQuality(e.target.value)}
+                />
+              </div>
+            </div>
+            <Button
+              onClick={() => {
+                sendTestAlertMutation.mutate({
+                  spotName: testSpot,
+                  waveHeightFt: parseFloat(testWaveHeight) || 5,
+                  periodSec: parseInt(testPeriod) || 10,
+                  qualityScore: parseInt(testQuality) || 75,
+                });
+              }}
+              disabled={sendTestAlertMutation.isPending}
+              variant="outline"
+              className="w-full border-blue-300 text-blue-700 hover:bg-blue-100"
+            >
+              {sendTestAlertMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending Test...
+                </>
+              ) : (
+                <>
+                  <TestTube className="mr-2 h-4 w-4" />
+                  Send Test Alert to My Email
+                </>
+              )}
+            </Button>
           </CardContent>
         </Card>
 
