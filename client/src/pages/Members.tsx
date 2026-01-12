@@ -258,82 +258,77 @@ export default function Members() {
 
                 {/* Section 02: Quality Threshold */}
                 <div className="p-4 sm:p-5 border-b-2 border-gray-200">
-                  <div className="text-[10px] sm:text-xs text-gray-500 font-semibold tracking-widest mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>02</div>
-                  <h3 className="text-lg sm:text-xl font-black text-black uppercase tracking-tight mb-2 sm:mb-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                    Quality Threshold
-                  </h3>
-                  <p className="text-[10px] sm:text-xs text-gray-600 uppercase tracking-widest mb-3 sm:mb-4" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    Minimum quality to trigger alert
-                  </p>
-
-                  {/* Color-coded gradient bar */}
-                  <div className="mb-4 sm:mb-6">
-                    <div className="relative">
-                      {/* Gradient background bar - 5 segments matching session quality levels */}
-                      <div className="h-3 sm:h-4 rounded-full overflow-hidden flex">
-                        <div className="flex-[1]" style={{ backgroundColor: '#eab308' }} title="Rideable (50-55)" />
-                        <div className="flex-[2]" style={{ backgroundColor: '#84cc16' }} title="Decent (56-65)" />
-                        <div className="flex-[2]" style={{ backgroundColor: '#22c55e' }} title="Good (66-75)" />
-                        <div className="flex-[2]" style={{ backgroundColor: '#16a34a' }} title="Great (76-85)" />
-                        <div className="flex-[2]" style={{ backgroundColor: '#059669' }} title="Epic (86-95)" />
-                      </div>
-
-                      {/* Slider positioned over the gradient */}
-                      <input
-                        type="range"
-                        min="50"
-                        max="95"
-                        step="5"
-                        value={minQualityScore}
-                        onChange={(e) => setMinQualityScore(parseInt(e.target.value))}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                        style={{ margin: 0 }}
-                      />
-
-                      {/* Custom thumb indicator */}
-                      <div
-                        className="absolute top-1/2 -translate-y-1/2 w-5 h-5 sm:w-6 sm:h-6 bg-white border-[3px] border-black rounded-full shadow-lg pointer-events-none transition-all"
-                        style={{
-                          left: `${((minQualityScore - 50) / (95 - 50)) * 100}%`,
-                          transform: 'translate(-50%, -50%)',
-                        }}
-                      />
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <div className="text-[10px] sm:text-xs text-gray-500 font-semibold tracking-widest mb-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>02</div>
+                      <h3 className="text-lg sm:text-xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                        Quality Threshold
+                      </h3>
                     </div>
-
-                    {/* Labels */}
-                    <div className="flex justify-between mt-2 sm:mt-3 text-[8px] sm:text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      <span style={{ color: '#eab308' }}>Rideable</span>
-                      <span style={{ color: '#84cc16' }}>Decent</span>
-                      <span style={{ color: '#22c55e' }}>Good</span>
-                      <span style={{ color: '#16a34a' }}>Great</span>
-                      <span style={{ color: '#059669' }}>Epic</span>
-                    </div>
-                  </div>
-
-                  {/* Score display with dynamic color */}
-                  <div className="text-center py-3 sm:py-5">
-                    <div
-                      className="inline-block px-6 sm:px-8 py-3 sm:py-4 rounded-lg"
-                      style={{
-                        backgroundColor: minQualityScore <= 55 ? '#eab308' :
-                                        minQualityScore <= 65 ? '#84cc16' :
-                                        minQualityScore <= 75 ? '#22c55e' :
-                                        minQualityScore <= 85 ? '#16a34a' : '#059669'
-                      }}
-                    >
+                    {/* Compact score display */}
+                    <div className="text-right">
                       <div
-                        className="text-5xl sm:text-6xl font-black leading-none"
-                        style={{
-                          fontFamily: "'Bebas Neue', 'Oswald', sans-serif",
-                          color: minQualityScore <= 75 ? '#000000' : '#ffffff'
-                        }}
+                        className="text-3xl sm:text-4xl font-black leading-none"
+                        style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
                       >
                         {minQualityScore}+
                       </div>
+                      <div className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-widest" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        {minQualityScore <= 55 ? "Rideable" : minQualityScore <= 65 ? "Decent" : minQualityScore <= 75 ? "Good" : minQualityScore <= 85 ? "Great" : "Epic"}
+                      </div>
                     </div>
-                    <div className="text-[10px] sm:text-xs text-gray-600 uppercase tracking-widest mt-3 sm:mt-4" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      {minQualityScore <= 55 ? "Rideable Sessions" : minQualityScore <= 65 ? "Decent Sessions" : minQualityScore <= 75 ? "Good Sessions" : minQualityScore <= 85 ? "Great Sessions" : "Epic Sessions"}
+                  </div>
+
+                  {/* Compact slider bar */}
+                  <div
+                    className="relative h-8 sm:h-10 cursor-pointer group"
+                    onMouseMove={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const x = e.clientX - rect.left;
+                      const percentage = x / rect.width;
+                      const value = Math.round((50 + percentage * 45) / 5) * 5;
+                      const clampedValue = Math.max(50, Math.min(95, value));
+                      setMinQualityScore(clampedValue);
+                    }}
+                  >
+                    {/* Track background */}
+                    <div className="absolute inset-y-2 sm:inset-y-3 left-0 right-0 bg-gray-200 rounded-sm overflow-hidden">
+                      {/* Filled portion with gradient */}
+                      <div
+                        className="h-full transition-all duration-75"
+                        style={{
+                          width: `${((minQualityScore - 50) / (95 - 50)) * 100}%`,
+                          background: 'linear-gradient(to right, #eab308, #84cc16, #22c55e, #16a34a, #059669)',
+                        }}
+                      />
                     </div>
+
+                    {/* Thumb */}
+                    <div
+                      className="absolute top-1/2 w-4 h-6 sm:w-5 sm:h-8 bg-black rounded-sm shadow-md transition-all duration-75 group-hover:scale-110"
+                      style={{
+                        left: `${((minQualityScore - 50) / (95 - 50)) * 100}%`,
+                        transform: 'translate(-50%, -50%)',
+                      }}
+                    />
+
+                    {/* Hidden range input for accessibility */}
+                    <input
+                      type="range"
+                      min="50"
+                      max="95"
+                      step="5"
+                      value={minQualityScore}
+                      onChange={(e) => setMinQualityScore(parseInt(e.target.value))}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      style={{ margin: 0 }}
+                    />
+                  </div>
+
+                  {/* Minimal labels */}
+                  <div className="flex justify-between text-[8px] sm:text-[9px] text-gray-400 uppercase tracking-wider mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    <span>50</span>
+                    <span>95</span>
                   </div>
                 </div>
 
