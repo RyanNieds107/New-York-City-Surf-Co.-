@@ -28,6 +28,7 @@ export default function Members() {
   const [spotsDropdownOpen, setSpotsDropdownOpen] = useState(false);
   const [daysAdvanceNotice, setDaysAdvanceNotice] = useState<number>(7);
   const [minQualityScore, setMinQualityScore] = useState<number>(70);
+  const [alertFrequency, setAlertFrequency] = useState<string>("once");
   const [emailEnabled, setEmailEnabled] = useState(true);
   const [smsEnabled, setSmsEnabled] = useState(true);
 
@@ -221,65 +222,70 @@ export default function Members() {
                   </p>
                 </div>
 
-                {/* Section 02: Forecast Window */}
+                {/* Section 02: Quality Threshold */}
                 <div className="p-5 border-b-2 border-gray-200">
                   <div className="text-xs text-gray-500 font-semibold tracking-widest mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>02</div>
-                  <h3 className="text-xl font-black text-black uppercase tracking-tight mb-4" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                    Forecast Window
+                  <h3 className="text-xl font-black text-black uppercase tracking-tight mb-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                    Quality Threshold
                   </h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <p className="text-xs text-gray-600 uppercase tracking-widest mb-4" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    Minimum quality to trigger alert
+                  </p>
+                  <div className="mb-6">
+                    <input
+                      type="range"
+                      min="50"
+                      max="95"
+                      step="5"
+                      value={minQualityScore}
+                      onChange={(e) => setMinQualityScore(parseInt(e.target.value))}
+                      className="w-full h-2 bg-black appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-7 [&::-webkit-slider-thumb]:h-7 [&::-webkit-slider-thumb]:bg-black [&::-webkit-slider-thumb]:border-4 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-[0_0_0_3px_black] [&::-webkit-slider-thumb]:cursor-pointer"
+                    />
+                    <div className="flex justify-between mt-2 text-[10px] text-gray-500 uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      <span>50 - Rideable</span>
+                      <span>70 - Good</span>
+                      <span>95 - Epic</span>
+                    </div>
+                  </div>
+                  <div className="text-center py-4">
+                    <div className="text-6xl font-black leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>{minQualityScore}+</div>
+                    <div className="text-xs text-gray-600 uppercase tracking-widest mt-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      {minQualityScore <= 55 ? "Rideable Sessions" : minQualityScore <= 65 ? "Decent Sessions" : minQualityScore <= 75 ? "Good Sessions" : minQualityScore <= 85 ? "Great Sessions" : "Epic Sessions"}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 03: Alert Frequency */}
+                <div className="p-5 border-b-2 border-gray-200">
+                  <div className="text-xs text-gray-500 font-semibold tracking-widest mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>03</div>
+                  <h3 className="text-xl font-black text-black uppercase tracking-tight mb-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                    Alert Frequency
+                  </h3>
+                  <p className="text-xs text-gray-600 uppercase tracking-widest mb-4" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    How often do you want updates?
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
                     {[
-                      { value: 3, label: "3 Days", desc: "Short-term" },
-                      { value: 5, label: "5 Days", desc: "Week-ahead" },
-                      { value: 7, label: "7 Days", desc: "Full week" },
-                      { value: 10, label: "10 Days", desc: "Extended" },
+                      { value: "once", label: "Once Daily", desc: "Morning summary" },
+                      { value: "twice", label: "Twice Daily", desc: "AM + PM updates" },
+                      { value: "threshold", label: "Threshold Only", desc: "When quality hits your minimum" },
+                      { value: "realtime", label: "Real-Time", desc: "As forecast updates" },
                     ].map((option) => (
                       <button
                         key={option.value}
                         type="button"
-                        onClick={() => setDaysAdvanceNotice(option.value)}
-                        className={`p-3 border-2 text-left transition-all ${
-                          daysAdvanceNotice === option.value
+                        onClick={() => setAlertFrequency(option.value)}
+                        className={`p-4 text-left transition-all ${
+                          alertFrequency === option.value
                             ? "bg-black text-white border-black"
                             : "bg-white text-black border-black hover:bg-gray-50"
                         }`}
+                        style={{ borderWidth: "3px" }}
                       >
-                        <div className="font-bold text-sm" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{option.label}</div>
-                        <div className={`text-[10px] mt-0.5 ${daysAdvanceNotice === option.value ? "text-gray-300" : "text-gray-500"}`}>{option.desc}</div>
+                        <div className="font-bold text-sm uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{option.label}</div>
+                        <div className={`text-[11px] mt-1 ${alertFrequency === option.value ? "text-gray-300" : "text-gray-500"}`}>{option.desc}</div>
                       </button>
                     ))}
-                  </div>
-                </div>
-
-                {/* Section 03: Quality Threshold */}
-                <div className="p-5 border-b-2 border-gray-200">
-                  <div className="text-xs text-gray-500 font-semibold tracking-widest mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>03</div>
-                  <h3 className="text-xl font-black text-black uppercase tracking-tight mb-4" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                    Quality Threshold
-                  </h3>
-                  <div className="flex items-center gap-6">
-                    <div className="flex-1">
-                      <input
-                        type="range"
-                        min="50"
-                        max="90"
-                        step="10"
-                        value={minQualityScore}
-                        onChange={(e) => setMinQualityScore(parseInt(e.target.value))}
-                        className="w-full h-2 bg-black appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:bg-black [&::-webkit-slider-thumb]:border-4 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-[0_0_0_2px_black] [&::-webkit-slider-thumb]:cursor-pointer"
-                      />
-                      <div className="flex justify-between mt-2 text-[10px] text-gray-500 uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                        <span>50 Rideable</span>
-                        <span>70 Good</span>
-                        <span>90 Epic</span>
-                      </div>
-                    </div>
-                    <div className="text-center min-w-[80px]">
-                      <div className="text-4xl font-black" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>{minQualityScore}+</div>
-                      <div className="text-[10px] text-gray-500 uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                        {minQualityScore <= 50 ? "Rideable" : minQualityScore <= 60 ? "Decent" : minQualityScore <= 70 ? "Good" : minQualityScore <= 80 ? "Great" : "Epic"}
-                      </div>
-                    </div>
                   </div>
                 </div>
 
@@ -293,22 +299,24 @@ export default function Members() {
                     <button
                       type="button"
                       onClick={() => setEmailEnabled(!emailEnabled)}
-                      className={`p-3 border-2 text-center transition-all ${
+                      className={`p-4 text-center transition-all ${
                         emailEnabled
                           ? "bg-black text-white border-black"
                           : "bg-white text-black border-black hover:bg-gray-50"
                       }`}
+                      style={{ borderWidth: "3px" }}
                     >
                       <span className="font-bold text-sm uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Email</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => setSmsEnabled(!smsEnabled)}
-                      className={`p-3 border-2 text-center transition-all ${
+                      className={`p-4 text-center transition-all ${
                         smsEnabled
                           ? "bg-black text-white border-black"
                           : "bg-white text-black border-black hover:bg-gray-50"
                       }`}
+                      style={{ borderWidth: "3px" }}
                     >
                       <span className="font-bold text-sm uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>SMS</span>
                     </button>
