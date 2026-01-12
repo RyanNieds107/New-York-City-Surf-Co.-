@@ -161,9 +161,69 @@ export default function Members() {
           <TabsContent value="alerts" className="mt-0">
             <div className="bg-white border-2 border-black">
               <form onSubmit={handleCreateAlert}>
-                {/* Section 01: Forecast Window */}
+                {/* Section 01: Spots */}
                 <div className="p-5 border-b-2 border-gray-200">
                   <div className="text-xs text-gray-500 font-semibold tracking-widest mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>01</div>
+                  <h3 className="text-xl font-black text-black uppercase tracking-tight mb-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                    Spots
+                  </h3>
+                  <p className="text-xs text-gray-600 uppercase tracking-widest mb-4" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    Which breaks do you surf?
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {spots?.map((spot) => (
+                      <button
+                        key={spot.id}
+                        type="button"
+                        onClick={() => {
+                          if (selectedSpots.includes(spot.id)) {
+                            const newSpots = selectedSpots.filter(id => id !== spot.id);
+                            setSelectedSpots(newSpots);
+                            setAlertSpotId(newSpots.length === 1 ? newSpots[0] : null);
+                          } else {
+                            const newSpots = [...selectedSpots, spot.id];
+                            setSelectedSpots(newSpots);
+                            setAlertSpotId(newSpots.length === 1 ? newSpots[0] : null);
+                          }
+                        }}
+                        className={`p-5 border-3 text-center transition-all ${
+                          selectedSpots.includes(spot.id)
+                            ? "bg-black text-white border-black"
+                            : "bg-white text-black border-black hover:bg-gray-50"
+                        }`}
+                        style={{ borderWidth: "3px" }}
+                      >
+                        <span className="font-bold text-sm uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                          {spot.name.toUpperCase()}
+                        </span>
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedSpots([]);
+                        setAlertSpotId(null);
+                      }}
+                      className={`p-5 text-center transition-all ${
+                        selectedSpots.length === 0
+                          ? "bg-black text-white border-black"
+                          : "bg-white text-black border-black hover:bg-gray-50"
+                      }`}
+                      style={{ borderWidth: "3px", borderStyle: "solid" }}
+                    >
+                      <span className="font-bold text-sm uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        BEST SPOT ONLY
+                      </span>
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    "Best spot only" will alert you to whichever beach has the highest quality score
+                  </p>
+                </div>
+
+                {/* Section 02: Forecast Window */}
+                <div className="p-5 border-b-2 border-gray-200">
+                  <div className="text-xs text-gray-500 font-semibold tracking-widest mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>02</div>
                   <h3 className="text-xl font-black text-black uppercase tracking-tight mb-4" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                     Forecast Window
                   </h3>
@@ -191,9 +251,9 @@ export default function Members() {
                   </div>
                 </div>
 
-                {/* Section 02: Quality Threshold */}
+                {/* Section 03: Quality Threshold */}
                 <div className="p-5 border-b-2 border-gray-200">
-                  <div className="text-xs text-gray-500 font-semibold tracking-widest mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>02</div>
+                  <div className="text-xs text-gray-500 font-semibold tracking-widest mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>03</div>
                   <h3 className="text-xl font-black text-black uppercase tracking-tight mb-4" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                     Quality Threshold
                   </h3>
@@ -220,68 +280,6 @@ export default function Members() {
                         {minQualityScore <= 50 ? "Rideable" : minQualityScore <= 60 ? "Decent" : minQualityScore <= 70 ? "Good" : minQualityScore <= 80 ? "Great" : "Epic"}
                       </div>
                     </div>
-                  </div>
-                </div>
-
-                {/* Section 03: Spots */}
-                <div className="p-5 border-b-2 border-gray-200">
-                  <div className="text-xs text-gray-500 font-semibold tracking-widest mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>03</div>
-                  <h3 className="text-xl font-black text-black uppercase tracking-tight mb-4" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                    Spots
-                  </h3>
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setSpotsDropdownOpen(!spotsDropdownOpen)}
-                      className="w-full p-3 border-2 border-black bg-white flex items-center justify-between hover:bg-gray-50 transition-all"
-                    >
-                      <span className="font-semibold text-sm uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                        {selectedSpots.length === 0
-                          ? "All Spots"
-                          : selectedSpots.length === 1
-                          ? spots?.find(s => s.id === selectedSpots[0])?.name
-                          : `${selectedSpots.length} spots selected`}
-                      </span>
-                      <ChevronDown className={`h-4 w-4 transition-transform ${spotsDropdownOpen ? "rotate-180" : ""}`} />
-                    </button>
-                    {spotsDropdownOpen && (
-                      <div className="border-2 border-black border-t-0 bg-white">
-                        <label
-                          className="flex items-center p-3 cursor-pointer hover:bg-gray-50 border-b border-gray-200"
-                          onClick={() => {
-                            setSelectedSpots([]);
-                            setAlertSpotId(null);
-                          }}
-                        >
-                          <div className={`w-5 h-5 border-2 border-black mr-3 flex items-center justify-center ${selectedSpots.length === 0 ? "bg-black" : "bg-white"}`}>
-                            {selectedSpots.length === 0 && <Check className="h-3 w-3 text-white" />}
-                          </div>
-                          <span className="font-semibold text-sm" style={{ fontFamily: "'JetBrains Mono', monospace" }}>ALL SPOTS</span>
-                        </label>
-                        {spots?.map((spot) => (
-                          <label
-                            key={spot.id}
-                            className="flex items-center p-3 cursor-pointer hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
-                            onClick={() => {
-                              if (selectedSpots.includes(spot.id)) {
-                                const newSpots = selectedSpots.filter(id => id !== spot.id);
-                                setSelectedSpots(newSpots);
-                                setAlertSpotId(newSpots.length === 1 ? newSpots[0] : null);
-                              } else {
-                                const newSpots = [...selectedSpots, spot.id];
-                                setSelectedSpots(newSpots);
-                                setAlertSpotId(newSpots.length === 1 ? newSpots[0] : null);
-                              }
-                            }}
-                          >
-                            <div className={`w-5 h-5 border-2 border-black mr-3 flex items-center justify-center ${selectedSpots.includes(spot.id) ? "bg-black" : "bg-white"}`}>
-                              {selectedSpots.includes(spot.id) && <Check className="h-3 w-3 text-white" />}
-                            </div>
-                            <span className="font-semibold text-sm" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{spot.name.toUpperCase()}</span>
-                          </label>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 </div>
 
