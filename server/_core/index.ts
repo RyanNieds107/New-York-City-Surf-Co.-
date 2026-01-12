@@ -43,15 +43,16 @@ async function runMigrations(): Promise<void> {
     }
 
     // Log which URL type is being used
-    const urlType = dbUrl.includes('internal') || dbUrl.includes('.railway.internal') 
-      ? 'Internal Railway URL' 
-      : dbUrl.includes('proxy.rlwy.net') 
-        ? 'External Railway Proxy' 
+    const urlType = dbUrl.includes('internal') || dbUrl.includes('.railway.internal')
+      ? 'Internal Railway URL'
+      : dbUrl.includes('proxy.rlwy.net')
+        ? 'External Railway Proxy'
         : 'Custom URL';
     console.log(`[Migrations] Using: ${urlType}`);
 
-    // Add a small delay to ensure connection is stable
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Pre-flight delay: Wait 5 seconds to ensure Railway internal network is fully resolved
+    console.log(`[Migrations] Pre-flight check: waiting 5 seconds for network initialization...`);
+    await new Promise(resolve => setTimeout(resolve, 5000));
     
     // Try direct SQL execution first (more reliable)
     try {
