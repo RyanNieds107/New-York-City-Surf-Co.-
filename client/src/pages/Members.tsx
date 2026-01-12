@@ -181,7 +181,7 @@ export default function Members() {
                     Which breaks do you surf?
                   </p>
                   <div className="grid grid-cols-2 gap-3">
-                    {spots?.map((spot) => (
+                    {spots?.filter(spot => !["Belmar", "Gilgo Beach", "Montauk"].includes(spot.name)).map((spot) => (
                       <button
                         key={spot.id}
                         type="button"
