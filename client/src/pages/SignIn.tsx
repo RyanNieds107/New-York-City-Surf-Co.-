@@ -201,6 +201,24 @@ export default function SignIn() {
                 />
               </div>
 
+              {/* SMS Opt-In Checkbox */}
+              <div className="flex items-start space-x-3">
+                <Checkbox
+                  id="smsOptIn"
+                  checked={smsOptIn}
+                  onCheckedChange={(checked) => setSmsOptIn(checked === true)}
+                  disabled={signUpMutation.isPending}
+                  className="mt-1 border-2 border-black rounded-none data-[state=checked]:bg-black data-[state=checked]:text-white"
+                />
+                <label
+                  htmlFor="smsOptIn"
+                  className="text-xs text-gray-600 leading-relaxed cursor-pointer"
+                  style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
+                >
+                  By providing your phone number and checking this box, you agree to receive automated swell alerts from NYC Surf Co. Msg & data rates may apply. Reply STOP to opt out.
+                </label>
+              </div>
+
               {/* Submit Button */}
               <Button
                 type="submit"
