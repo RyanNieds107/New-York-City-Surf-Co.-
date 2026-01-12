@@ -29,8 +29,8 @@ export default function Members() {
   const [daysAdvanceNotice, setDaysAdvanceNotice] = useState<number>(7);
   const [minQualityScore, setMinQualityScore] = useState<number>(70);
   const [alertFrequency, setAlertFrequency] = useState<string>("once");
-  const [emailEnabled, setEmailEnabled] = useState(true);
-  const [smsEnabled, setSmsEnabled] = useState(true);
+  const [emailEnabled, setEmailEnabled] = useState(false);
+  const [smsEnabled, setSmsEnabled] = useState(false);
 
   // Crowd report state
   const [crowdSpotId, setCrowdSpotId] = useState<number | null>(null);
@@ -332,24 +332,24 @@ export default function Members() {
                     <button
                       type="button"
                       onClick={() => setEmailEnabled(!emailEnabled)}
-                      className={`p-4 text-center transition-all ${
+                      className={`p-4 text-center transition-all border-black ${
                         emailEnabled
-                          ? "bg-black text-white border-black"
-                          : "bg-white text-black border-black hover:bg-gray-50"
+                          ? "bg-black text-white"
+                          : "bg-white text-black hover:bg-gray-50"
                       }`}
-                      style={{ borderWidth: "3px" }}
+                      style={{ borderWidth: "3px", borderStyle: "solid" }}
                     >
                       <span className="font-bold text-sm uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Email</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => setSmsEnabled(!smsEnabled)}
-                      className={`p-4 text-center transition-all ${
+                      className={`p-4 text-center transition-all border-black ${
                         smsEnabled
-                          ? "bg-black text-white border-black"
-                          : "bg-white text-black border-black hover:bg-gray-50"
+                          ? "bg-black text-white"
+                          : "bg-white text-black hover:bg-gray-50"
                       }`}
-                      style={{ borderWidth: "3px" }}
+                      style={{ borderWidth: "3px", borderStyle: "solid" }}
                     >
                       <span className="font-bold text-sm uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>SMS</span>
                     </button>
