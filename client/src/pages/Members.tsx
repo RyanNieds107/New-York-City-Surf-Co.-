@@ -4,7 +4,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
-import { Loader2, Bell, Users, MessageSquare, X, ChevronRight } from "lucide-react";
+import { Loader2, Bell, Users, MessageSquare, X, ChevronRight, ChevronDown, Check } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -24,8 +24,10 @@ export default function Members() {
 
   // Real-time alerts state
   const [alertSpotId, setAlertSpotId] = useState<number | null>(null);
+  const [selectedSpots, setSelectedSpots] = useState<number[]>([]);
+  const [spotsDropdownOpen, setSpotsDropdownOpen] = useState(false);
   const [daysAdvanceNotice, setDaysAdvanceNotice] = useState<number>(7);
-  const [minQualityScore, setMinQualityScore] = useState<number>(60);
+  const [minQualityScore, setMinQualityScore] = useState<number>(70);
   const [emailEnabled, setEmailEnabled] = useState(true);
   const [smsEnabled, setSmsEnabled] = useState(true);
 
@@ -157,154 +159,214 @@ export default function Members() {
 
           {/* Alerts Tab */}
           <TabsContent value="alerts" className="mt-0">
-            <div className="bg-white border border-gray-200 p-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Create Alert Form */}
-                <div>
-                  <h2
-                    className="text-lg font-black text-black uppercase tracking-tight mb-4"
-                    style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                  >
-                    Create New Alert
-                  </h2>
-                  <form onSubmit={handleCreateAlert} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="col-span-2">
-                        <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                          Spot
-                        </label>
-                        <select
-                          value={alertSpotId || ""}
-                          onChange={(e) => setAlertSpotId(e.target.value ? parseInt(e.target.value) : null)}
-                          className={selectStyles}
-                          style={{ fontFamily: "'Inter', sans-serif" }}
-                        >
-                          <option value="">All spots</option>
-                          {spots?.map((spot) => (
-                            <option key={spot.id} value={spot.id}>{spot.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                          Days Notice
-                        </label>
-                        <select
-                          value={daysAdvanceNotice}
-                          onChange={(e) => setDaysAdvanceNotice(parseInt(e.target.value))}
-                          className={selectStyles}
-                          style={{ fontFamily: "'Inter', sans-serif" }}
-                        >
-                          <option value="1">1 day</option>
-                          <option value="3">3 days</option>
-                          <option value="5">5 days</option>
-                          <option value="7">7 days</option>
-                          <option value="14">14 days</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                          Min Quality
-                        </label>
-                        <select
-                          value={minQualityScore}
-                          onChange={(e) => setMinQualityScore(parseInt(e.target.value))}
-                          className={selectStyles}
-                          style={{ fontFamily: "'Inter', sans-serif" }}
-                        >
-                          <option value="40">40+ Fair</option>
-                          <option value="60">60+ Good</option>
-                          <option value="70">70+ Great</option>
-                        </select>
+            <div className="bg-white border-2 border-black">
+              <form onSubmit={handleCreateAlert}>
+                {/* Section 01: Forecast Window */}
+                <div className="p-5 border-b-2 border-gray-200">
+                  <div className="text-xs text-gray-500 font-semibold tracking-widest mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>01</div>
+                  <h3 className="text-xl font-black text-black uppercase tracking-tight mb-4" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                    Forecast Window
+                  </h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { value: 3, label: "3 Days", desc: "Short-term" },
+                      { value: 5, label: "5 Days", desc: "Week-ahead" },
+                      { value: 7, label: "7 Days", desc: "Full week" },
+                      { value: 10, label: "10 Days", desc: "Extended" },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setDaysAdvanceNotice(option.value)}
+                        className={`p-3 border-2 text-left transition-all ${
+                          daysAdvanceNotice === option.value
+                            ? "bg-black text-white border-black"
+                            : "bg-white text-black border-black hover:bg-gray-50"
+                        }`}
+                      >
+                        <div className="font-bold text-sm" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{option.label}</div>
+                        <div className={`text-[10px] mt-0.5 ${daysAdvanceNotice === option.value ? "text-gray-300" : "text-gray-500"}`}>{option.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Section 02: Quality Threshold */}
+                <div className="p-5 border-b-2 border-gray-200">
+                  <div className="text-xs text-gray-500 font-semibold tracking-widest mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>02</div>
+                  <h3 className="text-xl font-black text-black uppercase tracking-tight mb-4" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                    Quality Threshold
+                  </h3>
+                  <div className="flex items-center gap-6">
+                    <div className="flex-1">
+                      <input
+                        type="range"
+                        min="50"
+                        max="90"
+                        step="10"
+                        value={minQualityScore}
+                        onChange={(e) => setMinQualityScore(parseInt(e.target.value))}
+                        className="w-full h-2 bg-black appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:bg-black [&::-webkit-slider-thumb]:border-4 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-[0_0_0_2px_black] [&::-webkit-slider-thumb]:cursor-pointer"
+                      />
+                      <div className="flex justify-between mt-2 text-[10px] text-gray-500 uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        <span>50 Rideable</span>
+                        <span>70 Good</span>
+                        <span>90 Epic</span>
                       </div>
                     </div>
-
-                    <div className="flex items-center gap-6 pt-2">
-                      <label className="flex items-center gap-2 cursor-pointer group">
-                        <input
-                          type="checkbox"
-                          checked={emailEnabled}
-                          onChange={(e) => setEmailEnabled(e.target.checked)}
-                          className="h-4 w-4 rounded-none border-gray-300 text-black focus:ring-black"
-                        />
-                        <span className="text-sm text-gray-600 group-hover:text-black transition-colors" style={{ fontFamily: "'Inter', sans-serif" }}>
-                          Email
-                        </span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer group">
-                        <input
-                          type="checkbox"
-                          checked={smsEnabled}
-                          onChange={(e) => setSmsEnabled(e.target.checked)}
-                          className="h-4 w-4 rounded-none border-gray-300 text-black focus:ring-black"
-                        />
-                        <span className="text-sm text-gray-600 group-hover:text-black transition-colors" style={{ fontFamily: "'Inter', sans-serif" }}>
-                          SMS
-                        </span>
-                      </label>
+                    <div className="text-center min-w-[80px]">
+                      <div className="text-4xl font-black" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>{minQualityScore}+</div>
+                      <div className="text-[10px] text-gray-500 uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        {minQualityScore <= 50 ? "Rideable" : minQualityScore <= 60 ? "Decent" : minQualityScore <= 70 ? "Good" : minQualityScore <= 80 ? "Great" : "Epic"}
+                      </div>
                     </div>
+                  </div>
+                </div>
 
-                    <Button
-                      type="submit"
-                      disabled={createAlertMutation.isPending}
-                      className="w-full bg-black text-white hover:bg-gray-900 rounded-none uppercase tracking-wider text-xs font-semibold py-3 h-auto transition-all"
-                      style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                {/* Section 03: Spots */}
+                <div className="p-5 border-b-2 border-gray-200">
+                  <div className="text-xs text-gray-500 font-semibold tracking-widest mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>03</div>
+                  <h3 className="text-xl font-black text-black uppercase tracking-tight mb-4" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                    Spots
+                  </h3>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setSpotsDropdownOpen(!spotsDropdownOpen)}
+                      className="w-full p-3 border-2 border-black bg-white flex items-center justify-between hover:bg-gray-50 transition-all"
                     >
-                      {createAlertMutation.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        "Create Alert"
-                      )}
-                    </Button>
-                  </form>
+                      <span className="font-semibold text-sm uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        {selectedSpots.length === 0
+                          ? "All Spots"
+                          : selectedSpots.length === 1
+                          ? spots?.find(s => s.id === selectedSpots[0])?.name
+                          : `${selectedSpots.length} spots selected`}
+                      </span>
+                      <ChevronDown className={`h-4 w-4 transition-transform ${spotsDropdownOpen ? "rotate-180" : ""}`} />
+                    </button>
+                    {spotsDropdownOpen && (
+                      <div className="border-2 border-black border-t-0 bg-white">
+                        <label
+                          className="flex items-center p-3 cursor-pointer hover:bg-gray-50 border-b border-gray-200"
+                          onClick={() => {
+                            setSelectedSpots([]);
+                            setAlertSpotId(null);
+                          }}
+                        >
+                          <div className={`w-5 h-5 border-2 border-black mr-3 flex items-center justify-center ${selectedSpots.length === 0 ? "bg-black" : "bg-white"}`}>
+                            {selectedSpots.length === 0 && <Check className="h-3 w-3 text-white" />}
+                          </div>
+                          <span className="font-semibold text-sm" style={{ fontFamily: "'JetBrains Mono', monospace" }}>ALL SPOTS</span>
+                        </label>
+                        {spots?.map((spot) => (
+                          <label
+                            key={spot.id}
+                            className="flex items-center p-3 cursor-pointer hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                            onClick={() => {
+                              if (selectedSpots.includes(spot.id)) {
+                                const newSpots = selectedSpots.filter(id => id !== spot.id);
+                                setSelectedSpots(newSpots);
+                                setAlertSpotId(newSpots.length === 1 ? newSpots[0] : null);
+                              } else {
+                                const newSpots = [...selectedSpots, spot.id];
+                                setSelectedSpots(newSpots);
+                                setAlertSpotId(newSpots.length === 1 ? newSpots[0] : null);
+                              }
+                            }}
+                          >
+                            <div className={`w-5 h-5 border-2 border-black mr-3 flex items-center justify-center ${selectedSpots.includes(spot.id) ? "bg-black" : "bg-white"}`}>
+                              {selectedSpots.includes(spot.id) && <Check className="h-3 w-3 text-white" />}
+                            </div>
+                            <span className="font-semibold text-sm" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{spot.name.toUpperCase()}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* Active Alerts */}
-                <div>
-                  <h2
-                    className="text-lg font-black text-black uppercase tracking-tight mb-4"
-                    style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                  >
-                    Active Alerts
-                    {alerts && alerts.length > 0 && (
-                      <span className="ml-2 text-sm font-normal text-gray-500">({alerts.length})</span>
-                    )}
-                  </h2>
-                  {alerts && alerts.length > 0 ? (
-                    <div className="space-y-2">
-                      {alerts.map((alert) => (
-                        <div
-                          key={alert.id}
-                          className="flex items-center justify-between p-3 bg-gray-50 border border-gray-100 group hover:border-gray-200 transition-all"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="font-medium text-sm truncate" style={{ fontFamily: "'Inter', sans-serif" }}>
-                              {alert.spotId ? spots?.find(s => s.id === alert.spotId)?.name : "All spots"}
-                            </p>
-                            <p className="text-xs text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                              {Math.round((alert.hoursAdvanceNotice || 24) / 24)}d · {alert.minQualityScore}+
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => deleteAlertMutation.mutate({ alertId: alert.id })}
-                            disabled={deleteAlertMutation.isPending}
-                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all rounded"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 bg-gray-50 border border-dashed border-gray-300">
-                      <Bell className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                      <p className="text-sm text-gray-600" style={{ fontFamily: "'Inter', sans-serif" }}>
-                        No alerts yet
-                      </p>
-                    </div>
-                  )}
+                {/* Section 04: How Should We Notify You */}
+                <div className="p-5 border-b-2 border-gray-200">
+                  <div className="text-xs text-gray-500 font-semibold tracking-widest mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>04</div>
+                  <h3 className="text-xl font-black text-black uppercase tracking-tight mb-4" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                    How Should We Notify You?
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setEmailEnabled(!emailEnabled)}
+                      className={`p-3 border-2 text-center transition-all ${
+                        emailEnabled
+                          ? "bg-black text-white border-black"
+                          : "bg-white text-black border-black hover:bg-gray-50"
+                      }`}
+                    >
+                      <span className="font-bold text-sm uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Email</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSmsEnabled(!smsEnabled)}
+                      className={`p-3 border-2 text-center transition-all ${
+                        smsEnabled
+                          ? "bg-black text-white border-black"
+                          : "bg-white text-black border-black hover:bg-gray-50"
+                      }`}
+                    >
+                      <span className="font-bold text-sm uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>SMS</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
+
+                {/* Submit Button */}
+                <div className="p-5 bg-black">
+                  <Button
+                    type="submit"
+                    disabled={createAlertMutation.isPending}
+                    className="w-full bg-white text-black hover:bg-gray-100 rounded-none uppercase tracking-widest text-base font-black py-5 h-auto transition-all"
+                    style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: "2px" }}
+                  >
+                    {createAlertMutation.isPending ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      "Create Alert"
+                    )}
+                  </Button>
+                </div>
+              </form>
+
+              {/* Active Alerts Section */}
+              {alerts && alerts.length > 0 && (
+                <div className="p-5 border-t-2 border-black bg-gray-50">
+                  <div className="text-xs text-gray-500 font-semibold tracking-widest mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>ACTIVE</div>
+                  <h3 className="text-xl font-black text-black uppercase tracking-tight mb-4" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                    Your Alerts ({alerts.length})
+                  </h3>
+                  <div className="space-y-2">
+                    {alerts.map((alert) => (
+                      <div
+                        key={alert.id}
+                        className="flex items-center justify-between p-3 bg-white border-2 border-gray-200 hover:border-black transition-all"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-sm uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                            {alert.spotId ? spots?.find(s => s.id === alert.spotId)?.name : "All spots"}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                            {Math.round((alert.hoursAdvanceNotice || 24) / 24)} day window · {alert.minQualityScore}+ quality
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => deleteAlertMutation.mutate({ alertId: alert.id })}
+                          disabled={deleteAlertMutation.isPending}
+                          className="p-2 text-gray-400 hover:text-white hover:bg-black transition-all"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </TabsContent>
 
