@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
 import { Loader2, Bell, Users, Briefcase, X, ChevronRight, ChevronDown, Check, Phone, Store, GraduationCap, Wrench } from "lucide-react";
@@ -31,6 +32,7 @@ export default function Members() {
   const [alertFrequency, setAlertFrequency] = useState<string>("once");
   const [emailEnabled, setEmailEnabled] = useState(false);
   const [smsEnabled, setSmsEnabled] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState("");
 
   // Crowd report state
   const [crowdSpotId, setCrowdSpotId] = useState<number | null>(null);
@@ -70,12 +72,44 @@ export default function Members() {
     },
   });
 
+  // Format phone number as user types
+  const formatPhoneInput = (value: string) => {
+    const digits = value.replace(/\D/g, "");
+    if (digits.length <= 3) {
+      return digits;
+    } else if (digits.length <= 6) {
+      return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    } else {
+      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+    }
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneInput(e.target.value);
+    setPhoneNumber(formatted);
+  };
+
+  // Check if user already has a phone number
+  const userHasPhone = Boolean(user?.phone);
+
   const handleCreateAlert = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // If SMS is enabled and user doesn't have phone, require phone input
+    if (smsEnabled && !userHasPhone) {
+      const phoneDigits = phoneNumber.replace(/\D/g, "");
+      if (phoneDigits.length < 10) {
+        toast.error("Please enter a valid phone number for SMS alerts");
+        return;
+      }
+    }
+
     createAlertMutation.mutate({
       spotId: alertSpotId,
       minQualityScore,
       emailEnabled,
+      smsEnabled,
+      phone: smsEnabled && !userHasPhone ? phoneNumber.replace(/\D/g, "") : undefined,
       hoursAdvanceNotice: daysAdvanceNotice * 24,
     });
   };
@@ -354,6 +388,38 @@ export default function Members() {
                       <span className="font-bold text-xs sm:text-sm uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>SMS</span>
                     </button>
                   </div>
+
+                  {/* Phone number input - shown when SMS is selected and user doesn't have phone */}
+                  {smsEnabled && !userHasPhone && (
+                    <div className="mt-4">
+                      <label
+                        htmlFor="alertPhone"
+                        className="block text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-gray-700 mb-1.5"
+                        style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                      >
+                        Phone Number
+                      </label>
+                      <Input
+                        id="alertPhone"
+                        type="tel"
+                        value={phoneNumber}
+                        onChange={handlePhoneChange}
+                        placeholder="(555) 123-4567"
+                        maxLength={14}
+                        className="border-2 border-black rounded-none focus:ring-2 focus:ring-black focus:ring-offset-0"
+                      />
+                    </div>
+                  )}
+
+                  {/* TCPA Compliance Disclaimer - shown when SMS is selected */}
+                  {smsEnabled && (
+                    <p
+                      className="mt-3 text-[10px] sm:text-xs text-gray-500 leading-relaxed"
+                      style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
+                    >
+                      By enabling SMS alerts, you agree to receive automated swell alerts from NYC Surf Co. Msg & data rates may apply. Reply STOP to opt out.
+                    </p>
+                  )}
                 </div>
 
                 {/* Submit Button */}

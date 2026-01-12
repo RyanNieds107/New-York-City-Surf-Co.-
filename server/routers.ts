@@ -1264,12 +1264,25 @@ export const appRouter = router({
           idealWindOnly: z.boolean().optional(),
           hoursAdvanceNotice: z.number().min(1).max(168).default(24),
           emailEnabled: z.boolean().default(true),
+          smsEnabled: z.boolean().default(false),
+          phone: z.string().optional(),
         })
       )
       .mutation(async ({ ctx, input }) => {
         if (!ctx.user) {
           throw new TRPCError({ code: "UNAUTHORIZED", message: "User must be authenticated" });
         }
+
+        // If SMS is enabled, update user's smsOptIn and phone
+        if (input.smsEnabled) {
+          const db = getDb();
+          const updateFields: any = { smsOptIn: 1 };
+          if (input.phone) {
+            updateFields.phone = input.phone.replace(/\D/g, "");
+          }
+          await db.update(users).set(updateFields).where(eq(users.id, ctx.user.id));
+        }
+
         const alertId = await createSwellAlert({
           userId: ctx.user.id,
           spotId: input.spotId,

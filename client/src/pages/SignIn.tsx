@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
@@ -15,7 +14,6 @@ export default function SignIn() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [smsOptIn, setSmsOptIn] = useState(false);
 
   const signUpMutation = trpc.auth.signUp.useMutation({
     onSuccess: async () => {
@@ -59,16 +57,11 @@ export default function SignIn() {
       return;
     }
 
-    // If phone is provided and smsOptIn is checked, require smsOptIn to be true
-    if (phone.trim() && smsOptIn === false) {
-      // This is fine - user can provide phone without opting in
-    }
-
     signUpMutation.mutate({
       name: name.trim(),
       email: email.trim(),
       phone: phoneDigits || undefined,
-      smsOptIn: smsOptIn,
+      smsOptIn: false, // SMS opt-in is handled during alert creation
     });
   };
 
@@ -199,24 +192,6 @@ export default function SignIn() {
                   className="border-2 border-black rounded-none focus:ring-2 focus:ring-black focus:ring-offset-0"
                   disabled={signUpMutation.isPending}
                 />
-              </div>
-
-              {/* SMS Opt-In Checkbox */}
-              <div className="flex items-start space-x-3">
-                <Checkbox
-                  id="smsOptIn"
-                  checked={smsOptIn}
-                  onCheckedChange={(checked) => setSmsOptIn(checked === true)}
-                  disabled={signUpMutation.isPending}
-                  className="mt-1 border-2 border-black rounded-none data-[state=checked]:bg-black data-[state=checked]:text-white"
-                />
-                <label
-                  htmlFor="smsOptIn"
-                  className="text-xs text-gray-600 leading-relaxed cursor-pointer"
-                  style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
-                >
-                  By providing your phone number and checking this box, you agree to receive automated swell alerts from NYC Surf Co. Msg & data rates may apply. Reply STOP to opt out.
-                </label>
               </div>
 
               {/* Submit Button */}
