@@ -160,7 +160,16 @@ export default function Members() {
 
           {/* Alerts Tab */}
           <TabsContent value="alerts" className="mt-0">
-            <div className="bg-white border-2 border-black">
+            {/* Header */}
+            <div className="bg-gray-100 border-2 border-black border-b-0 p-8">
+              <h2 className="text-4xl sm:text-5xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                Member Alerts
+              </h2>
+              <p className="text-xs text-gray-500 uppercase tracking-widest mt-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                Get notified when it's firing
+              </p>
+            </div>
+            <div className="bg-white border-2 border-black border-t-0">
               <form onSubmit={handleCreateAlert}>
                 {/* Section 01: Spots */}
                 <div className="p-5 border-b-2 border-gray-200">
