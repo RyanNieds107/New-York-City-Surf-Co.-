@@ -33,6 +33,7 @@ import {
   logSwellAlertSent,
   updateSwellAlertLogEmailSent,
   getAllActiveSwellAlerts,
+  getAllSwellAlertsWithUsers,
 } from "./db";
 import { getCurrentTideInfo } from "./services/tides";
 import { getCurrentConditionsFromOpenMeteo } from "./services/openMeteo";
@@ -41,10 +42,13 @@ import { makeRequest, type DistanceMatrixResult, type TravelMode } from "./_core
 import { getSpotProfile, getSpotKey, SPOT_PROFILES } from "./utils/spotProfiles";
 import { getDominantSwell, calculateBreakingWaveHeight, formatWaveHeight } from "./utils/waveHeight";
 import { generateForecastOutput } from "./utils/forecastOutput";
-import { forecastPoints, conditionsLog } from "../drizzle/schema";
+import { forecastPoints, conditionsLog, users, type User } from "../drizzle/schema";
 import { eq, desc } from "drizzle-orm";
 import { getDb } from "./db";
 import { fetchBuoy44065Cached, clearBuoyCache } from "./services/buoy44065";
+import { adminProcedure } from "./_core/trpc";
+import { sendBatchEmails } from "./services/email";
+import { sendSMS } from "./services/sms";
 
 // In-memory cache for distance results (keyed by rounded origin + mode)
 const distanceCache = new Map<string, {
@@ -72,7 +76,8 @@ export const appRouter = router({
         z.object({
           name: z.string().min(1).max(128),
           email: z.string().email(),
-          phone: z.string().min(10).max(20),
+          phone: z.string().min(10).max(20).optional(),
+          smsOptIn: z.boolean().optional(),
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -95,12 +100,16 @@ export const appRouter = router({
           });
         }
 
+        // Convert smsOptIn boolean to int (1 or 0)
+        const smsOptInInt = input.smsOptIn === true ? 1 : 0;
+
         // Create user
         await upsertUser({
           openId: customOpenId,
           name: input.name,
           email: input.email.toLowerCase(),
-          phone: input.phone,
+          phone: input.phone || null,
+          smsOptIn: smsOptInInt,
           loginMethod: "email",
           lastSignedIn: new Date(),
         });
@@ -1353,6 +1362,90 @@ export const appRouter = router({
         const spots = await getAllSpots();
         return await detectUpcomingSwells(tempAlert, spots);
       }),
+  }),
+
+  admin: router({
+    alerts: router({
+      getAll: adminProcedure.query(async () => {
+        return getAllSwellAlertsWithUsers();
+      }),
+      sendBulkAlert: adminProcedure
+        .input(
+          z.object({
+            message: z.string().min(1),
+            subject: z.string().min(1).default("NYC Surf Co. Alert"),
+            sendEmail: z.boolean().default(true),
+            sendSMS: z.boolean().default(false),
+          })
+        )
+        .mutation(async ({ ctx, input }) => {
+          const db = await getDb();
+          if (!db) {
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: "Database not available",
+            });
+          }
+
+          // Get all users with email (for email alerts)
+          const allUsers = await db.select().from(users);
+          
+          // Get unique users (deduplicate by email)
+          const uniqueUsersMap = new Map<string, User>();
+          for (const user of allUsers) {
+            if (user.email && !uniqueUsersMap.has(user.email)) {
+              uniqueUsersMap.set(user.email, user);
+            }
+          }
+          const uniqueUsers = Array.from(uniqueUsersMap.values());
+          
+          const emailUsers = uniqueUsers.filter((u) => u.email);
+          const smsUsers = uniqueUsers.filter((u) => u.phone && u.smsOptIn === 1);
+
+          let emailSuccessCount = 0;
+          let emailErrorCount = 0;
+          let smsSuccessCount = 0;
+          let smsErrorCount = 0;
+
+          // Send emails using batch API
+          if (input.sendEmail && emailUsers.length > 0) {
+            const emailOptions = emailUsers.map((user) => ({
+              to: user.email!,
+              subject: input.subject,
+              html: `<p>${input.message.replace(/\n/g, "<br>")}</p>`,
+              text: input.message,
+            }));
+
+            const emailResult = await sendBatchEmails(emailOptions);
+            emailSuccessCount = emailResult.successCount;
+            emailErrorCount = emailResult.errorCount;
+          }
+
+          // Send SMS (loop through users - Quo doesn't have batch API)
+          if (input.sendSMS && smsUsers.length > 0) {
+            for (const user of smsUsers) {
+              if (user.phone) {
+                const success = await sendSMS({
+                  phone: user.phone,
+                  message: input.message,
+                });
+                if (success) {
+                  smsSuccessCount++;
+                } else {
+                  smsErrorCount++;
+                }
+              }
+            }
+          }
+
+          return {
+            emailSent: emailSuccessCount,
+            emailErrors: emailErrorCount,
+            smsSent: smsSuccessCount,
+            smsErrors: smsErrorCount,
+          };
+        }),
+    }),
   }),
 });
 

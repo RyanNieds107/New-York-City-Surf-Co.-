@@ -15,6 +15,7 @@ import Login from "./pages/Login";
 import Welcome from "./pages/Welcome";
 import Mission from "./pages/Mission";
 import Members from "./pages/Members";
+import AdminAlerts from "./pages/AdminAlerts";
 
 function Router() {
   return (
@@ -25,6 +26,7 @@ function Router() {
       <Route path="/welcome" component={Welcome} />
       <Route path="/members" component={Members} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/admin/alerts" component={AdminAlerts} />
       <Route path="/spot/:id" component={SpotDetail} />
       <Route path="/surf-analysis" component={SurfAnalysis} />
       <Route path="/terms" component={Terms} />

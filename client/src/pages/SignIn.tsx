@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
@@ -14,6 +15,7 @@ export default function SignIn() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [smsOptIn, setSmsOptIn] = useState(false);
 
   const signUpMutation = trpc.auth.signUp.useMutation({
     onSuccess: async () => {
@@ -49,22 +51,24 @@ export default function SignIn() {
       toast.error("Please enter a valid email address");
       return;
     }
-    if (!phone.trim()) {
-      toast.error("Please enter your phone number");
+
+    // Phone is optional, but if provided, validate it
+    const phoneDigits = phone.replace(/\D/g, "");
+    if (phone.trim() && phoneDigits.length < 10) {
+      toast.error("Please enter a valid phone number");
       return;
     }
 
-    // Basic phone validation (remove non-digits and check length)
-    const phoneDigits = phone.replace(/\D/g, "");
-    if (phoneDigits.length < 10) {
-      toast.error("Please enter a valid phone number");
-      return;
+    // If phone is provided and smsOptIn is checked, require smsOptIn to be true
+    if (phone.trim() && smsOptIn === false) {
+      // This is fine - user can provide phone without opting in
     }
 
     signUpMutation.mutate({
       name: name.trim(),
       email: email.trim(),
-      phone: phoneDigits,
+      phone: phoneDigits || undefined,
+      smsOptIn: smsOptIn,
     });
   };
 

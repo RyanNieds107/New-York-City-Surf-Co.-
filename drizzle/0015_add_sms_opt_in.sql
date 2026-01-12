@@ -1,0 +1,1 @@
+ALTER TABLE `users` ADD COLUMN `smsOptIn` int DEFAULT 0;

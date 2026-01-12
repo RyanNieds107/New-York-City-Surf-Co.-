@@ -150,6 +150,10 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       values.role = 'admin';
       updateSet.role = 'admin';
     }
+    if (user.smsOptIn !== undefined) {
+      values.smsOptIn = user.smsOptIn;
+      updateSet.smsOptIn = user.smsOptIn;
+    }
 
     if (!values.lastSignedIn) {
       values.lastSignedIn = new Date();
@@ -814,6 +818,94 @@ export async function getAllActiveSwellAlerts(): Promise<SwellAlert[]> {
     .orderBy(desc(swellAlerts.createdAt));
   
   return result;
+}
+
+export interface SwellAlertWithUser {
+  id: number;
+  userId: number;
+  spotId: number | null;
+  minWaveHeightFt: string | null;
+  minQualityScore: number | null;
+  minPeriodSec: number | null;
+  idealWindOnly: number;
+  emailEnabled: number;
+  smsEnabled: number;
+  pushEnabled: number;
+  hoursAdvanceNotice: number;
+  isActive: number;
+  createdAt: Date;
+  updatedAt: Date;
+  userEmail: string | null;
+  userName: string | null;
+  userPhone: string | null;
+  userSmsOptIn: number | null;
+  spotName: string | null;
+}
+
+export async function getAllSwellAlertsWithUsers(): Promise<SwellAlertWithUser[]> {
+  if (!_pool) {
+    await getDb(); // Initialize pool if needed
+  }
+  if (!_pool) return [];
+  
+  try {
+    // Get all alerts with user info and spot info
+    // Using raw SQL for the joins since drizzle-orm/mysql2 doesn't have built-in join helpers
+    const query = `
+      SELECT 
+        sa.id,
+        sa.userId,
+        sa.spotId,
+        sa.minWaveHeightFt,
+        sa.minQualityScore,
+        sa.minPeriodSec,
+        sa.idealWindOnly,
+        sa.emailEnabled,
+        sa.smsEnabled,
+        sa.pushEnabled,
+        sa.hoursAdvanceNotice,
+        sa.isActive,
+        sa.createdAt,
+        sa.updatedAt,
+        u.email as userEmail,
+        u.name as userName,
+        u.phone as userPhone,
+        u.smsOptIn as userSmsOptIn,
+        sp.name as spotName
+      FROM swell_alerts sa
+      LEFT JOIN users u ON sa.userId = u.id
+      LEFT JOIN surf_spots sp ON sa.spotId = sp.id
+      ORDER BY sa.createdAt DESC
+    `;
+    
+    const [rows] = await _pool.execute(query);
+    const results = rows as unknown as any[];
+    
+    return results.map(row => ({
+      id: row.id,
+      userId: row.userId,
+      spotId: row.spotId,
+      minWaveHeightFt: row.minWaveHeightFt,
+      minQualityScore: row.minQualityScore,
+      minPeriodSec: row.minPeriodSec,
+      idealWindOnly: row.idealWindOnly,
+      emailEnabled: row.emailEnabled,
+      smsEnabled: row.smsEnabled,
+      pushEnabled: row.pushEnabled,
+      hoursAdvanceNotice: row.hoursAdvanceNotice,
+      isActive: row.isActive,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      userEmail: row.userEmail,
+      userName: row.userName,
+      userPhone: row.userPhone,
+      userSmsOptIn: row.userSmsOptIn,
+      spotName: row.spotName,
+    }));
+  } catch (error) {
+    console.error("[Database] Failed to get all swell alerts with users:", error);
+    return [];
+  }
 }
 
 export async function createSwellAlert(alert: InsertSwellAlert): Promise<number> {
