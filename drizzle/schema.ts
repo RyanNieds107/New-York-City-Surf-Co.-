@@ -193,6 +193,8 @@ export const swellAlerts = mysqlTable("swell_alerts", {
   includeExplanation: int("includeExplanation").default(1), // 0/1 boolean (why they should target)
   // Status
   isActive: int("isActive").default(1), // 0/1 boolean
+  // Threshold tracking - stores last score to detect when threshold is crossed
+  lastNotifiedScore: int("lastNotifiedScore"), // Track last score for threshold-only notifications
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

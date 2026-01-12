@@ -993,6 +993,41 @@ export async function deleteSwellAlert(alertId: number, userId: number): Promise
     );
 }
 
+/**
+ * Update the lastNotifiedScore for an alert (used for threshold-only notifications)
+ */
+export async function updateAlertLastScore(
+  alertId: number,
+  score: number
+): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db
+    .update(swellAlerts)
+    .set({
+      lastNotifiedScore: score,
+      updatedAt: new Date(),
+    })
+    .where(eq(swellAlerts.id, alertId));
+}
+
+/**
+ * Get count of unique users with active alerts (for waitlist counter)
+ */
+export async function getActiveAlertUserCount(): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+
+  // Count distinct users with active alerts
+  const result = await db
+    .selectDistinct({ userId: swellAlerts.userId })
+    .from(swellAlerts)
+    .where(eq(swellAlerts.isActive, 1));
+
+  return result.length;
+}
+
 export async function checkIfAlertAlreadySent(
   alertId: number,
   spotId: number,

@@ -112,6 +112,7 @@ export default function Members() {
       smsEnabled,
       phone: smsEnabled && !userHasPhone ? phoneNumber.replace(/\D/g, "") : undefined,
       hoursAdvanceNotice: daysAdvanceNotice * 24,
+      notificationFrequency: alertFrequency as "once" | "twice" | "threshold" | "realtime",
     });
   };
 

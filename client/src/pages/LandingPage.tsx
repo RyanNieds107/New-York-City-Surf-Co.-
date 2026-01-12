@@ -1322,6 +1322,9 @@ export default function LandingPage() {
     staleTime: 15 * 60 * 1000, // Consider fresh for 15 minutes
   });
 
+  // Fetch count of surfers with active alerts (for social proof / waitlist counter)
+  const surferCountQuery = trpc.alerts.count.useQuery();
+
   // Carousel slides: images
   const slides = [
     { type: "image", src: "/Lido-beach.jpg" },
@@ -1674,6 +1677,16 @@ export default function LandingPage() {
                     <p className="text-sm leading-relaxed text-gray-700" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}><strong className="text-black">Alerts</strong> — don't miss a session. Sign up for swell notifications.</p>
                   </div>
                 </div>
+
+                {/* Surfer count / waitlist counter */}
+                {surferCountQuery.data !== undefined && surferCountQuery.data > 0 && (
+                  <div className="mt-4 flex items-center gap-2">
+                    <Users className="h-4 w-4 text-black" />
+                    <span className="text-sm font-semibold text-black" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      Join {surferCountQuery.data} other NYC surfer{surferCountQuery.data === 1 ? '' : 's'}
+                    </span>
+                  </div>
+                )}
 
                 {/* Tags - hidden on mobile */}
                 <div className="mt-auto pt-4 hidden sm:block">

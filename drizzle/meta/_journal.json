@@ -99,6 +99,13 @@
       "when": 1767986988765,
       "tag": "0013_amazing_black_tarantula",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "5",
+      "when": 1768248936721,
+      "tag": "0014_first_shatterstar",
+      "breakpoints": true
     }
   ]
 }

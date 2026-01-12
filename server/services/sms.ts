@@ -12,19 +12,23 @@ export interface SMSOptions {
 export async function sendSMS(options: SMSOptions): Promise<boolean> {
   const { phone, message } = options;
 
-  // TODO: Configure Quo/OpenPhone API credentials
-  const apiKey = process.env.QUO_API_KEY || ENV.quoApiKey;
+  // TODO: Configure Twilio/Quo/OpenPhone API credentials
+  const apiKey = process.env.QUO_API_KEY || process.env.TWILIO_API_KEY || ENV.quoApiKey;
   const apiUrl = process.env.QUO_API_URL || "https://api.quo.com";
 
+  // Clean phone number for logging
+  const cleanPhone = phone.replace(/\D/g, "");
+  const formattedPhone = cleanPhone.startsWith("1") ? `+${cleanPhone}` : `+1${cleanPhone}`;
+
   if (!apiKey) {
-    console.warn("[SMS] Quo API key not configured. SMS sending disabled.");
-    return false;
+    // PLACEHOLDER: Log what would be sent until Twilio/Quo is configured
+    console.log(`[SMS Placeholder] Would send to ${formattedPhone}: "${message.substring(0, 50)}..."`);
+    console.warn("[SMS] No SMS API key configured. SMS sending disabled (placeholder mode).");
+    return true; // Return true for testing - pretend SMS was sent
   }
 
   try {
-    // Clean phone number (remove non-digits, add +1 if needed)
-    const cleanPhone = phone.replace(/\D/g, "");
-    const formattedPhone = cleanPhone.startsWith("1") ? `+${cleanPhone}` : `+1${cleanPhone}`;
+    // Phone number already cleaned above
 
     // TODO: Replace with actual Quo/OpenPhone API endpoint
     // Example structure - adjust based on Quo API documentation

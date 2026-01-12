@@ -34,6 +34,7 @@ import {
   updateSwellAlertLogEmailSent,
   getAllActiveSwellAlerts,
   getAllSwellAlertsWithUsers,
+  getActiveAlertUserCount,
 } from "./db";
 import { getCurrentTideInfo } from "./services/tides";
 import { getCurrentConditionsFromOpenMeteo } from "./services/openMeteo";
@@ -1254,6 +1255,11 @@ export const appRouter = router({
         return alert;
       }),
 
+    // Public endpoint - count of unique users with alerts (for waitlist counter)
+    count: publicProcedure.query(async () => {
+      return await getActiveAlertUserCount();
+    }),
+
     create: protectedProcedure
       .input(
         z.object({
@@ -1266,6 +1272,8 @@ export const appRouter = router({
           emailEnabled: z.boolean().default(true),
           smsEnabled: z.boolean().default(false),
           phone: z.string().optional(),
+          // Alert frequency: "once" | "twice" | "threshold" | "realtime"
+          notificationFrequency: z.enum(["once", "twice", "threshold", "realtime", "immediate"]).default("once"),
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -1292,8 +1300,10 @@ export const appRouter = router({
           idealWindOnly: input.idealWindOnly ? 1 : 0,
           hoursAdvanceNotice: input.hoursAdvanceNotice,
           emailEnabled: input.emailEnabled ? 1 : 1,
+          smsEnabled: input.smsEnabled ? 1 : 0,
           pushEnabled: 0,
           isActive: 1,
+          notificationFrequency: input.notificationFrequency,
         });
         return { success: true, alertId };
       }),
