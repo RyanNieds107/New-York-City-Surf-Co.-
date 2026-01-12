@@ -115,58 +115,48 @@ export default function Members() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-5xl mx-auto px-4 sm:px-6 py-8 w-full">
-        {/* Compact Header */}
-        <div className="mb-6">
-          <h1
-            className="text-2xl sm:text-3xl font-black text-black uppercase tracking-tight"
-            style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-          >
-            Member Dashboard
-          </h1>
-          <p className="text-sm text-gray-600 mt-1" style={{ fontFamily: "'Inter', sans-serif" }}>
-            Alerts, community, and crowd reports
-          </p>
-        </div>
-
+      <main className="flex-1 max-w-4xl mx-auto px-4 sm:px-6 py-10 w-full">
         {/* Tabbed Interface */}
         <Tabs defaultValue="alerts" className="w-full">
-          <TabsList className="w-full sm:w-auto bg-white border border-gray-200 p-1 rounded-none h-auto mb-6">
-            <TabsTrigger
-              value="alerts"
-              className="flex-1 sm:flex-none data-[state=active]:bg-black data-[state=active]:text-white rounded-none px-4 py-2 text-xs uppercase tracking-wider transition-all"
-              style={{ fontFamily: "'JetBrains Mono', monospace" }}
-            >
-              <Bell className="h-3.5 w-3.5 mr-2" />
-              Alerts
-            </TabsTrigger>
-            <TabsTrigger
-              value="community"
-              className="flex-1 sm:flex-none data-[state=active]:bg-black data-[state=active]:text-white rounded-none px-4 py-2 text-xs uppercase tracking-wider transition-all"
-              style={{ fontFamily: "'JetBrains Mono', monospace" }}
-            >
-              <Users className="h-3.5 w-3.5 mr-2" />
-              Community
-            </TabsTrigger>
-            <TabsTrigger
-              value="crowd"
-              className="flex-1 sm:flex-none data-[state=active]:bg-black data-[state=active]:text-white rounded-none px-4 py-2 text-xs uppercase tracking-wider transition-all"
-              style={{ fontFamily: "'JetBrains Mono', monospace" }}
-            >
-              <MessageSquare className="h-3.5 w-3.5 mr-2" />
-              Crowd Reports
-            </TabsTrigger>
-          </TabsList>
+          {/* Tab Navigation */}
+          <div className="border-b-2 border-black mb-0">
+            <TabsList className="bg-transparent p-0 h-auto flex gap-0">
+              <TabsTrigger
+                value="alerts"
+                className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-white data-[state=inactive]:text-black border-2 border-black border-b-0 rounded-none px-6 py-3 text-xs uppercase tracking-widest font-semibold transition-all -mb-[2px] data-[state=active]:z-10"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                <Bell className="h-4 w-4 mr-2" />
+                Alerts
+              </TabsTrigger>
+              <TabsTrigger
+                value="community"
+                className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-white data-[state=inactive]:text-black border-2 border-black border-b-0 border-l-0 rounded-none px-6 py-3 text-xs uppercase tracking-widest font-semibold transition-all -mb-[2px] data-[state=active]:z-10"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                <Users className="h-4 w-4 mr-2" />
+                Community
+              </TabsTrigger>
+              <TabsTrigger
+                value="crowd"
+                className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-white data-[state=inactive]:text-black border-2 border-black border-b-0 border-l-0 rounded-none px-6 py-3 text-xs uppercase tracking-widest font-semibold transition-all -mb-[2px] data-[state=active]:z-10"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Crowd
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* Alerts Tab */}
           <TabsContent value="alerts" className="mt-0">
             {/* Header */}
-            <div className="bg-gray-100 border-2 border-black border-b-0 p-8">
-              <h2 className="text-4xl sm:text-5xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                Member Alerts
-              </h2>
-              <p className="text-xs text-gray-500 uppercase tracking-widest mt-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                Get notified when it's firing
+            <div className="bg-white border-2 border-black border-t-0 p-8 sm:p-10">
+              <h1 className="text-5xl sm:text-6xl font-black text-black uppercase tracking-tight leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                Surf Alerts
+              </h1>
+              <p className="text-sm text-gray-500 uppercase tracking-widest mt-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                Get notified when conditions are firing
               </p>
             </div>
             <div className="bg-white border-2 border-black border-t-0">
@@ -421,22 +411,24 @@ export default function Members() {
 
           {/* Community Tab */}
           <TabsContent value="community" className="mt-0">
-            <div className="bg-white border border-gray-200 p-8 text-center">
-              <div className="max-w-md mx-auto">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Users className="h-8 w-8 text-gray-500" />
+            <div className="bg-white border-2 border-black border-t-0 p-8 sm:p-10">
+              <h1 className="text-5xl sm:text-6xl font-black text-black uppercase tracking-tight leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                Community
+              </h1>
+              <p className="text-sm text-gray-500 uppercase tracking-widest mt-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                Connect with local surfers
+              </p>
+            </div>
+            <div className="bg-white border-2 border-black border-t-0 p-10 text-center">
+              <div className="max-w-md mx-auto py-8">
+                <div className="w-20 h-20 bg-black flex items-center justify-center mx-auto mb-6">
+                  <Users className="h-10 w-10 text-white" />
                 </div>
-                <h2
-                  className="text-xl font-black text-black uppercase tracking-tight mb-2"
-                  style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                >
-                  Community Hub
-                </h2>
-                <p className="text-sm text-gray-600 mb-6" style={{ fontFamily: "'Inter', sans-serif" }}>
-                  Connect with NYC surfers. Share conditions, tips, and session reports.
+                <p className="text-sm text-gray-600 mb-6" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  Share conditions, tips, and session reports with NYC surfers.
                 </p>
                 <span
-                  className="inline-block px-4 py-2 bg-gray-200 text-gray-600 text-xs uppercase tracking-wider font-semibold"
+                  className="inline-block px-6 py-3 bg-black text-white text-xs uppercase tracking-widest font-semibold"
                   style={{ fontFamily: "'JetBrains Mono', monospace" }}
                 >
                   Coming Soon
@@ -447,67 +439,66 @@ export default function Members() {
 
           {/* Crowd Report Tab */}
           <TabsContent value="crowd" className="mt-0">
-            <div className="bg-white border border-gray-200 p-6">
-              <div className="max-w-md">
-                <h2
-                  className="text-lg font-black text-black uppercase tracking-tight mb-2"
-                  style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                >
-                  Submit Crowd Report
-                </h2>
-                <p className="text-sm text-gray-600 mb-6" style={{ fontFamily: "'Inter', sans-serif" }}>
-                  Help other surfers know what to expect.
-                </p>
-                <form onSubmit={handleSubmitCrowdReport} className="space-y-4">
-                  <div>
-                    <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      Spot
-                    </label>
-                    <select
-                      value={crowdSpotId || ""}
-                      onChange={(e) => setCrowdSpotId(e.target.value ? parseInt(e.target.value) : null)}
-                      className={selectStyles}
-                      style={{ fontFamily: "'Inter', sans-serif" }}
-                      required
-                    >
-                      <option value="">Select a spot...</option>
-                      {spots?.map((spot) => (
-                        <option key={spot.id} value={spot.id}>{spot.name}</option>
-                      ))}
-                    </select>
-                  </div>
+            <div className="bg-white border-2 border-black border-t-0 p-8 sm:p-10">
+              <h1 className="text-5xl sm:text-6xl font-black text-black uppercase tracking-tight leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                Crowd Report
+              </h1>
+              <p className="text-sm text-gray-500 uppercase tracking-widest mt-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                Help other surfers know what to expect
+              </p>
+            </div>
+            <div className="bg-white border-2 border-black border-t-0 p-6">
+              <form onSubmit={handleSubmitCrowdReport} className="space-y-5">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-widest text-gray-700 mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    Spot
+                  </label>
+                  <select
+                    value={crowdSpotId || ""}
+                    onChange={(e) => setCrowdSpotId(e.target.value ? parseInt(e.target.value) : null)}
+                    className="w-full bg-white border-2 border-black px-4 py-3 text-sm focus:outline-none focus:ring-0"
+                    style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                    required
+                  >
+                    <option value="">Select a spot...</option>
+                    {spots?.map((spot) => (
+                      <option key={spot.id} value={spot.id}>{spot.name}</option>
+                    ))}
+                  </select>
+                </div>
 
-                  <div>
-                    <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      Crowd Level
-                    </label>
-                    <div className="grid grid-cols-5 gap-2">
-                      {[1, 2, 3, 4, 5].map((level) => (
-                        <button
-                          key={level}
-                          type="button"
-                          onClick={() => setCrowdLevel(level)}
-                          className={`py-3 text-sm font-medium transition-all border ${
-                            crowdLevel === level
-                              ? "bg-black text-white border-black"
-                              : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
-                          }`}
-                          style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                        >
-                          {level}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="flex justify-between mt-1.5 text-[10px] text-gray-500 uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      <span>Empty</span>
-                      <span>Packed</span>
-                    </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-widest text-gray-700 mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    Crowd Level
+                  </label>
+                  <div className="grid grid-cols-5 gap-2">
+                    {[1, 2, 3, 4, 5].map((level) => (
+                      <button
+                        key={level}
+                        type="button"
+                        onClick={() => setCrowdLevel(level)}
+                        className={`py-4 text-sm font-bold transition-all ${
+                          crowdLevel === level
+                            ? "bg-black text-white border-2 border-black"
+                            : "bg-white text-black border-2 border-black hover:bg-gray-50"
+                        }`}
+                        style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                      >
+                        {level}
+                      </button>
+                    ))}
                   </div>
+                  <div className="flex justify-between mt-2 text-[10px] text-gray-500 uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    <span>Empty</span>
+                    <span>Packed</span>
+                  </div>
+                </div>
 
+                <div className="pt-2">
                   <Button
                     type="submit"
                     disabled={submitCrowdMutation.isPending}
-                    className="w-full bg-black text-white hover:bg-gray-900 rounded-none uppercase tracking-wider text-xs font-semibold py-3 h-auto transition-all"
+                    className="w-full bg-black text-white hover:bg-gray-800 rounded-none uppercase tracking-widest text-sm font-bold py-4 h-auto transition-all"
                     style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
                     {submitCrowdMutation.isPending ? (
@@ -516,8 +507,8 @@ export default function Members() {
                       "Submit Report"
                     )}
                   </Button>
-                </form>
-              </div>
+                </div>
+              </form>
             </div>
           </TabsContent>
         </Tabs>
