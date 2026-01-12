@@ -29,7 +29,7 @@ export default function Members() {
   const [selectedSpots, setSelectedSpots] = useState<number[]>([]);
   const [spotsDropdownOpen, setSpotsDropdownOpen] = useState(false);
   const [daysAdvanceNotice, setDaysAdvanceNotice] = useState<number>(7);
-  const [minQualityScore, setMinQualityScore] = useState<number>(60);
+  const [minQualityScore, setMinQualityScore] = useState<number>(70);
   const [alertFrequency, setAlertFrequency] = useState<string>("once");
   const [emailEnabled, setEmailEnabled] = useState(false);
   const [smsEnabled, setSmsEnabled] = useState(false);
@@ -269,18 +269,19 @@ export default function Members() {
                   {/* Color-coded gradient bar */}
                   <div className="mb-4 sm:mb-6">
                     <div className="relative">
-                      {/* Gradient background bar */}
+                      {/* Gradient background bar - 5 segments matching session quality levels */}
                       <div className="h-3 sm:h-4 rounded-full overflow-hidden flex">
-                        <div className="flex-1 bg-yellow-500" title="Worth a Look (40-59)" />
-                        <div className="flex-1 bg-lime-500" title="Go Surf (60-75)" />
-                        <div className="flex-1 bg-green-600" title="Firing (76-90)" />
-                        <div className="flex-[0.5] bg-emerald-600" title="All-Time (91+)" />
+                        <div className="flex-[1]" style={{ backgroundColor: '#eab308' }} title="Rideable (50-55)" />
+                        <div className="flex-[2]" style={{ backgroundColor: '#84cc16' }} title="Decent (56-65)" />
+                        <div className="flex-[2]" style={{ backgroundColor: '#22c55e' }} title="Good (66-75)" />
+                        <div className="flex-[2]" style={{ backgroundColor: '#16a34a' }} title="Great (76-85)" />
+                        <div className="flex-[2]" style={{ backgroundColor: '#059669' }} title="Epic (86-95)" />
                       </div>
 
                       {/* Slider positioned over the gradient */}
                       <input
                         type="range"
-                        min="40"
+                        min="50"
                         max="95"
                         step="5"
                         value={minQualityScore}
@@ -293,7 +294,7 @@ export default function Members() {
                       <div
                         className="absolute top-1/2 -translate-y-1/2 w-5 h-5 sm:w-6 sm:h-6 bg-white border-[3px] border-black rounded-full shadow-lg pointer-events-none transition-all"
                         style={{
-                          left: `${((minQualityScore - 40) / (95 - 40)) * 100}%`,
+                          left: `${((minQualityScore - 50) / (95 - 50)) * 100}%`,
                           transform: 'translate(-50%, -50%)',
                         }}
                       />
@@ -301,10 +302,11 @@ export default function Members() {
 
                     {/* Labels */}
                     <div className="flex justify-between mt-2 sm:mt-3 text-[8px] sm:text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      <span className="text-yellow-600">Worth a Look</span>
-                      <span className="text-lime-600">Go Surf</span>
-                      <span className="text-green-600">Firing</span>
-                      <span className="text-emerald-600">All-Time</span>
+                      <span style={{ color: '#eab308' }}>Rideable</span>
+                      <span style={{ color: '#84cc16' }}>Decent</span>
+                      <span style={{ color: '#22c55e' }}>Good</span>
+                      <span style={{ color: '#16a34a' }}>Great</span>
+                      <span style={{ color: '#059669' }}>Epic</span>
                     </div>
                   </div>
 
@@ -312,20 +314,25 @@ export default function Members() {
                   <div className="text-center py-3 sm:py-5">
                     <div
                       className="inline-block px-6 sm:px-8 py-3 sm:py-4 rounded-lg"
-                      style={{ backgroundColor: getScoreBadgeHexColor(minQualityScore) }}
+                      style={{
+                        backgroundColor: minQualityScore <= 55 ? '#eab308' :
+                                        minQualityScore <= 65 ? '#84cc16' :
+                                        minQualityScore <= 75 ? '#22c55e' :
+                                        minQualityScore <= 85 ? '#16a34a' : '#059669'
+                      }}
                     >
                       <div
                         className="text-5xl sm:text-6xl font-black leading-none"
                         style={{
                           fontFamily: "'Bebas Neue', 'Oswald', sans-serif",
-                          color: minQualityScore >= 40 && minQualityScore <= 75 ? '#000000' : '#ffffff'
+                          color: minQualityScore <= 75 ? '#000000' : '#ffffff'
                         }}
                       >
                         {minQualityScore}+
                       </div>
                     </div>
                     <div className="text-[10px] sm:text-xs text-gray-600 uppercase tracking-widest mt-3 sm:mt-4" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      {minQualityScore <= 59 ? "Worth a Look & Better" : minQualityScore <= 75 ? "Go Surf & Better" : minQualityScore <= 90 ? "Firing & Better" : "All-Time Only"}
+                      {minQualityScore <= 55 ? "Rideable Sessions" : minQualityScore <= 65 ? "Decent Sessions" : minQualityScore <= 75 ? "Good Sessions" : minQualityScore <= 85 ? "Great Sessions" : "Epic Sessions"}
                     </div>
                   </div>
                 </div>
