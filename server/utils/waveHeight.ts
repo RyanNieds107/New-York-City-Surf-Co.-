@@ -47,10 +47,10 @@ export interface SwellComponent {
  * to prevent choppy wind swell from dominating over cleaner primary swells.
  *
  * @param periodS - Swell period in seconds
- * @returns Quality factor (0.3 for < 4s, 0.5 for 4-5s, 1.0 for >= 5s)
+ * @returns Quality factor (0.1 for < 4s, 0.5 for 4-5s, 1.0 for >= 5s)
  */
 export function getPeriodQualityFactor(periodS: number): number {
-  if (periodS < 4) return 0.3;  // Unsurfable chop
+  if (periodS < 4) return 0.1;  // Unsurfable chop - aggressively penalized
   if (periodS < 5) return 0.5;  // Marginal wind swell
   return 1.0;                    // Surfable period
 }
@@ -66,9 +66,9 @@ export function getPeriodQualityFactor(periodS: number): number {
  * from beating a cleaner 1ft @ 6s primary swell in the energy comparison.
  *
  * Example with quality factor:
- * - 2.0ft wind swell @ 3s: Energy = 2² × 3 × 0.3 = 3.6 (penalized)
- * - 1.0ft primary swell @ 6s: Energy = 1² × 6 × 1.0 = 6.0 (no penalty)
- * - The primary swell now wins because it's actually surfable
+ * - 2.6ft wind swell @ 3s: Energy = 2.6² × 3 × 0.1 = 2.03 (aggressively penalized)
+ * - 0.7ft primary swell @ 8s: Energy = 0.7² × 8 × 1.0 = 3.92 (no penalty)
+ * - The primary swell wins because short-period chop is heavily discounted
  *
  * @param heightFt - Swell height in feet (must be in feet for correct scale)
  * @param periodS - Swell period in seconds
