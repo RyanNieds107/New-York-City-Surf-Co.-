@@ -68,8 +68,29 @@ export function formatSwellAlertNotification(
     ? `${Math.round(hoursDuration / 24)} days`
     : `${Math.round(hoursDuration)} hours`;
 
-  // Subject line
-  const subject = `🏄 ${spot.name}: ${peakWaveHeightFt.toFixed(1)}ft @ ${avgPeriodSec}s - Quality ${peakQualityScore}/100`;
+  // Dynamic quality label based on score
+  const getQualityLabel = (score: number): string => {
+    if (score >= 80) return "FIRING";
+    if (score >= 60) return "GOOD";
+    return "FAIR";
+  };
+
+  // Dynamic timing label for subject
+  const getTimingLabel = (): string => {
+    const hoursUntil = (swellStartTime.getTime() - Date.now()) / (1000 * 60 * 60);
+    if (hoursUntil <= 0) return "NOW";
+    if (hoursUntil <= 6) return "Today";
+    if (hoursUntil <= 18) return "Tonight";
+    if (hoursUntil <= 30) return "Tomorrow";
+    return `Next ${Math.round(hoursDuration / 24)} days`;
+  };
+
+  const qualityLabel = getQualityLabel(peakQualityScore);
+  const timingLabel = getTimingLabel();
+  const waveHeight = Math.round(peakWaveHeightFt);
+
+  // Subject line - direct and scannable
+  const subject = `🏄 ${spot.name}: ${waveHeight}ft ${qualityLabel} waves - ${timingLabel}`;
 
   // SMS text (160 chars max, simplified)
   const smsText = `🏄 NYC Surf Co.\n\n${spot.name}: ${peakWaveHeightFt.toFixed(1)}ft @ ${avgPeriodSec}s\nQuality: ${peakQualityScore}/100\nStarts: ${dateStr}\n${confidenceText ? `${confidenceText}\n` : ""}${explanation ? `\n${explanation}` : ""}`;
