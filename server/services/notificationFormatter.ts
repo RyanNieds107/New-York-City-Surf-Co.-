@@ -75,14 +75,38 @@ export function formatSwellAlertNotification(
     return "FAIR";
   };
 
-  // Dynamic timing label for subject
+  // Dynamic timing label for subject (surf-appropriate times)
   const getTimingLabel = (): string => {
-    const hoursUntil = (swellStartTime.getTime() - Date.now()) / (1000 * 60 * 60);
+    const now = new Date();
+    const hoursUntil = (swellStartTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+    const swellHour = swellStartTime.getHours();
+
+    // Determine time of day label
+    const getTimeOfDay = (hour: number): string => {
+      if (hour >= 5 && hour < 12) return "Morning";
+      if (hour >= 12 && hour < 17) return "Afternoon";
+      return "Evening";
+    };
+
     if (hoursUntil <= 0) return "NOW";
-    if (hoursUntil <= 6) return "Today";
-    if (hoursUntil <= 18) return "Tonight";
-    if (hoursUntil <= 30) return "Tomorrow";
-    return `Next ${Math.round(hoursDuration / 24)} days`;
+
+    // Check if it's today
+    const isToday = swellStartTime.toDateString() === now.toDateString();
+    if (isToday) {
+      return `This ${getTimeOfDay(swellHour)}`;
+    }
+
+    // Check if it's tomorrow
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const isTomorrow = swellStartTime.toDateString() === tomorrow.toDateString();
+    if (isTomorrow) {
+      return `Tomorrow ${getTimeOfDay(swellHour)}`;
+    }
+
+    // Further out - show day name
+    const dayName = swellStartTime.toLocaleDateString("en-US", { weekday: "short" });
+    return `${dayName} ${getTimeOfDay(swellHour)}`;
   };
 
   const qualityLabel = getQualityLabel(peakQualityScore);
