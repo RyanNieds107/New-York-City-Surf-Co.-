@@ -40,15 +40,35 @@ export interface SwellComponent {
 }
 
 /**
- * Calculate swell energy using quadratic H² × T formula
+ * Get period-quality factor for swell energy calculation
+ *
+ * Very short period swells (< 5s) are wind chop that doesn't produce
+ * rideable surf on beach breaks. We penalize them BEFORE swell selection
+ * to prevent choppy wind swell from dominating over cleaner primary swells.
+ *
+ * @param periodS - Swell period in seconds
+ * @returns Quality factor (0.3 for < 4s, 0.5 for 4-5s, 1.0 for >= 5s)
+ */
+export function getPeriodQualityFactor(periodS: number): number {
+  if (periodS < 4) return 0.3;  // Unsurfable chop
+  if (periodS < 5) return 0.5;  // Marginal wind swell
+  return 1.0;                    // Surfable period
+}
+
+/**
+ * Calculate swell energy using quadratic H² × T formula with period-quality penalty
  *
  * This is the PRIMARY metric for comparing swells.
  * Higher energy = more powerful waves that will produce larger surf.
  *
- * Example:
- * - 6.6ft wind swell @ 5s: Energy = 6.6² × 5 = 217.8
- * - 2.4ft primary swell @ 10s: Energy = 2.4² × 10 = 57.6
- * - The wind swell has ~4x more energy and will dominate
+ * IMPORTANT: We apply a period-quality factor to penalize very short period
+ * wind swell (< 5s) BEFORE swell selection. This prevents 2ft @ 3s chop
+ * from beating a cleaner 1ft @ 6s primary swell in the energy comparison.
+ *
+ * Example with quality factor:
+ * - 2.0ft wind swell @ 3s: Energy = 2² × 3 × 0.3 = 3.6 (penalized)
+ * - 1.0ft primary swell @ 6s: Energy = 1² × 6 × 1.0 = 6.0 (no penalty)
+ * - The primary swell now wins because it's actually surfable
  *
  * @param heightFt - Swell height in feet (must be in feet for correct scale)
  * @param periodS - Swell period in seconds
@@ -57,7 +77,10 @@ export interface SwellComponent {
 export function calculateSwellEnergy(heightFt: number, periodS: number): number {
   // Ensure height is positive
   if (heightFt <= 0 || periodS <= 0) return 0;
-  return heightFt * heightFt * periodS;
+
+  // Apply period-quality factor to penalize unsurfable short-period chop
+  const qualityFactor = getPeriodQualityFactor(periodS);
+  return heightFt * heightFt * periodS * qualityFactor;
 }
 
 /**
@@ -293,15 +316,17 @@ export function getDominantSwell(
   }
 
   // Log energy comparison for valid (non-blocked) candidates
-  console.log('📊 [getDominantSwell] Energy comparison (H²×T) - valid swells only:', validCandidates.map(c => ({
+  // Energy now includes period-quality factor: H² × T × quality_factor
+  console.log('📊 [getDominantSwell] Energy comparison (H²×T×quality) - valid swells only:', validCandidates.map(c => ({
     type: c.type,
     height: c.height_ft.toFixed(1),
     period: c.period_s,
+    qualityFactor: getPeriodQualityFactor(c.period_s),
     energy: c.energy.toFixed(1),
     direction: c.direction_deg,
   })));
 
-  // Sort by RAW ENERGY (H² × T) - highest energy wins
+  // Sort by QUALITY-ADJUSTED ENERGY (H² × T × quality_factor) - highest energy wins
   // Only considering non-blocked directions
   const sorted = [...validCandidates].sort((a, b) => b.energy - a.energy);
   const winner = sorted[0];
