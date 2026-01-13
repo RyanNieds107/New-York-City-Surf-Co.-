@@ -74,13 +74,6 @@ export function formatSwellAlertNotification(
   // SMS text (160 chars max, simplified)
   const smsText = `🏄 NYC Surf Co.\n\n${spot.name}: ${peakWaveHeightFt.toFixed(1)}ft @ ${avgPeriodSec}s\nQuality: ${peakQualityScore}/100\nStarts: ${dateStr}\n${confidenceText ? `${confidenceText}\n` : ""}${explanation ? `\n${explanation}` : ""}`;
 
-  // Get quality score color
-  const getQualityColor = (score: number) => {
-    if (score >= 70) return "#00FF00";
-    if (score >= 50) return "#FFD700";
-    return "#FF6B6B";
-  };
-
   // Get confidence level details
   const getConfidenceDetails = () => {
     const hoursUntilSwell = (swellStartTime.getTime() - Date.now()) / (1000 * 60 * 60);
@@ -93,9 +86,8 @@ export function formatSwellAlertNotification(
   };
 
   const confidenceDetails = alert.includeConfidenceIntervals === 1 ? getConfidenceDetails() : null;
-  const qualityColor = getQualityColor(peakQualityScore);
 
-  // Email HTML - Brutalist Card Design
+  // Email HTML - NYC Grit Design
   const emailHtml = `
 <!DOCTYPE html>
 <html>
@@ -103,87 +95,85 @@ export function formatSwellAlertNotification(
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body style="margin: 0; padding: 20px; background-color: #000000; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;">
+<body style="margin: 0; padding: 20px; background-color: #1a1a1a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;">
     <div style="max-width: 600px; margin: 0 auto;">
 
         <!-- Header -->
-        <div style="background: #FFFFFF; border: 4px solid #000000; padding: 24px; margin-bottom: 8px;">
-            <div style="font-size: 32px; font-weight: 900; color: #000000; text-align: center;">
-                🏄 NYC SURF CO.
+        <div style="background: #000000; border: 3px solid #333333; padding: 28px; margin-bottom: 4px;">
+            <div style="font-size: 28px; font-weight: 900; color: #FFFFFF; text-align: center; letter-spacing: 2px;">
+                NYC SURF CO.
             </div>
         </div>
 
         <!-- Alert Type Banner -->
-        <div style="background: #FFD700; border: 4px solid #000000; padding: 16px; margin-bottom: 8px;">
-            <div style="font-size: 14px; font-weight: 700; color: #000000; text-transform: uppercase; letter-spacing: 1px; text-align: center;">
-                ⚡ SWELL ALERT
+        <div style="background: #2a2a2a; border-left: 4px solid #FFFFFF; padding: 14px 20px; margin-bottom: 4px;">
+            <div style="font-size: 11px; font-weight: 700; color: #FFFFFF; text-transform: uppercase; letter-spacing: 3px;">
+                SWELL ALERT
             </div>
         </div>
 
         <!-- Location -->
-        <div style="background: #FFFFFF; border: 4px solid #000000; padding: 24px; margin-bottom: 8px;">
-            <div style="font-size: 28px; font-weight: 900; color: #000000;">
+        <div style="background: #000000; border: 3px solid #333333; padding: 24px; margin-bottom: 4px;">
+            <div style="font-size: 11px; font-weight: 600; color: #666666; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px;">Location</div>
+            <div style="font-size: 26px; font-weight: 900; color: #FFFFFF; letter-spacing: 1px;">
                 ${spot.name.toUpperCase()}
             </div>
         </div>
 
         <!-- Main Stats Grid -->
-        <table style="width: 100%; margin-bottom: 8px; border-collapse: collapse;">
+        <table style="width: 100%; margin-bottom: 4px; border-collapse: collapse;">
             <tr>
-                <td style="width: 50%; padding-right: 4px;">
-                    <div style="background: #FFFFFF; border: 4px solid #000000; padding: 20px;">
-                        <div style="font-size: 12px; font-weight: 700; color: #666666; text-transform: uppercase; margin-bottom: 4px;">Wave Height</div>
-                        <div style="font-size: 36px; font-weight: 900; color: #000000; line-height: 1;">${peakWaveHeightFt.toFixed(1)}ft</div>
+                <td style="width: 50%; padding-right: 2px;">
+                    <div style="background: #000000; border: 3px solid #333333; padding: 20px;">
+                        <div style="font-size: 10px; font-weight: 700; color: #666666; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px;">Wave Height</div>
+                        <div style="font-size: 42px; font-weight: 900; color: #FFFFFF; line-height: 1;">${peakWaveHeightFt.toFixed(1)}<span style="font-size: 20px; color: #666666;">ft</span></div>
                     </div>
                 </td>
-                <td style="width: 50%; padding-left: 4px;">
-                    <div style="background: #FFFFFF; border: 4px solid #000000; padding: 20px;">
-                        <div style="font-size: 12px; font-weight: 700; color: #666666; text-transform: uppercase; margin-bottom: 4px;">Period</div>
-                        <div style="font-size: 36px; font-weight: 900; color: #000000; line-height: 1;">${avgPeriodSec}s</div>
+                <td style="width: 50%; padding-left: 2px;">
+                    <div style="background: #000000; border: 3px solid #333333; padding: 20px;">
+                        <div style="font-size: 10px; font-weight: 700; color: #666666; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px;">Period</div>
+                        <div style="font-size: 42px; font-weight: 900; color: #FFFFFF; line-height: 1;">${avgPeriodSec}<span style="font-size: 20px; color: #666666;">s</span></div>
                     </div>
                 </td>
             </tr>
         </table>
 
         <!-- Quality Score -->
-        <div style="background: ${qualityColor}; border: 4px solid #000000; padding: 24px; margin-bottom: 8px;">
-            <div style="font-size: 14px; font-weight: 700; color: #000000; text-transform: uppercase; margin-bottom: 8px;">Quality Score</div>
-            <div style="font-size: 56px; font-weight: 900; color: #000000; line-height: 1;">${peakQualityScore}<span style="font-size: 28px; opacity: 0.5;">/100</span></div>
+        <div style="background: #000000; border: 3px solid #333333; padding: 24px; margin-bottom: 4px;">
+            <div style="font-size: 10px; font-weight: 700; color: #666666; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px;">Quality Score</div>
+            <div style="font-size: 64px; font-weight: 900; color: #FFFFFF; line-height: 1;">${peakQualityScore}<span style="font-size: 24px; color: #444444;">/100</span></div>
         </div>
 
         <!-- Timing -->
-        <div style="background: #FFFFFF; border: 4px solid #000000; padding: 20px; margin-bottom: 8px;">
-            <table style="width: 100%; margin-bottom: 12px;">
+        <div style="background: #000000; border: 3px solid #333333; padding: 20px; margin-bottom: 4px;">
+            <table style="width: 100%; margin-bottom: 14px;">
                 <tr>
-                    <td style="font-size: 12px; font-weight: 700; color: #666666; text-transform: uppercase; width: 60px;">Start</td>
-                    <td style="font-size: 16px; font-weight: 700; color: #000000;">${dateStr}</td>
+                    <td style="font-size: 10px; font-weight: 700; color: #666666; text-transform: uppercase; letter-spacing: 2px; width: 70px; vertical-align: top; padding-top: 2px;">Start</td>
+                    <td style="font-size: 15px; font-weight: 600; color: #FFFFFF;">${dateStr}</td>
                 </tr>
             </table>
-            <table style="width: 100%; margin-bottom: 12px;">
+            <table style="width: 100%; margin-bottom: 14px;">
                 <tr>
-                    <td style="font-size: 12px; font-weight: 700; color: #666666; text-transform: uppercase; width: 60px;">End</td>
-                    <td style="font-size: 16px; font-weight: 700; color: #000000;">${endDateStr}</td>
+                    <td style="font-size: 10px; font-weight: 700; color: #666666; text-transform: uppercase; letter-spacing: 2px; width: 70px; vertical-align: top; padding-top: 2px;">End</td>
+                    <td style="font-size: 15px; font-weight: 600; color: #FFFFFF;">${endDateStr}</td>
                 </tr>
             </table>
-            <div style="border-top: 2px solid #000000; padding-top: 12px; margin-top: 12px;">
-                <div style="font-size: 12px; font-weight: 700; color: #666666; text-transform: uppercase; margin-bottom: 4px;">Duration</div>
-                <div style="font-size: 20px; font-weight: 900; color: #000000;">${durationText.toUpperCase()}</div>
+            <div style="border-top: 1px solid #333333; padding-top: 14px;">
+                <table style="width: 100%;">
+                    <tr>
+                        <td style="font-size: 10px; font-weight: 700; color: #666666; text-transform: uppercase; letter-spacing: 2px; width: 70px; vertical-align: top; padding-top: 2px;">Duration</td>
+                        <td style="font-size: 18px; font-weight: 900; color: #FFFFFF;">${durationText.toUpperCase()}</td>
+                    </tr>
+                </table>
             </div>
         </div>
 
         ${confidenceDetails ? `
         <!-- Confidence Indicator -->
-        <div style="background: #E3F2FD; border: 4px solid #000000; padding: 20px; margin-bottom: 8px;">
-            <table style="width: 100%; margin-bottom: 12px;">
-                <tr>
-                    <td style="width: 40px; vertical-align: top; font-size: 24px;">🎯</td>
-                    <td style="vertical-align: top;">
-                        <div style="font-size: 12px; font-weight: 700; color: #1976D2; text-transform: uppercase;">Confidence Level</div>
-                        <div style="font-size: 18px; font-weight: 900; color: #000000;">${confidenceDetails.level}</div>
-                    </td>
-                </tr>
-            </table>
-            <div style="font-size: 13px; color: #000000; line-height: 1.5;">
+        <div style="background: #0a0a0a; border: 3px solid #333333; padding: 20px; margin-bottom: 4px;">
+            <div style="font-size: 10px; font-weight: 700; color: #666666; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px;">Confidence</div>
+            <div style="font-size: 20px; font-weight: 900; color: #FFFFFF; margin-bottom: 10px;">${confidenceDetails.level}</div>
+            <div style="font-size: 13px; color: #888888; line-height: 1.5;">
                 ${confidenceDetails.description}
             </div>
         </div>
@@ -191,27 +181,27 @@ export function formatSwellAlertNotification(
 
         ${explanation ? `
         <!-- Explanation -->
-        <div style="background: #F0F4F8; border: 4px solid #000000; padding: 20px; margin-bottom: 8px;">
-            <div style="font-size: 13px; color: #000000; line-height: 1.5;">
+        <div style="background: #0a0a0a; border: 3px solid #333333; padding: 20px; margin-bottom: 4px;">
+            <div style="font-size: 13px; color: #888888; line-height: 1.5;">
                 ${explanation}
             </div>
         </div>
         ` : ""}
 
         <!-- CTA Button -->
-        <div style="background: #FFFFFF; border: 4px solid #000000; padding: 24px; text-align: center;">
-            <a href="${process.env.APP_URL || "https://nycsurfco.com"}/spots/${spot.id}" style="display: inline-block; background: #000000; color: #FFFFFF; font-size: 16px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; padding: 16px 32px; text-decoration: none; border: 4px solid #000000;">
-                VIEW FULL FORECAST →
+        <div style="padding: 24px 0; text-align: center;">
+            <a href="${process.env.APP_URL || "https://nycsurfco.com"}/spots/${spot.id}" style="display: inline-block; background: #FFFFFF; color: #000000; font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; padding: 16px 40px; text-decoration: none;">
+                VIEW FORECAST
             </a>
         </div>
 
         <!-- Footer -->
-        <div style="padding: 20px; text-align: center;">
-            <div style="font-size: 12px; color: #666666; margin-bottom: 8px;">
-                NYC Surf Co. | Hyper-local forecasting for NYC Surfers
+        <div style="padding: 20px; text-align: center; border-top: 1px solid #333333;">
+            <div style="font-size: 11px; color: #555555; margin-bottom: 8px; letter-spacing: 1px;">
+                NYC SURF CO.
             </div>
-            <a href="${process.env.APP_URL || "https://nycsurfco.com"}/dashboard" style="font-size: 12px; color: #888888; text-decoration: underline;">
-                Manage Your Alerts
+            <a href="${process.env.APP_URL || "https://nycsurfco.com"}/dashboard" style="font-size: 11px; color: #444444; text-decoration: none;">
+                Manage Alerts
             </a>
         </div>
 
