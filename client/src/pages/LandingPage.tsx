@@ -1678,8 +1678,8 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                {/* Surfer count / waitlist counter */}
-                {surferCountQuery.data !== undefined && surferCountQuery.data > 0 && (
+                {/* Surfer count / waitlist counter - only show when 30+ surfers */}
+                {surferCountQuery.data !== undefined && surferCountQuery.data >= 30 && (
                   <div className="mt-4 flex items-center gap-2">
                     <Users className="h-4 w-4 text-black" />
                     <span className="text-sm font-semibold text-black" style={{ fontFamily: "'JetBrains Mono', monospace" }}>

@@ -72,9 +72,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
 export async function sendBatchEmails(
   emails: BatchEmailOptions[]
 ): Promise<{ successCount: number; errorCount: number }> {
-  const apiKey = process.env.RESEND_API_KEY || ENV.resendApiKey;
-
-  if (!apiKey) {
+  const apiKey = process.env.RESEND_API_KEY || ENV.resendApiKey;  if (!apiKey) {
     console.warn("[Email] Resend API key not configured. Batch email sending disabled.");
     return { successCount: 0, errorCount: emails.length };
   }
