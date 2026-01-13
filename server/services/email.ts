@@ -135,4 +135,3 @@ export async function sendBatchEmails(
 
   return { successCount: totalSuccessCount, errorCount: totalErrorCount };
 }
-

@@ -1488,13 +1488,24 @@ export const appRouter = router({
             });
           }
 
-          // Create fake detected swell data
+          // Look up the actual spot from the database by name
+          const allSpots = await getAllSpots();
+          const realSpot = allSpots.find(s => s.name === input.spotName);
+
+          if (!realSpot) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: `Spot "${input.spotName}" not found in database`,
+            });
+          }
+
+          // Create fake detected swell data using the real spot ID
           const now = new Date();
           const swellStartTime = new Date(now.getTime() + 24 * 60 * 60 * 1000); // Tomorrow
           const swellEndTime = new Date(swellStartTime.getTime() + 36 * 60 * 60 * 1000); // 36 hours later
 
           const fakeDetectedSwell = {
-            spotId: input.spotName === "Long Beach" ? 2 : input.spotName === "Rockaway Beach" ? 1 : 3,
+            spotId: realSpot.id,
             swellStartTime,
             swellEndTime,
             peakWaveHeightFt: input.waveHeightFt,
@@ -1507,7 +1518,7 @@ export const appRouter = router({
           const fakeAlert = {
             id: 0,
             userId: ctx.user.id,
-            spotId: fakeDetectedSwell.spotId,
+            spotId: realSpot.id,
             minWaveHeightFt: null,
             minQualityScore: 60,
             minPeriodSec: null,
@@ -1525,24 +1536,11 @@ export const appRouter = router({
             updatedAt: now,
           };
 
-          const fakeSpot = {
-            id: fakeDetectedSwell.spotId,
-            name: input.spotName,
-            latitude: "40.5885",
-            longitude: "-73.6579",
-            orientation: "S",
-            description: "Test spot",
-            buoyId: "44065",
-            idealSwellDirection: "S",
-            createdAt: now,
-            updatedAt: now,
-          };
-
-          // Format the notification using the real formatter
+          // Format the notification using the real formatter and real spot data
           const notification = formatSwellAlertNotification(
             fakeDetectedSwell,
             fakeAlert,
-            fakeSpot
+            realSpot
           );
 
           // Send the test email to the admin
