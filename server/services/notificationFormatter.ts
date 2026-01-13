@@ -156,13 +156,16 @@ export function formatSwellAlertNotification(
 
   const confidenceDetails = alert.includeConfidenceIntervals === 1 ? getConfidenceDetails() : null;
 
-  // Get quality score color
-  const getQualityColor = (score: number) => {
-    if (score >= 70) return "#22c55e"; // green
-    if (score >= 50) return "#eab308"; // yellow
-    return "#ef4444"; // red
+  // Get quality score color and text color (matching website's ratingColors.ts)
+  const getQualityBadgeColors = (score: number): { bg: string; text: string } => {
+    const s = Math.round(score);
+    if (s >= 91) return { bg: "#059669", text: "#ffffff" }; // emerald-600 - All-Time
+    if (s >= 76) return { bg: "#16a34a", text: "#ffffff" }; // green-600 - Firing
+    if (s >= 60) return { bg: "#84cc16", text: "#000000" }; // lime-500 - Go Surf
+    if (s >= 40) return { bg: "#eab308", text: "#000000" }; // yellow-500 - Worth a Look
+    return { bg: "#ef4444", text: "#ffffff" }; // red-500 - Don't Bother
   };
-  const qualityColor = getQualityColor(peakQualityScore);
+  const qualityColors = getQualityBadgeColors(peakQualityScore);
 
   // Estimate comparable ratings for other apps
   const getSurflineRating = (score: number) => {
@@ -181,7 +184,7 @@ export function formatSwellAlertNotification(
     return "1★";
   };
 
-  // Email HTML - Brutalist NYC grit aesthetic
+  // Email HTML - Brutalist NYC grit aesthetic, mobile-optimized
   const surflineRating = getSurflineRating(peakQualityScore);
   const magicSeaweedStars = getMagicSeaweedStars(peakQualityScore);
 
@@ -191,8 +194,22 @@ export function formatSwellAlertNotification(
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <!--[if !mso]><!-->
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <!--<![endif]-->
+    <style type="text/css">
+        /* Mobile-first responsive styles */
+        @media only screen and (max-width: 600px) {
+            .mobile-full-width { width: 100% !important; }
+            .mobile-padding { padding: 16px !important; }
+            .mobile-text-large { font-size: 28px !important; }
+            .mobile-text-medium { font-size: 24px !important; }
+            .mobile-stack { display: block !important; width: 100% !important; }
+        }
+    </style>
 </head>
-<body style="margin: 0; padding: 0; background-color: #1a1a1a; font-family: 'Arial Black', Gadget, sans-serif;">
+<body style="margin: 0; padding: 0; background-color: #1a1a1a; font-family: 'Arial Black', Gadget, sans-serif; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;">
     <!-- Preview text (preheader) -->
     <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all;">
         ${previewText}
@@ -204,22 +221,22 @@ export function formatSwellAlertNotification(
     <!-- Outer wrapper - 100% width -->
     <table width="100%" border="0" cellpadding="0" cellspacing="0" style="background-color: #1a1a1a;">
         <tr>
-            <td align="center">
-                <!-- Inner container - max 600px -->
-                <table width="600" border="0" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border: 3px solid #000000;">
+            <td align="center" style="padding: 0;">
+                <!-- Inner container - fluid with max 600px -->
+                <table class="mobile-full-width" width="100%" border="0" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border: 3px solid #000000;">
 
                     <!-- Header -->
                     <tr>
-                        <td style="padding: 24px; background-color: #000000;">
-                            <table border="0" cellpadding="0" cellspacing="0">
+                        <td class="mobile-padding" style="padding: 20px; background-color: #000000;">
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%">
                                 <tr>
-                                    <td style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 28px; font-weight: 900; color: #ffffff; text-transform: uppercase; letter-spacing: 3px;">
+                                    <td style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 24px; font-weight: 900; color: #ffffff; text-transform: uppercase; letter-spacing: 2px;">
                                         SWELL ALERT
                                     </td>
                                 </tr>
-                                <tr><td height="8"></td></tr>
+                                <tr><td height="6"></td></tr>
                                 <tr>
-                                    <td style="font-family: 'Courier New', Courier, monospace; font-size: 11px; color: #888888; text-transform: uppercase; letter-spacing: 1px;">
+                                    <td style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #888888; text-transform: uppercase; letter-spacing: 1px;">
                                         NYC SURF CO. // CONDITIONS FIRING
                                     </td>
                                 </tr>
@@ -228,23 +245,23 @@ export function formatSwellAlertNotification(
                     </tr>
 
                     <!-- Spacer -->
-                    <tr><td height="20"></td></tr>
+                    <tr><td height="16"></td></tr>
 
                     <!-- Section 01: Spot (tight inline container) -->
                     <tr>
-                        <td style="padding: 0 24px;">
+                        <td class="mobile-padding" style="padding: 0 20px;">
                             <table border="0" cellpadding="0" cellspacing="0">
                                 <tr>
-                                    <td style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #666666; text-transform: uppercase; letter-spacing: 1px;">
+                                    <td style="font-family: 'Courier New', Courier, monospace; font-size: 9px; color: #666666; text-transform: uppercase; letter-spacing: 1px;">
                                         01 // SPOT
                                     </td>
                                 </tr>
-                                <tr><td height="8"></td></tr>
+                                <tr><td height="6"></td></tr>
                                 <tr>
                                     <td>
                                         <table border="0" cellpadding="0" cellspacing="0" style="border: 3px solid #000000; background-color: #000000;">
                                             <tr>
-                                                <td style="padding: 10px 20px; font-family: 'Arial Black', Gadget, sans-serif; font-size: 14px; font-weight: 900; color: #ffffff; text-transform: uppercase; letter-spacing: 2px;">
+                                                <td style="padding: 8px 16px; font-family: 'Arial Black', Gadget, sans-serif; font-size: 13px; font-weight: 900; color: #ffffff; text-transform: uppercase; letter-spacing: 1px;">
                                                     ${spot.name.toUpperCase()}
                                                 </td>
                                             </tr>
@@ -256,36 +273,36 @@ export function formatSwellAlertNotification(
                     </tr>
 
                     <!-- Spacer -->
-                    <tr><td height="24"></td></tr>
+                    <tr><td height="16"></td></tr>
 
                     <!-- Section 02: Conditions -->
                     <tr>
-                        <td style="padding: 0 24px;">
+                        <td class="mobile-padding" style="padding: 0 20px;">
                             <table border="0" cellpadding="0" cellspacing="0" width="100%">
                                 <tr>
-                                    <td style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #666666; text-transform: uppercase; letter-spacing: 1px;">
+                                    <td style="font-family: 'Courier New', Courier, monospace; font-size: 9px; color: #666666; text-transform: uppercase; letter-spacing: 1px;">
                                         02 // CONDITIONS
                                     </td>
                                 </tr>
-                                <tr><td height="12"></td></tr>
+                                <tr><td height="8"></td></tr>
                                 <tr>
                                     <td>
                                         <table border="0" cellpadding="0" cellspacing="0" width="100%">
                                             <tr>
-                                                <td width="48%" valign="top">
+                                                <td width="48%" valign="top" class="mobile-stack">
                                                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border: 3px solid #000000;">
                                                         <tr>
-                                                            <td style="padding: 16px;">
+                                                            <td style="padding: 12px;">
                                                                 <table border="0" cellpadding="0" cellspacing="0">
                                                                     <tr>
-                                                                        <td style="font-family: 'Courier New', Courier, monospace; font-size: 9px; color: #666666; text-transform: uppercase; letter-spacing: 1px;">
+                                                                        <td style="font-family: 'Courier New', Courier, monospace; font-size: 8px; color: #666666; text-transform: uppercase; letter-spacing: 1px;">
                                                                             WAVE HEIGHT
                                                                         </td>
                                                                     </tr>
-                                                                    <tr><td height="6"></td></tr>
+                                                                    <tr><td height="4"></td></tr>
                                                                     <tr>
-                                                                        <td style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 36px; font-weight: 900; color: #000000; line-height: 1;">
-                                                                            ${peakWaveHeightFt.toFixed(1)}<span style="font-size: 16px;">FT</span>
+                                                                        <td class="mobile-text-large" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 32px; font-weight: 900; color: #000000; line-height: 1;">
+                                                                            ${peakWaveHeightFt.toFixed(1)}<span style="font-size: 14px;">FT</span>
                                                                         </td>
                                                                     </tr>
                                                                 </table>
@@ -294,20 +311,20 @@ export function formatSwellAlertNotification(
                                                     </table>
                                                 </td>
                                                 <td width="4%"></td>
-                                                <td width="48%" valign="top">
+                                                <td width="48%" valign="top" class="mobile-stack">
                                                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border: 3px solid #000000;">
                                                         <tr>
-                                                            <td style="padding: 16px;">
+                                                            <td style="padding: 12px;">
                                                                 <table border="0" cellpadding="0" cellspacing="0">
                                                                     <tr>
-                                                                        <td style="font-family: 'Courier New', Courier, monospace; font-size: 9px; color: #666666; text-transform: uppercase; letter-spacing: 1px;">
+                                                                        <td style="font-family: 'Courier New', Courier, monospace; font-size: 8px; color: #666666; text-transform: uppercase; letter-spacing: 1px;">
                                                                             PERIOD
                                                                         </td>
                                                                     </tr>
-                                                                    <tr><td height="6"></td></tr>
+                                                                    <tr><td height="4"></td></tr>
                                                                     <tr>
-                                                                        <td style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 36px; font-weight: 900; color: #000000; line-height: 1;">
-                                                                            ${avgPeriodSec}<span style="font-size: 16px;">S</span>
+                                                                        <td class="mobile-text-large" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 32px; font-weight: 900; color: #000000; line-height: 1;">
+                                                                            ${avgPeriodSec}<span style="font-size: 14px;">S</span>
                                                                         </td>
                                                                     </tr>
                                                                 </table>
@@ -324,41 +341,47 @@ export function formatSwellAlertNotification(
                     </tr>
 
                     <!-- Spacer -->
-                    <tr><td height="24"></td></tr>
+                    <tr><td height="16"></td></tr>
 
-                    <!-- Section 03: Quality Score -->
+                    <!-- Section 03: Quality Score (compact, color-coded) -->
                     <tr>
-                        <td style="padding: 0 24px;">
+                        <td class="mobile-padding" style="padding: 0 20px;">
                             <table border="0" cellpadding="0" cellspacing="0" width="100%">
                                 <tr>
-                                    <td style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #666666; text-transform: uppercase; letter-spacing: 1px;">
-                                        03 // QUALITY SCORE
+                                    <td style="font-family: 'Courier New', Courier, monospace; font-size: 9px; color: #666666; text-transform: uppercase; letter-spacing: 1px;">
+                                        03 // QUALITY
                                     </td>
                                 </tr>
-                                <tr><td height="12"></td></tr>
+                                <tr><td height="8"></td></tr>
                                 <tr>
                                     <td>
                                         <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border: 3px solid #000000;">
                                             <tr>
-                                                <td style="padding: 20px;">
+                                                <td style="padding: 12px 16px;">
                                                     <table border="0" cellpadding="0" cellspacing="0" width="100%">
                                                         <tr>
-                                                            <td valign="bottom" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 56px; font-weight: 900; color: #000000; line-height: 1;">
+                                                            <td valign="middle" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 32px; font-weight: 900; color: #000000; line-height: 1;">
                                                                 ${peakQualityScore}
                                                             </td>
-                                                            <td valign="bottom" align="right" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 18px; font-weight: 900; color: #000000; text-transform: uppercase; padding-bottom: 8px;">
-                                                                ${qualityLabel}
+                                                            <td valign="middle" align="right">
+                                                                <table border="0" cellpadding="0" cellspacing="0">
+                                                                    <tr>
+                                                                        <td style="background-color: ${qualityColors.bg}; padding: 6px 12px; font-family: 'Arial Black', Gadget, sans-serif; font-size: 11px; font-weight: 900; color: ${qualityColors.text}; text-transform: uppercase; letter-spacing: 1px;">
+                                                                            ${qualityLabel}
+                                                                        </td>
+                                                                    </tr>
+                                                                </table>
                                                             </td>
                                                         </tr>
                                                     </table>
                                                 </td>
                                             </tr>
                                             <tr>
-                                                <td style="padding: 0 20px 20px 20px;">
+                                                <td style="padding: 0 16px 12px 16px;">
                                                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #e5e5e5;">
                                                         <tr>
-                                                            <td width="${peakQualityScore}%" style="background-color: #000000; height: 8px;"></td>
-                                                            <td width="${100 - peakQualityScore}%" style="height: 8px;"></td>
+                                                            <td width="${peakQualityScore}%" style="background-color: ${qualityColors.bg}; height: 6px;"></td>
+                                                            <td width="${100 - peakQualityScore}%" style="height: 6px;"></td>
                                                         </tr>
                                                     </table>
                                                 </td>
@@ -370,43 +393,40 @@ export function formatSwellAlertNotification(
                         </td>
                     </tr>
 
-                    <!-- Spacer -->
-                    <tr><td height="24"></td></tr>
-
                     <!-- Section 04: Forecast Consensus -->
                     <tr>
-                        <td style="padding: 0 24px;">
+                        <td class="mobile-padding" style="padding: 0 20px;">
                             <table border="0" cellpadding="0" cellspacing="0" width="100%">
                                 <tr>
-                                    <td style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #666666; text-transform: uppercase; letter-spacing: 1px;">
+                                    <td style="font-family: 'Courier New', Courier, monospace; font-size: 9px; color: #666666; text-transform: uppercase; letter-spacing: 1px;">
                                         04 // FORECAST CONSENSUS
                                     </td>
                                 </tr>
-                                <tr><td height="12"></td></tr>
+                                <tr><td height="8"></td></tr>
                                 <tr>
                                     <td>
                                         <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border: 3px solid #000000;">
                                             <tr>
-                                                <td style="padding: 12px 16px; border-bottom: 2px solid #000000; font-family: 'Arial Black', Gadget, sans-serif; font-size: 12px; color: #000000; text-transform: uppercase;">
+                                                <td style="padding: 10px 14px; border-bottom: 2px solid #000000; font-family: 'Arial Black', Gadget, sans-serif; font-size: 11px; color: #000000; text-transform: uppercase;">
                                                     NYC SURF CO.
                                                 </td>
-                                                <td align="right" style="padding: 12px 16px; border-bottom: 2px solid #000000; font-family: 'Courier New', Courier, monospace; font-size: 14px; font-weight: bold; color: #000000;">
+                                                <td align="right" style="padding: 10px 14px; border-bottom: 2px solid #000000; font-family: 'Courier New', Courier, monospace; font-size: 12px; font-weight: bold; color: #000000;">
                                                     ${peakQualityScore}/100
                                                 </td>
                                             </tr>
                                             <tr>
-                                                <td style="padding: 12px 16px; border-bottom: 2px solid #000000; font-family: 'Arial Black', Gadget, sans-serif; font-size: 12px; color: #000000; text-transform: uppercase;">
+                                                <td style="padding: 10px 14px; border-bottom: 2px solid #000000; font-family: 'Arial Black', Gadget, sans-serif; font-size: 11px; color: #000000; text-transform: uppercase;">
                                                     SURFLINE
                                                 </td>
-                                                <td align="right" style="padding: 12px 16px; border-bottom: 2px solid #000000; font-family: 'Courier New', Courier, monospace; font-size: 14px; font-weight: bold; color: #000000;">
+                                                <td align="right" style="padding: 10px 14px; border-bottom: 2px solid #000000; font-family: 'Courier New', Courier, monospace; font-size: 12px; font-weight: bold; color: #000000;">
                                                     ${surflineRating}
                                                 </td>
                                             </tr>
                                             <tr>
-                                                <td style="padding: 12px 16px; font-family: 'Arial Black', Gadget, sans-serif; font-size: 12px; color: #000000; text-transform: uppercase;">
+                                                <td style="padding: 10px 14px; font-family: 'Arial Black', Gadget, sans-serif; font-size: 11px; color: #000000; text-transform: uppercase;">
                                                     MAGIC SEAWEED
                                                 </td>
-                                                <td align="right" style="padding: 12px 16px; font-family: 'Courier New', Courier, monospace; font-size: 14px; font-weight: bold; color: #000000;">
+                                                <td align="right" style="padding: 10px 14px; font-family: 'Courier New', Courier, monospace; font-size: 12px; font-weight: bold; color: #000000;">
                                                     ${magicSeaweedStars}
                                                 </td>
                                             </tr>
@@ -418,32 +438,32 @@ export function formatSwellAlertNotification(
                     </tr>
 
                     <!-- Spacer -->
-                    <tr><td height="24"></td></tr>
+                    <tr><td height="16"></td></tr>
 
                     <!-- Section 05: Swell Source -->
                     <tr>
-                        <td style="padding: 0 24px;">
+                        <td class="mobile-padding" style="padding: 0 20px;">
                             <table border="0" cellpadding="0" cellspacing="0" width="100%">
                                 <tr>
-                                    <td style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #666666; text-transform: uppercase; letter-spacing: 1px;">
+                                    <td style="font-family: 'Courier New', Courier, monospace; font-size: 9px; color: #666666; text-transform: uppercase; letter-spacing: 1px;">
                                         05 // SWELL SOURCE
                                     </td>
                                 </tr>
-                                <tr><td height="12"></td></tr>
+                                <tr><td height="8"></td></tr>
                                 <tr>
                                     <td>
                                         <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border: 3px solid #000000; background-color: #FFF9C4;">
                                             <tr>
-                                                <td style="padding: 16px;">
+                                                <td style="padding: 12px;">
                                                     <table border="0" cellpadding="0" cellspacing="0">
                                                         <tr>
-                                                            <td style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 14px; font-weight: 900; color: #000000; text-transform: uppercase;">
+                                                            <td style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 12px; font-weight: 900; color: #000000; text-transform: uppercase;">
                                                                 ${avgPeriodSec >= 12 ? "GROUNDSWELL" : avgPeriodSec >= 8 ? "MIXED SWELL" : "WINDSWELL"}
                                                             </td>
                                                         </tr>
-                                                        <tr><td height="8"></td></tr>
+                                                        <tr><td height="6"></td></tr>
                                                         <tr>
-                                                            <td style="font-family: 'Courier New', Courier, monospace; font-size: 12px; color: #333333; line-height: 1.5;">
+                                                            <td style="font-family: 'Courier New', Courier, monospace; font-size: 11px; color: #333333; line-height: 1.4;">
                                                                 ${avgPeriodSec >= 12
                                                                   ? "Long-period swell from a distant storm. Expect clean, organized waves with good power."
                                                                   : avgPeriodSec >= 8
@@ -462,47 +482,47 @@ export function formatSwellAlertNotification(
                     </tr>
 
                     <!-- Spacer -->
-                    <tr><td height="24"></td></tr>
+                    <tr><td height="16"></td></tr>
 
                     <!-- Section 06: Timing -->
                     <tr>
-                        <td style="padding: 0 24px;">
+                        <td class="mobile-padding" style="padding: 0 20px;">
                             <table border="0" cellpadding="0" cellspacing="0" width="100%">
                                 <tr>
-                                    <td style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #666666; text-transform: uppercase; letter-spacing: 1px;">
+                                    <td style="font-family: 'Courier New', Courier, monospace; font-size: 9px; color: #666666; text-transform: uppercase; letter-spacing: 1px;">
                                         06 // FORECAST WINDOW
                                     </td>
                                 </tr>
-                                <tr><td height="12"></td></tr>
+                                <tr><td height="8"></td></tr>
                                 <tr>
                                     <td>
                                         <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border: 3px solid #000000;">
                                             <tr>
-                                                <td style="padding: 12px 16px; border-bottom: 2px solid #000000;">
+                                                <td style="padding: 10px 14px; border-bottom: 2px solid #000000;">
                                                     <table border="0" cellpadding="0" cellspacing="0" width="100%">
                                                         <tr>
-                                                            <td style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #666666; text-transform: uppercase;">START</td>
-                                                            <td align="right" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 13px; color: #000000;">${dateStr}</td>
+                                                            <td style="font-family: 'Courier New', Courier, monospace; font-size: 9px; color: #666666; text-transform: uppercase;">START</td>
+                                                            <td align="right" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 11px; color: #000000;">${dateStr}</td>
                                                         </tr>
                                                     </table>
                                                 </td>
                                             </tr>
                                             <tr>
-                                                <td style="padding: 12px 16px; border-bottom: 2px solid #000000;">
+                                                <td style="padding: 10px 14px; border-bottom: 2px solid #000000;">
                                                     <table border="0" cellpadding="0" cellspacing="0" width="100%">
                                                         <tr>
-                                                            <td style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #666666; text-transform: uppercase;">END</td>
-                                                            <td align="right" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 13px; color: #000000;">${endDateStr}</td>
+                                                            <td style="font-family: 'Courier New', Courier, monospace; font-size: 9px; color: #666666; text-transform: uppercase;">END</td>
+                                                            <td align="right" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 11px; color: #000000;">${endDateStr}</td>
                                                         </tr>
                                                     </table>
                                                 </td>
                                             </tr>
                                             <tr>
-                                                <td style="padding: 12px 16px;">
+                                                <td style="padding: 10px 14px;">
                                                     <table border="0" cellpadding="0" cellspacing="0" width="100%">
                                                         <tr>
-                                                            <td style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #666666; text-transform: uppercase;">DURATION</td>
-                                                            <td align="right" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 13px; font-weight: 900; color: #000000;">${durationText.toUpperCase()}</td>
+                                                            <td style="font-family: 'Courier New', Courier, monospace; font-size: 9px; color: #666666; text-transform: uppercase;">DURATION</td>
+                                                            <td align="right" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 11px; font-weight: 900; color: #000000;">${durationText.toUpperCase()}</td>
                                                         </tr>
                                                     </table>
                                                 </td>
@@ -516,32 +536,32 @@ export function formatSwellAlertNotification(
 
                     ${confidenceDetails ? `
                     <!-- Spacer -->
-                    <tr><td height="24"></td></tr>
+                    <tr><td height="16"></td></tr>
 
                     <!-- Section 07: Confidence -->
                     <tr>
-                        <td style="padding: 0 24px;">
+                        <td class="mobile-padding" style="padding: 0 20px;">
                             <table border="0" cellpadding="0" cellspacing="0" width="100%">
                                 <tr>
-                                    <td style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #666666; text-transform: uppercase; letter-spacing: 1px;">
+                                    <td style="font-family: 'Courier New', Courier, monospace; font-size: 9px; color: #666666; text-transform: uppercase; letter-spacing: 1px;">
                                         07 // CONFIDENCE
                                     </td>
                                 </tr>
-                                <tr><td height="12"></td></tr>
+                                <tr><td height="8"></td></tr>
                                 <tr>
                                     <td>
                                         <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border: 3px solid #000000;">
                                             <tr>
-                                                <td style="padding: 16px;">
+                                                <td style="padding: 12px;">
                                                     <table border="0" cellpadding="0" cellspacing="0">
                                                         <tr>
-                                                            <td style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 18px; font-weight: 900; color: #000000; text-transform: uppercase;">
+                                                            <td style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 14px; font-weight: 900; color: #000000; text-transform: uppercase;">
                                                                 ${confidenceDetails.level}
                                                             </td>
                                                         </tr>
-                                                        <tr><td height="8"></td></tr>
+                                                        <tr><td height="6"></td></tr>
                                                         <tr>
-                                                            <td style="font-family: 'Courier New', Courier, monospace; font-size: 12px; color: #333333; line-height: 1.5;">
+                                                            <td style="font-family: 'Courier New', Courier, monospace; font-size: 11px; color: #333333; line-height: 1.4;">
                                                                 ${confidenceDetails.description}
                                                             </td>
                                                         </tr>
@@ -557,15 +577,15 @@ export function formatSwellAlertNotification(
                     ` : ""}
 
                     <!-- Spacer -->
-                    <tr><td height="32"></td></tr>
+                    <tr><td height="24"></td></tr>
 
                     <!-- CTA Button -->
                     <tr>
-                        <td style="padding: 0 24px;">
+                        <td class="mobile-padding" style="padding: 0 20px;">
                             <table border="0" cellpadding="0" cellspacing="0" width="100%">
                                 <tr>
                                     <td align="center">
-                                        <a href="${process.env.APP_URL || "https://nycsurfco.com"}/spot/${spot.id}" style="display: inline-block; background-color: #000000; border: 3px solid #000000; color: #ffffff; font-family: 'Arial Black', Gadget, sans-serif; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; padding: 16px 32px; text-decoration: none;">
+                                        <a href="${process.env.APP_URL || "https://nycsurfco.com"}/spot/${spot.id}" style="display: inline-block; background-color: #000000; border: 3px solid #000000; color: #ffffff; font-family: 'Arial Black', Gadget, sans-serif; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; padding: 14px 28px; text-decoration: none;">
                                             VIEW FULL FORECAST &rarr;
                                         </a>
                                     </td>
@@ -575,21 +595,21 @@ export function formatSwellAlertNotification(
                     </tr>
 
                     <!-- Spacer -->
-                    <tr><td height="32"></td></tr>
+                    <tr><td height="24"></td></tr>
 
                     <!-- Footer -->
                     <tr>
-                        <td style="padding: 24px; background-color: #000000; border-top: 3px solid #000000;">
+                        <td class="mobile-padding" style="padding: 20px; background-color: #000000; border-top: 3px solid #000000;">
                             <table border="0" cellpadding="0" cellspacing="0" width="100%">
                                 <tr>
-                                    <td align="center" style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #888888; text-transform: uppercase; letter-spacing: 1px;">
+                                    <td align="center" style="font-family: 'Courier New', Courier, monospace; font-size: 9px; color: #888888; text-transform: uppercase; letter-spacing: 1px;">
                                         NYC SURF CO. // HYPER-LOCAL FORECASTING
                                     </td>
                                 </tr>
-                                <tr><td height="12"></td></tr>
+                                <tr><td height="10"></td></tr>
                                 <tr>
                                     <td align="center">
-                                        <a href="${process.env.APP_URL || "https://nycsurfco.com"}/dashboard" style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #666666; text-decoration: underline;">
+                                        <a href="${process.env.APP_URL || "https://nycsurfco.com"}/dashboard" style="font-family: 'Courier New', Courier, monospace; font-size: 9px; color: #666666; text-decoration: underline;">
                                             MANAGE YOUR ALERTS
                                         </a>
                                     </td>
