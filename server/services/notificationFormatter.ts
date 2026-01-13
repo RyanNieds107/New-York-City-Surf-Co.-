@@ -290,7 +290,7 @@ export function formatSwellAlertNotification(
 
         <!-- CTA Button -->
         <div style="background: #FFFFFF; border: 3px solid #000000; padding: 20px; text-align: center;">
-            <a href="${process.env.APP_URL || "https://nycsurfco.com"}/spots/${spot.id}" style="display: inline-block; background: #000000; color: #FFFFFF; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; padding: 14px 28px; text-decoration: none; border: 3px solid #000000;">
+            <a href="${process.env.APP_URL || "https://nycsurfco.com"}/spot/${spot.id}" style="display: inline-block; background: #000000; color: #FFFFFF; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; padding: 14px 28px; text-decoration: none; border: 3px solid #000000;">
                 VIEW FULL FORECAST →
             </a>
         </div>
@@ -327,7 +327,7 @@ Conditions:
 ${confidenceText ? `${confidenceText}\n` : ""}
 ${explanation ? `${explanation}\n` : ""}
 
-View full forecast: ${process.env.APP_URL || "https://nycsurfco.com"}/spots/${spot.id}
+View full forecast: ${process.env.APP_URL || "https://nycsurfco.com"}/spot/${spot.id}
 
 Manage your alerts: ${process.env.APP_URL || "https://nycsurfco.com"}/dashboard
   `.trim();
