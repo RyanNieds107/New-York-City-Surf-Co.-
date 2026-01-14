@@ -940,25 +940,42 @@ export async function createSwellAlert(alert: InsertSwellAlert): Promise<number>
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  // Explicitly handle all nullable fields to ensure undefined becomes null
-  const result = await db.insert(swellAlerts).values({
+  // Build insert object, only including fields that have values
+  // This lets the database use NULL defaults for missing nullable fields
+  const insertData: Record<string, unknown> = {
     userId: alert.userId,
-    spotId: alert.spotId ?? null,
-    minWaveHeightFt: alert.minWaveHeightFt ?? null,
-    minQualityScore: alert.minQualityScore ?? null,
-    minPeriodSec: alert.minPeriodSec ?? null,
     idealWindOnly: alert.idealWindOnly ?? 0,
     emailEnabled: alert.emailEnabled ?? 1,
     smsEnabled: alert.smsEnabled ?? 0,
     pushEnabled: alert.pushEnabled ?? 0,
     hoursAdvanceNotice: alert.hoursAdvanceNotice ?? 24,
-    daysAdvanceNotice: alert.daysAdvanceNotice ?? null,
     notificationFrequency: alert.notificationFrequency ?? 'once',
     includeConfidenceIntervals: alert.includeConfidenceIntervals ?? 1,
     includeExplanation: alert.includeExplanation ?? 1,
     isActive: alert.isActive ?? 1,
-    lastNotifiedScore: alert.lastNotifiedScore ?? null,
-  });
+  };
+
+  // Only add nullable fields if they have values (not null/undefined)
+  if (alert.spotId !== null && alert.spotId !== undefined) {
+    insertData.spotId = alert.spotId;
+  }
+  if (alert.minWaveHeightFt !== null && alert.minWaveHeightFt !== undefined) {
+    insertData.minWaveHeightFt = alert.minWaveHeightFt;
+  }
+  if (alert.minQualityScore !== null && alert.minQualityScore !== undefined) {
+    insertData.minQualityScore = alert.minQualityScore;
+  }
+  if (alert.minPeriodSec !== null && alert.minPeriodSec !== undefined) {
+    insertData.minPeriodSec = alert.minPeriodSec;
+  }
+  if (alert.daysAdvanceNotice !== null && alert.daysAdvanceNotice !== undefined) {
+    insertData.daysAdvanceNotice = alert.daysAdvanceNotice;
+  }
+  if (alert.lastNotifiedScore !== null && alert.lastNotifiedScore !== undefined) {
+    insertData.lastNotifiedScore = alert.lastNotifiedScore;
+  }
+
+  const result = await db.insert(swellAlerts).values(insertData as typeof swellAlerts.$inferInsert);
 
   return result.insertId;
 }
