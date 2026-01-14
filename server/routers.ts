@@ -1300,7 +1300,7 @@ export const appRouter = router({
           minPeriodSec: input.minPeriodSec ?? null,
           idealWindOnly: input.idealWindOnly ? 1 : 0,
           hoursAdvanceNotice: input.hoursAdvanceNotice,
-          emailEnabled: input.emailEnabled ? 1 : 1,
+          emailEnabled: input.emailEnabled ? 1 : 0,
           smsEnabled: input.smsEnabled ? 1 : 0,
           pushEnabled: 0,
           isActive: 1,

@@ -939,16 +939,27 @@ export async function getAllSwellAlertsWithUsers(): Promise<SwellAlertWithUser[]
 export async function createSwellAlert(alert: InsertSwellAlert): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
+  // Explicitly handle all nullable fields to ensure undefined becomes null
   const result = await db.insert(swellAlerts).values({
-    ...alert,
-    isActive: alert.isActive ?? 1,
-    emailEnabled: alert.emailEnabled ?? 1,
-    pushEnabled: alert.pushEnabled ?? 0,
+    userId: alert.userId,
+    spotId: alert.spotId ?? null,
+    minWaveHeightFt: alert.minWaveHeightFt ?? null,
+    minQualityScore: alert.minQualityScore ?? null,
+    minPeriodSec: alert.minPeriodSec ?? null,
     idealWindOnly: alert.idealWindOnly ?? 0,
+    emailEnabled: alert.emailEnabled ?? 1,
+    smsEnabled: alert.smsEnabled ?? 0,
+    pushEnabled: alert.pushEnabled ?? 0,
     hoursAdvanceNotice: alert.hoursAdvanceNotice ?? 24,
+    daysAdvanceNotice: alert.daysAdvanceNotice ?? null,
+    notificationFrequency: alert.notificationFrequency ?? 'once',
+    includeConfidenceIntervals: alert.includeConfidenceIntervals ?? 1,
+    includeExplanation: alert.includeExplanation ?? 1,
+    isActive: alert.isActive ?? 1,
+    lastNotifiedScore: alert.lastNotifiedScore ?? null,
   });
-  
+
   return result.insertId;
 }
 
