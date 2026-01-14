@@ -150,14 +150,10 @@ export async function fetchOpenMeteoForecastForSpot(
     // Wind data and air temperature must come from the Weather Forecast API
   ];
   
-  // Strictly set to 5 days for 120-hour forecasts
-  // When maxHoursOut is 120, we MUST request exactly 5 days to get 120 hours of data
-  const forecastDays = maxHoursOut >= 120 ? 5 : Math.ceil(maxHoursOut / 24);
+  // Calculate forecast days based on maxHoursOut, capped at 7 days (Open-Meteo Marine API max)
+  const forecastDays = Math.min(7, Math.ceil(maxHoursOut / 24));
 
   console.log(`[Open-Meteo] Requesting ${forecastDays} days (${maxHoursOut} hours) of forecast data`);
-  if (maxHoursOut >= 120 && forecastDays !== 5) {
-    console.warn(`[Open-Meteo] WARNING: Expected 5 days for 120-hour forecast, but got ${forecastDays}`);
-  }
 
   const marineParams = {
     latitude: lat.toString(),

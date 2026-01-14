@@ -84,9 +84,7 @@ export async function sendBatchEmails(
   const from = process.env.EMAIL_FROM || "NYC Surf Co. <notifications@nycsurfco.com>";
   const BATCH_SIZE = 100;
   let totalSuccessCount = 0;
-  let totalErrorCount = 0;
-
-  // Chunk emails into batches of 100
+  let totalErrorCount = 0;  // Chunk emails into batches of 100
   for (let i = 0; i < emails.length; i += BATCH_SIZE) {
     const batch = emails.slice(i, i + BATCH_SIZE);
     

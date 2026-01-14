@@ -344,24 +344,27 @@ export default function Members() {
                   </p>
                   <div className="space-y-2 sm:space-y-3">
                     {[
-                      { value: 3, label: "3 Days", desc: "Short-term accuracy" },
-                      { value: 5, label: "5 Days", desc: "Week-ahead planning" },
-                      { value: 7, label: "7 Days", desc: "Full week visibility" },
-                      { value: 10, label: "10 Days", desc: "Extended outlook" },
+                      { value: 3, label: "3 Days", desc: "Short-term accuracy", disabled: false },
+                      { value: 5, label: "5 Days", desc: "Week-ahead planning", disabled: false },
+                      { value: 7, label: "7 Days", desc: "Full week visibility", disabled: false },
+                      { value: 10, label: "10 Days", desc: "Coming Soon", disabled: true },
                     ].map((option) => (
                       <button
                         key={option.value}
                         type="button"
-                        onClick={() => setDaysAdvanceNotice(option.value)}
+                        onClick={() => !option.disabled && setDaysAdvanceNotice(option.value)}
+                        disabled={option.disabled}
                         className={`w-full p-3 sm:p-4 text-left transition-all ${
-                          daysAdvanceNotice === option.value
-                            ? "bg-black text-white border-black"
-                            : "bg-white text-black border-black hover:bg-gray-50"
+                          option.disabled
+                            ? "bg-gray-100 text-gray-400 border-gray-300 cursor-not-allowed"
+                            : daysAdvanceNotice === option.value
+                              ? "bg-black text-white border-black"
+                              : "bg-white text-black border-black hover:bg-gray-50"
                         }`}
                         style={{ borderWidth: "2px" }}
                       >
                         <div className="font-bold text-xs sm:text-sm uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{option.label}</div>
-                        <div className={`text-[10px] sm:text-[11px] mt-0.5 sm:mt-1 ${daysAdvanceNotice === option.value ? "text-gray-300" : "text-gray-500"}`}>{option.desc}</div>
+                        <div className={`text-[10px] sm:text-[11px] mt-0.5 sm:mt-1 ${option.disabled ? "text-gray-400" : daysAdvanceNotice === option.value ? "text-gray-300" : "text-gray-500"}`}>{option.desc}</div>
                       </button>
                     ))}
                   </div>
@@ -422,15 +425,12 @@ export default function Members() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setSmsEnabled(!smsEnabled)}
-                      className={`p-3 sm:p-4 text-center transition-all border-black ${
-                        smsEnabled
-                          ? "bg-black text-white"
-                          : "bg-white text-black hover:bg-gray-50"
-                      }`}
+                      disabled
+                      className="p-3 sm:p-4 text-center transition-all border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed"
                       style={{ borderWidth: "2px", borderStyle: "solid" }}
                     >
                       <span className="font-bold text-xs sm:text-sm uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>SMS</span>
+                      <span className="block text-[10px] text-gray-400 mt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Coming Soon</span>
                     </button>
                   </div>
 

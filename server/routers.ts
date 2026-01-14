@@ -1284,7 +1284,7 @@ export const appRouter = router({
 
         // If SMS is enabled, update user's smsOptIn and phone
         if (input.smsEnabled) {
-          const db = getDb();
+          const db = await getDb();
           const updateFields: any = { smsOptIn: 1 };
           if (input.phone) {
             updateFields.phone = input.phone.replace(/\D/g, "");
