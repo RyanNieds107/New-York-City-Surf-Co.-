@@ -979,23 +979,23 @@ export function calculateQualityScoreWithProfile(
           console.log('🔍 [Quality Score Debug] Good offshore small wave clamp:', beforeClamp, '→', rawScore);
         }
       } else {
-        // Other conditions: strict cap at 30
-        rawScore = Math.min(rawScore, 30);
+        // Other conditions (non-offshore): strict cap at 25
+        rawScore = Math.min(rawScore, 25);
         if (beforeClamp !== rawScore) {
           console.log('🔍 [Quality Score Debug] Small wave clamp (no offshore):', beforeClamp, '→', rawScore);
         }
       }
     } else {
-      // No offshore benefit: strict cap at 30
-      rawScore = Math.min(rawScore, 30);
+      // No offshore benefit: strict cap at 25
+      rawScore = Math.min(rawScore, 25);
       if (beforeClamp !== rawScore) {
         console.log('🔍 [Quality Score Debug] Small wave clamp (conditions not met):', beforeClamp, '→', rawScore);
       }
     }
   } else if (breakingHeightFt < 2 || periodS < 6) {
-    // Other spots OR period < 6s: standard clamp at 30 ("Don't Bother" territory)
+    // Other spots OR period < 6s: standard clamp at 25 ("Don't Bother" territory)
     const beforeClamp = rawScore;
-    rawScore = Math.min(rawScore, 30);
+    rawScore = Math.min(rawScore, 25);
     if (beforeClamp !== rawScore) {
       console.log('🔍 [Quality Score Debug] Size/period clamp applied:', beforeClamp, '→', rawScore);
     }
@@ -1024,7 +1024,7 @@ export function calculateQualityScoreWithProfile(
     const isOnshoreWind = normalizedWindDir >= 135 && normalizedWindDir <= 225;
     if (isOnshoreWind && windSpeed > 6) {
       const beforeClamp = rawScore;
-      rawScore = Math.min(rawScore, 40); // Hard cap: can't exceed "Don't Bother" with onshore >7mph
+      rawScore = Math.min(rawScore, 39); // Hard cap: ensures "Don't Bother" rating with onshore >7mph
       if (beforeClamp !== rawScore) {
         console.log('🔍 [Quality Score Debug] Onshore wind clamp applied:', beforeClamp, '→', rawScore);
       }
@@ -1044,12 +1044,22 @@ export function calculateQualityScoreWithProfile(
       }
     }
 
-    // Cap 2: If wind >20kts AND direction >30° off optimal → cap at 40 ("Don't Bother")
+    // Cap 2: If wind >20kts AND direction >30° off optimal → cap at 39 ("Don't Bother")
     if (windSpeed > 20 && angleOffOptimal > 30) {
       const beforeClamp = rawScore;
-      rawScore = Math.min(rawScore, 40);
+      rawScore = Math.min(rawScore, 39);
       if (beforeClamp !== rawScore) {
         console.log('🔍 [Quality Score Debug] Wind direction cap (>20kts, >30° off) applied:', beforeClamp, '→', rawScore);
+      }
+    }
+
+    // JUNK CONDITIONS CAP: Small waves + strong onshore wind = unsurfable
+    // When waves < 2ft AND onshore wind > 10kts, conditions are truly terrible
+    if (breakingHeightFt < 2 && isOnshoreWind && windSpeed > 10) {
+      const beforeClamp = rawScore;
+      rawScore = Math.min(rawScore, 20);
+      if (beforeClamp !== rawScore) {
+        console.log('🔍 [Quality Score Debug] Junk conditions cap (small waves + onshore) applied:', beforeClamp, '→', rawScore);
       }
     }
   }
