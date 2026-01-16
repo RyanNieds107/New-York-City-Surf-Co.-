@@ -942,6 +942,7 @@ export async function createSwellAlert(alert: InsertSwellAlert): Promise<number>
   
   // Create an object with ONLY the data fields. 
   // Do NOT include id, createdAt, or updatedAt here.
+  // Removed includeConfidenceIntervals and includeExplanation - use DB defaults (1)
   const valuesToInsert = {
     userId: alert.userId,
     spotId: alert.spotId ?? null,
@@ -955,8 +956,6 @@ export async function createSwellAlert(alert: InsertSwellAlert): Promise<number>
     hoursAdvanceNotice: alert.hoursAdvanceNotice ?? 24,
     daysAdvanceNotice: alert.daysAdvanceNotice ?? null,
     notificationFrequency: alert.notificationFrequency ?? 'immediate',
-    includeConfidenceIntervals: alert.includeConfidenceIntervals ?? 1,
-    includeExplanation: alert.includeExplanation ?? 1,
     isActive: alert.isActive ?? 1,
     lastNotifiedScore: alert.lastNotifiedScore ?? null,
   };
