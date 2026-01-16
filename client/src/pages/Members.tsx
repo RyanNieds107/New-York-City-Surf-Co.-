@@ -15,8 +15,9 @@ import { formatDistanceToNow } from "date-fns";
 export default function Members() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
+  const utils = trpc.useUtils();
   const { data: spots } = trpc.spots.list.useQuery();
-  const { data: alerts, refetch: refetchAlerts } = trpc.alerts.list.useQuery(undefined, {
+  const { data: alerts } = trpc.alerts.list.useQuery(undefined, {
     enabled: !!user,
   });
 
@@ -41,9 +42,9 @@ export default function Members() {
   const [crowdLevel, setCrowdLevel] = useState<number>(3);
 
   const createAlertMutation = trpc.alerts.create.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Alert created successfully!");
-      refetchAlerts();
+      await utils.alerts.list.invalidate();
       setAlertSpotId(null);
       setDaysAdvanceNotice(7);
       setMinQualityScore(60);
@@ -54,9 +55,9 @@ export default function Members() {
   });
 
   const deleteAlertMutation = trpc.alerts.delete.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Alert deleted");
-      refetchAlerts();
+      await utils.alerts.list.invalidate();
     },
     onError: (error) => {
       toast.error(error.message || "Failed to delete alert");
