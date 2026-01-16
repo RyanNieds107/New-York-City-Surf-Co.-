@@ -940,7 +940,9 @@ export async function createSwellAlert(alert: InsertSwellAlert): Promise<number>
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   
-  const result = await db.insert(swellAlerts).values({
+  // Create an object with ONLY the data fields. 
+  // Do NOT include id, createdAt, or updatedAt here.
+  const valuesToInsert = {
     userId: alert.userId,
     spotId: alert.spotId ?? null,
     minWaveHeightFt: alert.minWaveHeightFt ?? null,
@@ -957,7 +959,9 @@ export async function createSwellAlert(alert: InsertSwellAlert): Promise<number>
     includeExplanation: alert.includeExplanation ?? 1,
     isActive: alert.isActive ?? 1,
     lastNotifiedScore: alert.lastNotifiedScore ?? null,
-  });
+  };
+
+  const result = await db.insert(swellAlerts).values(valuesToInsert);
   
   return result.insertId;
 }
