@@ -1292,12 +1292,21 @@ export const appRouter = router({
           await db.update(users).set(updateFields).where(eq(users.id, ctx.user.id));
         }
 
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routers.ts:1295',message:'Alert creation input values',data:{minWaveHeightFt:input.minWaveHeightFt,minWaveHeightFtType:typeof input.minWaveHeightFt,minPeriodSec:input.minPeriodSec,minPeriodSecType:typeof input.minPeriodSec,minQualityScore:input.minQualityScore,spotId:input.spotId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H4'})}).catch(()=>{});
+        // #endregion
+        const minWaveHeightFtValue = input.minWaveHeightFt ? String(input.minWaveHeightFt) : null;
+        const minPeriodSecValue = input.minPeriodSec ?? null;
+        const minQualityScoreValue = input.minQualityScore ?? null;
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routers.ts:1298',message:'Transformed values before createSwellAlert',data:{minWaveHeightFtValue,minWaveHeightFtType:typeof minWaveHeightFtValue,minPeriodSecValue,minPeriodSecType:typeof minPeriodSecValue,minQualityScoreValue,minQualityScoreType:typeof minQualityScoreValue},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H2'})}).catch(()=>{});
+        // #endregion
         const alertId = await createSwellAlert({
           userId: ctx.user.id,
           spotId: input.spotId,
-          minWaveHeightFt: input.minWaveHeightFt ? String(input.minWaveHeightFt) : null,
-          minQualityScore: input.minQualityScore ?? null,
-          minPeriodSec: input.minPeriodSec ?? null,
+          minWaveHeightFt: minWaveHeightFtValue,
+          minQualityScore: minQualityScoreValue,
+          minPeriodSec: minPeriodSecValue,
           idealWindOnly: input.idealWindOnly ? 1 : 0,
           hoursAdvanceNotice: input.hoursAdvanceNotice,
           emailEnabled: input.emailEnabled ? 1 : 0,
