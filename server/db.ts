@@ -969,7 +969,8 @@ export async function createSwellAlert(alert: InsertSwellAlert): Promise<number>
   // #endregion
   
   // Use raw SQL INSERT with explicit column list and parameterized values
-  // Only 14 fields (id, createdAt, updatedAt, includeConfidenceIntervals, includeExplanation use DB defaults)
+  // Only 13 fields (id, createdAt, updatedAt, includeConfidenceIntervals, includeExplanation, lastNotifiedScore use DB defaults)
+  // Note: lastNotifiedScore removed from INSERT to avoid "Unknown column" error on Railway (migration may not be applied)
   const params = [
     userId,
     spotId,
@@ -984,7 +985,6 @@ export async function createSwellAlert(alert: InsertSwellAlert): Promise<number>
     daysAdvanceNotice,
     notificationFrequency,
     isActive,
-    lastNotifiedScore,
   ];
   
   // #region agent log
@@ -997,8 +997,8 @@ export async function createSwellAlert(alert: InsertSwellAlert): Promise<number>
         userId, spotId, minWaveHeightFt, minQualityScore, minPeriodSec,
         idealWindOnly, emailEnabled, smsEnabled, pushEnabled,
         hoursAdvanceNotice, daysAdvanceNotice, notificationFrequency,
-        isActive, lastNotifiedScore
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        isActive
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       params
     );
     
