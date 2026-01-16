@@ -964,38 +964,44 @@ export function calculateQualityScoreWithProfile(
     const windDir = forecastPoint.windDirectionDeg;
     const beforeClamp = rawScore;
 
-    if (windDir !== null && breakingHeightFt >= 1.0 && periodS >= 8) {
-      // Check for premium or good offshore conditions
+    if (windDir !== null && breakingHeightFt >= 1.0 && periodS >= 6) {
+      // Check for premium, good, or side offshore conditions
       if (isPremiumOffshore(windDir)) {
-        // Premium offshore (330-30°) + period ≥ 8s + height ≥ 1.0ft: cap at 60 ("Worth a Look")
+        // Premium offshore (330-30°) + period ≥ 6s + height ≥ 1.0ft: cap at 60 ("Worth a Look")
         rawScore = Math.min(rawScore, 60);
         if (beforeClamp !== rawScore) {
           console.log('🔍 [Quality Score Debug] Premium offshore small wave clamp:', beforeClamp, '→', rawScore);
         }
       } else if (isGoodOffshore(windDir)) {
-        // Good offshore (310-50°) + period ≥ 8s + height ≥ 1.0ft: cap at 50
+        // Good offshore (310-50°) + period ≥ 6s + height ≥ 1.0ft: cap at 50 ("Worth a Look")
         rawScore = Math.min(rawScore, 50);
         if (beforeClamp !== rawScore) {
           console.log('🔍 [Quality Score Debug] Good offshore small wave clamp:', beforeClamp, '→', rawScore);
         }
+      } else if (isSideOffshore(windDir)) {
+        // Side-offshore (295-315° WNW, 50-70° ENE): cap at 42 ("Worth a Look")
+        rawScore = Math.min(rawScore, 42);
+        if (beforeClamp !== rawScore) {
+          console.log('🔍 [Quality Score Debug] Side-offshore small wave clamp:', beforeClamp, '→', rawScore);
+        }
       } else {
-        // Other conditions (non-offshore): strict cap at 25
-        rawScore = Math.min(rawScore, 25);
+        // Other conditions (non-offshore): cap at 35 ("Don't Bother" but less harsh)
+        rawScore = Math.min(rawScore, 35);
         if (beforeClamp !== rawScore) {
           console.log('🔍 [Quality Score Debug] Small wave clamp (no offshore):', beforeClamp, '→', rawScore);
         }
       }
     } else {
-      // No offshore benefit: strict cap at 25
-      rawScore = Math.min(rawScore, 25);
+      // Very short period (<6s) or tiny waves: cap at 30
+      rawScore = Math.min(rawScore, 30);
       if (beforeClamp !== rawScore) {
         console.log('🔍 [Quality Score Debug] Small wave clamp (conditions not met):', beforeClamp, '→', rawScore);
       }
     }
   } else if (breakingHeightFt < 2 || periodS < 6) {
-    // Other spots OR period < 6s: standard clamp at 25 ("Don't Bother" territory)
+    // Other spots OR period < 6s: standard clamp at 30 ("Don't Bother" but less harsh)
     const beforeClamp = rawScore;
-    rawScore = Math.min(rawScore, 25);
+    rawScore = Math.min(rawScore, 30);
     if (beforeClamp !== rawScore) {
       console.log('🔍 [Quality Score Debug] Size/period clamp applied:', beforeClamp, '→', rawScore);
     }
