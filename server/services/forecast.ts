@@ -797,10 +797,12 @@ function getTideInfoForTimestamp(
   
   // If within 30 minutes of a tide event, mark as high/low
   if (minTime < 30 * 60 * 1000) {
-    if (nextTide.type === "H") {
-      phase = "high";
+    if (timeFromPrev < timeToNext) {
+      // Closer to previous tide
+      phase = prevTide.type === "H" ? "high" : "low";
     } else {
-      phase = "low";
+      // Closer to next tide
+      phase = nextTide.type === "H" ? "high" : "low";
     }
   }
 

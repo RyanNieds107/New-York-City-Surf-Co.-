@@ -942,7 +942,7 @@ export async function createSwellAlert(alert: InsertSwellAlert): Promise<number>
 
   // Build insert object with explicit null values for nullable fields
   // This prevents Drizzle from trying to use 'default' for nullable columns
-  const insertData: Partial<typeof swellAlerts.$inferInsert> = {
+  const insertData = {
     userId: alert.userId,
     idealWindOnly: alert.idealWindOnly ?? 0,
     emailEnabled: alert.emailEnabled ?? 1,
@@ -962,7 +962,7 @@ export async function createSwellAlert(alert: InsertSwellAlert): Promise<number>
     lastNotifiedScore: alert.lastNotifiedScore ?? null,
   };
 
-  const result = await db.insert(swellAlerts).values(insertData);
+  const result = await db.insert(swellAlerts).values(insertData as typeof swellAlerts.$inferInsert);
 
   return result.insertId;
 }
