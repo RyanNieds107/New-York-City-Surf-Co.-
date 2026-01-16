@@ -1292,9 +1292,6 @@ export const appRouter = router({
           await db.update(users).set(updateFields).where(eq(users.id, ctx.user.id));
         }
 
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routers.ts:1295',message:'Alert creation input values',data:{minWaveHeightFt:input.minWaveHeightFt,minWaveHeightFtType:typeof input.minWaveHeightFt,minPeriodSec:input.minPeriodSec,minPeriodSecType:typeof input.minPeriodSec,minQualityScore:input.minQualityScore,spotId:input.spotId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H4'})}).catch(()=>{});
-        // #endregion
         // Helper to convert undefined/empty/null to null
         const toNull = (val: any) => (val === undefined || val === '' || val === null) ? null : val;
         // Convert all nullable fields to null if undefined/empty
@@ -1303,9 +1300,6 @@ export const appRouter = router({
         const minPeriodSecValue = toNull(input.minPeriodSec);
         const minQualityScoreValue = toNull(input.minQualityScore);
         const spotIdValue = toNull(input.spotId);
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routers.ts:1300',message:'Transformed values before createSwellAlert',data:{minWaveHeightFtValue,minWaveHeightFtType:typeof minWaveHeightFtValue,minPeriodSecValue,minPeriodSecType:typeof minPeriodSecValue,minQualityScoreValue,minQualityScoreType:typeof minQualityScoreValue,spotIdValue,spotIdType:typeof spotIdValue},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H2'})}).catch(()=>{});
-        // #endregion
         const alertId = await createSwellAlert({
           userId: ctx.user.id,
           spotId: spotIdValue,
