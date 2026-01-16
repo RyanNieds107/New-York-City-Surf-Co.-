@@ -937,29 +937,85 @@ export async function getAllSwellAlertsWithUsers(): Promise<SwellAlertWithUser[]
 }
 
 export async function createSwellAlert(alert: InsertSwellAlert): Promise<number> {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'db.ts:939',message:'createSwellAlert called - using raw SQL to bypass Drizzle',data:{alertValues:JSON.stringify(alert)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H2'})}).catch(()=>{});
+  // #endregion
   
-  // Pass values directly - normalization should be done in the mutation call
-  // Only include the 14 fields we explicitly set (id, createdAt, updatedAt are auto-handled)
-  const result = await db.insert(swellAlerts).values({
-    userId: alert.userId,
-    spotId: alert.spotId ?? null,
-    minWaveHeightFt: alert.minWaveHeightFt ?? null,
-    minQualityScore: alert.minQualityScore ?? null,
-    minPeriodSec: alert.minPeriodSec ?? null,
-    idealWindOnly: alert.idealWindOnly ?? 0,
-    emailEnabled: alert.emailEnabled ?? 1,
-    smsEnabled: alert.smsEnabled ?? 0,
-    pushEnabled: alert.pushEnabled ?? 0,
-    hoursAdvanceNotice: alert.hoursAdvanceNotice ?? 24,
-    daysAdvanceNotice: alert.daysAdvanceNotice ?? null,
-    notificationFrequency: alert.notificationFrequency ?? 'immediate',
-    isActive: alert.isActive ?? 1,
-    lastNotifiedScore: alert.lastNotifiedScore ?? null,
-  });
+  // Use raw SQL to bypass Drizzle ORM parameter serialization issues
+  // Ensure pool is initialized
+  if (!_pool) {
+    await getDb();
+  }
+  if (!_pool) throw new Error("Database not available");
   
-  return result.insertId;
+  // Normalize values - ensure null instead of undefined or empty string
+  const userId = alert.userId;
+  const spotId = (alert.spotId === undefined || alert.spotId === '' || alert.spotId === null) ? null : alert.spotId;
+  const minWaveHeightFt = (alert.minWaveHeightFt === undefined || alert.minWaveHeightFt === '' || alert.minWaveHeightFt === null) ? null : alert.minWaveHeightFt;
+  const minQualityScore = (alert.minQualityScore === undefined || alert.minQualityScore === '' || alert.minQualityScore === null) ? null : alert.minQualityScore;
+  const minPeriodSec = (alert.minPeriodSec === undefined || alert.minPeriodSec === '' || alert.minPeriodSec === null) ? null : alert.minPeriodSec;
+  const idealWindOnly = alert.idealWindOnly ?? 0;
+  const emailEnabled = alert.emailEnabled ?? 1;
+  const smsEnabled = alert.smsEnabled ?? 0;
+  const pushEnabled = alert.pushEnabled ?? 0;
+  const hoursAdvanceNotice = alert.hoursAdvanceNotice ?? 24;
+  const daysAdvanceNotice = (alert.daysAdvanceNotice === undefined || alert.daysAdvanceNotice === '' || alert.daysAdvanceNotice === null) ? null : alert.daysAdvanceNotice;
+  const notificationFrequency = alert.notificationFrequency ?? 'immediate';
+  const isActive = alert.isActive ?? 1;
+  const lastNotifiedScore = (alert.lastNotifiedScore === undefined || alert.lastNotifiedScore === '' || alert.lastNotifiedScore === null) ? null : alert.lastNotifiedScore;
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'db.ts:964',message:'Normalized values before raw SQL insert',data:{spotId,minWaveHeightFt,minQualityScore,minPeriodSec,daysAdvanceNotice,lastNotifiedScore,spotIdType:typeof spotId,minWaveHeightFtType:typeof minWaveHeightFt,minPeriodSecType:typeof minPeriodSec},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})}).catch(()=>{});
+  // #endregion
+  
+  // Use raw SQL INSERT with explicit column list and parameterized values
+  // Only 14 fields (id, createdAt, updatedAt, includeConfidenceIntervals, includeExplanation use DB defaults)
+  const params = [
+    userId,
+    spotId,
+    minWaveHeightFt,
+    minQualityScore,
+    minPeriodSec,
+    idealWindOnly,
+    emailEnabled,
+    smsEnabled,
+    pushEnabled,
+    hoursAdvanceNotice,
+    daysAdvanceNotice,
+    notificationFrequency,
+    isActive,
+    lastNotifiedScore,
+  ];
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'db.ts:984',message:'SQL params array before execute',data:{params:JSON.stringify(params),paramCount:params.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H3'})}).catch(()=>{});
+  // #endregion
+  
+  try {
+    const [result] = await _pool.execute(
+      `INSERT INTO swell_alerts (
+        userId, spotId, minWaveHeightFt, minQualityScore, minPeriodSec,
+        idealWindOnly, emailEnabled, smsEnabled, pushEnabled,
+        hoursAdvanceNotice, daysAdvanceNotice, notificationFrequency,
+        isActive, lastNotifiedScore
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      params
+    );
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'db.ts:999',message:'Raw SQL insert succeeded',data:{insertId:(result as any).insertId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H3'})}).catch(()=>{});
+    // #endregion
+    
+    return (result as any).insertId;
+  } catch (error: any) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'db.ts:1002',message:'Raw SQL insert failed',data:{error:error.message,sql:error.sql,params:error.params || error.parameters},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H3'})}).catch(()=>{});
+    // #endregion
+    console.error('[ERROR] Raw SQL insert failed:', error.message);
+    console.error('[ERROR] SQL:', error.sql);
+    console.error('[ERROR] Params:', error.params || error.parameters);
+    throw error;
+  }
 }
 
 export async function updateSwellAlert(
