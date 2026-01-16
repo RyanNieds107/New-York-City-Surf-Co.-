@@ -939,31 +939,26 @@ export async function getAllSwellAlertsWithUsers(): Promise<SwellAlertWithUser[]
 export async function createSwellAlert(alert: InsertSwellAlert): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-
-  // Build insert object with explicit null values for nullable fields
-  // This prevents Drizzle from trying to use 'default' for nullable columns
-  const insertData = {
+  
+  const result = await db.insert(swellAlerts).values({
     userId: alert.userId,
+    spotId: alert.spotId ?? null,
+    minWaveHeightFt: alert.minWaveHeightFt ?? null,
+    minQualityScore: alert.minQualityScore ?? null,
+    minPeriodSec: alert.minPeriodSec ?? null,
     idealWindOnly: alert.idealWindOnly ?? 0,
     emailEnabled: alert.emailEnabled ?? 1,
     smsEnabled: alert.smsEnabled ?? 0,
     pushEnabled: alert.pushEnabled ?? 0,
     hoursAdvanceNotice: alert.hoursAdvanceNotice ?? 24,
+    daysAdvanceNotice: alert.daysAdvanceNotice ?? null,
     notificationFrequency: alert.notificationFrequency ?? 'immediate',
     includeConfidenceIntervals: alert.includeConfidenceIntervals ?? 1,
     includeExplanation: alert.includeExplanation ?? 1,
     isActive: alert.isActive ?? 1,
-    // Explicitly set nullable fields (use null if not provided)
-    spotId: alert.spotId ?? null,
-    minWaveHeightFt: alert.minWaveHeightFt ?? null,
-    minQualityScore: alert.minQualityScore ?? null,
-    minPeriodSec: alert.minPeriodSec ?? null,
-    daysAdvanceNotice: alert.daysAdvanceNotice ?? null,
     lastNotifiedScore: alert.lastNotifiedScore ?? null,
-  };
-
-  const result = await db.insert(swellAlerts).values(insertData as typeof swellAlerts.$inferInsert);
-
+  });
+  
   return result.insertId;
 }
 
