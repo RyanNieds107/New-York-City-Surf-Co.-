@@ -937,64 +937,29 @@ export async function getAllSwellAlertsWithUsers(): Promise<SwellAlertWithUser[]
 }
 
 export async function createSwellAlert(alert: InsertSwellAlert): Promise<number> {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'db.ts:939',message:'createSwellAlert called with alert object',data:{minWaveHeightFt:alert.minWaveHeightFt,minWaveHeightFtType:typeof alert.minWaveHeightFt,minWaveHeightFtIsEmpty:alert.minWaveHeightFt==='',minPeriodSec:alert.minPeriodSec,minPeriodSecType:typeof alert.minPeriodSec,minPeriodSecIsEmpty:alert.minPeriodSec==='',minQualityScore:alert.minQualityScore,daysAdvanceNotice:alert.daysAdvanceNotice,lastNotifiedScore:alert.lastNotifiedScore},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})}).catch(()=>{});
-  // #endregion
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   
-  // Create an object with ONLY the data fields. 
-  // Do NOT include id, createdAt, or updatedAt here.
-  // Removed includeConfidenceIntervals and includeExplanation - use DB defaults (1)
-  // Ensure empty strings/undefined become null (?? only handles null/undefined, but we also need to handle empty strings)
-  // Helper function to convert undefined/empty string to null
-  const toNullIfEmpty = (value: any): any => {
-    if (value === '' || value === undefined || value === null) return null;
-    return value;
-  };
-  const minWaveHeightFtFinal = toNullIfEmpty(alert.minWaveHeightFt);
-  const minPeriodSecFinal = toNullIfEmpty(alert.minPeriodSec);
-  const minQualityScoreFinal = toNullIfEmpty(alert.minQualityScore);
-  const daysAdvanceNoticeFinal = toNullIfEmpty(alert.daysAdvanceNotice);
-  const lastNotifiedScoreFinal = toNullIfEmpty(alert.lastNotifiedScore);
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'db.ts:951',message:'Final values before insert (converting empty strings to null)',data:{minWaveHeightFtFinal,minPeriodSecFinal,minQualityScoreFinal,daysAdvanceNoticeFinal,lastNotifiedScoreFinal,minWaveHeightFtOriginal:alert.minWaveHeightFt,minPeriodSecOriginal:alert.minPeriodSec,minQualityScoreOriginal:alert.minQualityScore,daysAdvanceNoticeOriginal:alert.daysAdvanceNotice,lastNotifiedScoreOriginal:alert.lastNotifiedScore},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2,H3'})}).catch(()=>{});
-  // #endregion
-  const valuesToInsert = {
+  // Pass values directly - normalization should be done in the mutation call
+  // Only include the 14 fields we explicitly set (id, createdAt, updatedAt are auto-handled)
+  const result = await db.insert(swellAlerts).values({
     userId: alert.userId,
-    spotId: toNullIfEmpty(alert.spotId),
-    minWaveHeightFt: minWaveHeightFtFinal,
-    minQualityScore: minQualityScoreFinal,
-    minPeriodSec: minPeriodSecFinal,
+    spotId: alert.spotId ?? null,
+    minWaveHeightFt: alert.minWaveHeightFt ?? null,
+    minQualityScore: alert.minQualityScore ?? null,
+    minPeriodSec: alert.minPeriodSec ?? null,
     idealWindOnly: alert.idealWindOnly ?? 0,
     emailEnabled: alert.emailEnabled ?? 1,
     smsEnabled: alert.smsEnabled ?? 0,
     pushEnabled: alert.pushEnabled ?? 0,
     hoursAdvanceNotice: alert.hoursAdvanceNotice ?? 24,
-    daysAdvanceNotice: daysAdvanceNoticeFinal,
+    daysAdvanceNotice: alert.daysAdvanceNotice ?? null,
     notificationFrequency: alert.notificationFrequency ?? 'immediate',
     isActive: alert.isActive ?? 1,
-    lastNotifiedScore: lastNotifiedScoreFinal,
-  };
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'db.ts:963',message:'valuesToInsert object before Drizzle insert',data:{valuesToInsert:JSON.stringify(valuesToInsert)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H3'})}).catch(()=>{});
-  console.log('[DEBUG] valuesToInsert:', JSON.stringify(valuesToInsert, null, 2));
-  console.log('[DEBUG] minWaveHeightFt:', valuesToInsert.minWaveHeightFt, typeof valuesToInsert.minWaveHeightFt, valuesToInsert.minWaveHeightFt === null, valuesToInsert.minWaveHeightFt === '');
-  console.log('[DEBUG] minPeriodSec:', valuesToInsert.minPeriodSec, typeof valuesToInsert.minPeriodSec, valuesToInsert.minPeriodSec === null, valuesToInsert.minPeriodSec === '');
-  console.log('[DEBUG] daysAdvanceNotice:', valuesToInsert.daysAdvanceNotice, typeof valuesToInsert.daysAdvanceNotice, valuesToInsert.daysAdvanceNotice === null);
-  console.log('[DEBUG] lastNotifiedScore:', valuesToInsert.lastNotifiedScore, typeof valuesToInsert.lastNotifiedScore, valuesToInsert.lastNotifiedScore === null);
-  // #endregion
-
-  try {
-    const result = await db.insert(swellAlerts).values(valuesToInsert);
-    return result.insertId;
-  } catch (error: any) {
-    console.error('[ERROR] Insert failed - valuesToInsert:', JSON.stringify(valuesToInsert));
-    console.error('[ERROR] Insert error:', error.message);
-    console.error('[ERROR] Insert error SQL:', error.sql);
-    console.error('[ERROR] Insert error params:', error.parameters || error.params);
-    throw error;
-  }
+    lastNotifiedScore: alert.lastNotifiedScore ?? null,
+  });
+  
+  return result.insertId;
 }
 
 export async function updateSwellAlert(
