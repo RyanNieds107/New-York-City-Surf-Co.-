@@ -1305,6 +1305,8 @@ export const appRouter = router({
           pushEnabled: 0,
           isActive: 1,
           notificationFrequency: input.notificationFrequency,
+          daysAdvanceNotice: null,
+          lastNotifiedScore: null,
         });
         return { success: true, alertId };
       }),
