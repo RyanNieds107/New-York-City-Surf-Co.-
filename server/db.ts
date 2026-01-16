@@ -978,6 +978,11 @@ export async function createSwellAlert(alert: InsertSwellAlert): Promise<number>
   };
   // #region agent log
   fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'db.ts:963',message:'valuesToInsert object before Drizzle insert',data:{valuesToInsert:JSON.stringify(valuesToInsert)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H3'})}).catch(()=>{});
+  console.log('[DEBUG] valuesToInsert:', JSON.stringify(valuesToInsert, null, 2));
+  console.log('[DEBUG] minWaveHeightFt:', valuesToInsert.minWaveHeightFt, typeof valuesToInsert.minWaveHeightFt);
+  console.log('[DEBUG] minPeriodSec:', valuesToInsert.minPeriodSec, typeof valuesToInsert.minPeriodSec);
+  console.log('[DEBUG] daysAdvanceNotice:', valuesToInsert.daysAdvanceNotice, typeof valuesToInsert.daysAdvanceNotice);
+  console.log('[DEBUG] lastNotifiedScore:', valuesToInsert.lastNotifiedScore, typeof valuesToInsert.lastNotifiedScore);
   // #endregion
 
   const result = await db.insert(swellAlerts).values(valuesToInsert);
