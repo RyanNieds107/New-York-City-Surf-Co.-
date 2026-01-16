@@ -486,12 +486,12 @@ export default function Members() {
               </form>
 
               {/* Active Alerts Section */}
-              {alerts && alerts.length > 0 && (
-                <div className="p-5 border-t-2 border-black bg-gray-50">
-                  <div className="text-xs text-gray-500 font-semibold tracking-widest mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>ACTIVE</div>
-                  <h3 className="text-xl font-black text-black uppercase tracking-tight mb-4" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                    Your Alerts ({alerts.length})
-                  </h3>
+              <div className="p-5 border-t-2 border-black bg-gray-50">
+                <div className="text-xs text-gray-500 font-semibold tracking-widest mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>ACTIVE</div>
+                <h3 className="text-xl font-black text-black uppercase tracking-tight mb-4" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                  Your Alerts {alerts && alerts.length > 0 ? `(${alerts.length})` : ""}
+                </h3>
+                {alerts && alerts.length > 0 ? (
                   <div className="space-y-2">
                     {alerts.map((alert) => {
                       const frequencyLabel = {
@@ -533,8 +533,14 @@ export default function Members() {
                       );
                     })}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="p-6 bg-white border-2 border-gray-200 text-center">
+                    <p className="text-sm text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      No alerts yet. Create one above to get notified when conditions match your criteria.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </TabsContent>
 
