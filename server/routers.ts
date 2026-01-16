@@ -1316,6 +1316,44 @@ export const appRouter = router({
           daysAdvanceNotice: null,
           lastNotifiedScore: null,
         });
+        
+        // Send confirmation email if user has email and email notifications are enabled
+        if (ctx.user.email && input.emailEnabled) {
+          const spotName = spotIdValue ? (await getSpotById(spotIdValue))?.name || "Selected spot" : "Best spot only";
+          const frequencyLabel = {
+            once: "Once Daily",
+            twice: "Twice Daily",
+            threshold: "Threshold Only",
+            realtime: "Real-Time",
+            immediate: "Immediate",
+          }[input.notificationFrequency] || input.notificationFrequency;
+          
+          const notificationMethods = [];
+          if (input.emailEnabled) notificationMethods.push("Email");
+          if (input.smsEnabled) notificationMethods.push("SMS");
+          
+          await sendEmail({
+            to: ctx.user.email,
+            subject: "Surf Alert Created Successfully",
+            html: `
+              <h2>Your surf alert has been created!</h2>
+              <p>We'll notify you when conditions match your criteria:</p>
+              <ul>
+                <li><strong>Spot:</strong> ${spotName}</li>
+                <li><strong>Quality Threshold:</strong> ${minQualityScoreValue ?? "Any"}${minQualityScoreValue ? "+" : ""}</li>
+                <li><strong>Forecast Window:</strong> ${Math.round(input.hoursAdvanceNotice / 24)} day(s)</li>
+                <li><strong>Alert Frequency:</strong> ${frequencyLabel}</li>
+                <li><strong>Notification Method:</strong> ${notificationMethods.join(", ") || "None"}</li>
+              </ul>
+              <p>You can view and manage your alerts on the <a href="https://www.nycsurfco.com/members">Members Portal</a>.</p>
+              <p>Stay stoked! 🏄‍♂️</p>
+            `,
+          }).catch((error) => {
+            console.warn("[Alert Creation] Failed to send confirmation email:", error);
+            // Don't fail the mutation if email fails
+          });
+        }
+        
         return { success: true, alertId };
       }),
 

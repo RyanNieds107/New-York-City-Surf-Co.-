@@ -10,6 +10,7 @@ import { Footer } from "@/components/Footer";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getScoreBadgeHexColor } from "@/lib/ratingColors";
+import { formatDistanceToNow } from "date-fns";
 
 export default function Members() {
   const [, setLocation] = useLocation();
@@ -492,28 +493,45 @@ export default function Members() {
                     Your Alerts ({alerts.length})
                   </h3>
                   <div className="space-y-2">
-                    {alerts.map((alert) => (
-                      <div
-                        key={alert.id}
-                        className="flex items-center justify-between p-3 bg-white border-2 border-gray-200 hover:border-black transition-all"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="font-bold text-sm uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                            {alert.spotId ? spots?.find(s => s.id === alert.spotId)?.name : "All spots"}
-                          </p>
-                          <p className="text-xs text-gray-500 mt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                            {Math.round((alert.hoursAdvanceNotice || 24) / 24)} day window · {alert.minQualityScore}+ quality
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => deleteAlertMutation.mutate({ alertId: alert.id })}
-                          disabled={deleteAlertMutation.isPending}
-                          className="p-2 text-gray-400 hover:text-white hover:bg-black transition-all"
+                    {alerts.map((alert) => {
+                      const frequencyLabel = {
+                        once: "Once Daily",
+                        twice: "Twice Daily",
+                        threshold: "Threshold Only",
+                        realtime: "Real-Time",
+                        immediate: "Immediate",
+                      }[alert.notificationFrequency || "once"] || alert.notificationFrequency;
+                      
+                      const notificationMethods = [];
+                      if (alert.emailEnabled) notificationMethods.push("Email");
+                      if (alert.smsEnabled) notificationMethods.push("SMS");
+                      
+                      return (
+                        <div
+                          key={alert.id}
+                          className="flex items-center justify-between p-3 bg-white border-2 border-gray-200 hover:border-black transition-all"
                         >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))}
+                          <div className="min-w-0 flex-1">
+                            <p className="font-bold text-sm uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                              {alert.spotId ? spots?.find(s => s.id === alert.spotId)?.name : "Best spot only"}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                              {Math.round((alert.hoursAdvanceNotice || 24) / 24)} day window · {alert.minQualityScore ?? "Any"}+ quality
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                              {frequencyLabel} · {notificationMethods.join(" + ") || "No notifications"} · Created {formatDistanceToNow(new Date(alert.createdAt), { addSuffix: true })}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => deleteAlertMutation.mutate({ alertId: alert.id })}
+                            disabled={deleteAlertMutation.isPending}
+                            className="p-2 text-gray-400 hover:text-white hover:bg-black transition-all"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
