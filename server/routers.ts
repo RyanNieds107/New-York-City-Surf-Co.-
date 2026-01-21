@@ -434,22 +434,23 @@ export const appRouter = router({
         const CURRENT_CONDITIONS_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
         const cutoffTime = now - CURRENT_CONDITIONS_MAX_AGE_MS;
 
-        // Filter to only recent/future points (within max age threshold)
+        // Filter to only recent PAST points (within max age threshold, but not future forecasts)
+        // CRITICAL: Current conditions should reflect what IS happening, not what WILL happen
         const validPoints = timeline.filter((point) => {
           const pointTime = new Date(point.forecastTimestamp).getTime();
-          return pointTime >= cutoffTime;
+          return pointTime >= cutoffTime && pointTime <= now; // Only past points, exclude future
         });
 
         if (validPoints.length === 0) return undefined;
 
-        // Find the point nearest to now (minimum absolute time difference)
+        // Find the most recent point (closest to now, but not exceeding it)
         let nearestPoint = validPoints[0];
         let nearestPointTime = new Date(nearestPoint.forecastTimestamp).getTime();
-        let nearestDiff = Math.abs(nearestPointTime - now);
+        let nearestDiff = now - nearestPointTime; // Time difference (always positive since pointTime <= now)
 
         for (const point of validPoints) {
           const pointTime = new Date(point.forecastTimestamp).getTime();
-          const diff = Math.abs(pointTime - now);
+          const diff = now - pointTime; // Time difference (always positive)
           if (diff < nearestDiff) {
             nearestDiff = diff;
             nearestPoint = point;
