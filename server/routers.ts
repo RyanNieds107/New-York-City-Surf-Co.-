@@ -1321,7 +1321,13 @@ export const appRouter = router({
         limit: z.number().default(10),
       }))
       .query(async ({ input }) => {
-        const db = getDb();
+        const db = await getDb();
+        if (!db) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Database not available",
+          });
+        }
 
         // Build query based on filters
         let query = db.select().from(conditionsLog);
@@ -1342,7 +1348,13 @@ export const appRouter = router({
     getReasonStats: publicProcedure
       .input(z.object({ reason: z.string() }))
       .query(async ({ input }) => {
-        const db = getDb();
+        const db = await getDb();
+        if (!db) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Database not available",
+          });
+        }
 
         const logs = await db.select()
           .from(conditionsLog)
