@@ -64,21 +64,22 @@ export async function detectUpcomingSwells(
       avgCrowdLevel,
     });
 
-    // Calculate advance notice window
-    // Use daysAdvanceNotice if set, otherwise fall back to hoursAdvanceNotice
-    let advanceNoticeMs: number;
+    // Calculate forecast window
+    // The forecast window defines how far into the future to look for matching swells
+    // e.g., a 7-day window means "look for swells within the next 7 days"
+    // earliestTime = now (start looking immediately)
+    // latestTime = now + forecast window (how far ahead to look)
+    let forecastWindowMs: number;
     if (alert.daysAdvanceNotice !== null && alert.daysAdvanceNotice !== undefined) {
-      advanceNoticeMs = alert.daysAdvanceNotice * 24 * 60 * 60 * 1000;
+      forecastWindowMs = alert.daysAdvanceNotice * 24 * 60 * 60 * 1000;
     } else {
-      advanceNoticeMs = (alert.hoursAdvanceNotice || 24) * 60 * 60 * 1000;
+      forecastWindowMs = (alert.hoursAdvanceNotice || 24) * 60 * 60 * 1000;
     }
     
-    const earliestTime = new Date(now.getTime() + advanceNoticeMs);
-    // Extend latest time if using daysAdvanceNotice (up to 20 days out for long-range forecasts)
-    const maxHoursOut = alert.daysAdvanceNotice !== null && alert.daysAdvanceNotice !== undefined 
-      ? Math.min(alert.daysAdvanceNotice * 24 + 48, 480) // Add 48 hours buffer, max 20 days
-      : 120; // Default 120 hours (5 days)
-    const latestTime = new Date(now.getTime() + (maxHoursOut * 60 * 60 * 1000));
+    // Start looking from now (or a small buffer to avoid very near-term noise)
+    const earliestTime = new Date(now.getTime() + (1 * 60 * 60 * 1000)); // 1 hour buffer
+    // Look up to the forecast window limit
+    const latestTime = new Date(now.getTime() + forecastWindowMs);
 
     // Find swell windows that match criteria
     const matchingWindows = findMatchingSwellWindows(

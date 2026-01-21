@@ -2,14 +2,12 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
-import { Loader2, Bell, Users, Briefcase, X, ChevronRight, ChevronDown, Check, Phone, Store, GraduationCap, Wrench } from "lucide-react";
+import { Loader2, Bell, Users, Briefcase, X, ChevronRight, Phone, Store, GraduationCap, Wrench } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getScoreBadgeHexColor } from "@/lib/ratingColors";
 import { formatDistanceToNow } from "date-fns";
 
 export default function Members() {
@@ -17,12 +15,9 @@ export default function Members() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
   const { data: spots } = trpc.spots.list.useQuery();
-  const { data: alerts, refetch: refetchAlerts, isLoading: alertsLoading, error: alertsError } = trpc.alerts.list.useQuery(undefined, {
+  const { data: alerts, refetch: refetchAlerts } = trpc.alerts.list.useQuery(undefined, {
     enabled: !!user,
   });
-
-  // Debug logging for alerts query
-  console.log("[alerts.list] Query state - user:", user?.id, "enabled:", !!user, "loading:", alertsLoading, "error:", alertsError, "data:", alerts);
 
   // Scroll to top on mount
   useEffect(() => {
@@ -31,40 +26,31 @@ export default function Members() {
 
   // Real-time alerts state
   const [alertSpotId, setAlertSpotId] = useState<number | null>(null);
-  const [selectedSpots, setSelectedSpots] = useState<number[]>([]);
-  const [spotsDropdownOpen, setSpotsDropdownOpen] = useState(false);
   const [daysAdvanceNotice, setDaysAdvanceNotice] = useState<number>(7);
   const [minQualityScore, setMinQualityScore] = useState<number>(70);
   const [alertFrequency, setAlertFrequency] = useState<string>("once");
   const [emailEnabled, setEmailEnabled] = useState(false);
-  const [smsEnabled, setSmsEnabled] = useState(false);
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [isSliderDragging, setIsSliderDragging] = useState(false);
+  const [deletingAlertId, setDeletingAlertId] = useState<number | null>(null);
 
   // Crowd report state
   const [crowdSpotId, setCrowdSpotId] = useState<number | null>(null);
   const [crowdLevel, setCrowdLevel] = useState<number>(3);
 
   const createAlertMutation = trpc.alerts.create.useMutation({
-    onSuccess: async (data) => {
-      console.log("[alerts.create] Mutation succeeded, data:", data);
+    onSuccess: async () => {
       toast.success("Alert created successfully!");
       // Invalidate cache and refetch to ensure UI updates
-      console.log("[alerts.create] Invalidating alerts.list cache...");
       await utils.alerts.list.invalidate();
-      console.log("[alerts.create] Refetching alerts...");
-      const refetchResult = await refetchAlerts();
-      console.log("[alerts.create] Refetch result:", refetchResult.data);
+      await refetchAlerts();
       // Reset form state
       setAlertSpotId(null);
-      setSelectedSpots([]);
       setDaysAdvanceNotice(7);
       setMinQualityScore(70);
       setAlertFrequency("once");
       setEmailEnabled(false);
-      setSmsEnabled(false);
     },
     onError: (error) => {
-      console.error("[alerts.create] Mutation failed:", error);
       toast.error(error.message || "Failed to create alert");
     },
   });
@@ -72,11 +58,13 @@ export default function Members() {
   const deleteAlertMutation = trpc.alerts.delete.useMutation({
     onSuccess: async () => {
       toast.success("Alert deleted");
+      setDeletingAlertId(null);
       // Invalidate cache and refetch to ensure UI updates
       await utils.alerts.list.invalidate();
       await refetchAlerts();
     },
     onError: (error) => {
+      setDeletingAlertId(null);
       toast.error(error.message || "Failed to delete alert");
     },
   });
@@ -92,44 +80,20 @@ export default function Members() {
     },
   });
 
-  // Format phone number as user types
-  const formatPhoneInput = (value: string) => {
-    const digits = value.replace(/\D/g, "");
-    if (digits.length <= 3) {
-      return digits;
-    } else if (digits.length <= 6) {
-      return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-    } else {
-      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
-    }
-  };
-
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatPhoneInput(e.target.value);
-    setPhoneNumber(formatted);
-  };
-
-  // Check if user already has a phone number
-  const userHasPhone = Boolean(user?.phone);
-
   const handleCreateAlert = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // If SMS is enabled and user doesn't have phone, require phone input
-    if (smsEnabled && !userHasPhone) {
-      const phoneDigits = phoneNumber.replace(/\D/g, "");
-      if (phoneDigits.length < 10) {
-        toast.error("Please enter a valid phone number for SMS alerts");
-        return;
-      }
+    // Validate that at least one notification method is enabled
+    if (!emailEnabled) {
+      toast.error("Please enable email notifications to receive alerts");
+      return;
     }
 
     createAlertMutation.mutate({
       spotId: alertSpotId,
       minQualityScore,
       emailEnabled,
-      smsEnabled,
-      phone: smsEnabled && !userHasPhone ? phoneNumber.replace(/\D/g, "") : undefined,
+      smsEnabled: false, // SMS coming soon
       hoursAdvanceNotice: daysAdvanceNotice * 24,
       notificationFrequency: alertFrequency as "once" | "twice" | "threshold" | "realtime",
     });
@@ -220,10 +184,10 @@ export default function Members() {
                 <div className="p-4 sm:p-5 border-b-2 border-gray-200">
                   <div className="text-[10px] sm:text-xs text-gray-500 font-semibold tracking-widest mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>01</div>
                   <h3 className="text-lg sm:text-xl font-black text-black uppercase tracking-tight mb-2 sm:mb-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                    Spots
+                    Spot
                   </h3>
                   <p className="text-[10px] sm:text-xs text-gray-600 uppercase tracking-widest mb-3 sm:mb-4" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    Which breaks do you surf?
+                    Which break do you want alerts for?
                   </p>
                   <div className="grid grid-cols-2 gap-2 sm:gap-3">
                     {spots?.filter(spot => !["Belmar", "Gilgo Beach", "Montauk"].includes(spot.name)).map((spot) => (
@@ -231,18 +195,11 @@ export default function Members() {
                         key={spot.id}
                         type="button"
                         onClick={() => {
-                          if (selectedSpots.includes(spot.id)) {
-                            const newSpots = selectedSpots.filter(id => id !== spot.id);
-                            setSelectedSpots(newSpots);
-                            setAlertSpotId(newSpots.length === 1 ? newSpots[0] : null);
-                          } else {
-                            const newSpots = [...selectedSpots, spot.id];
-                            setSelectedSpots(newSpots);
-                            setAlertSpotId(newSpots.length === 1 ? newSpots[0] : null);
-                          }
+                          // Single select: toggle between this spot and deselect
+                          setAlertSpotId(alertSpotId === spot.id ? null : spot.id);
                         }}
                         className={`p-3 sm:p-5 text-center transition-all ${
-                          selectedSpots.includes(spot.id)
+                          alertSpotId === spot.id
                             ? "bg-black text-white border-black"
                             : "bg-white text-black border-black hover:bg-gray-50"
                         }`}
@@ -255,12 +212,9 @@ export default function Members() {
                     ))}
                     <button
                       type="button"
-                      onClick={() => {
-                        setSelectedSpots([]);
-                        setAlertSpotId(null);
-                      }}
+                      onClick={() => setAlertSpotId(null)}
                       className={`p-3 sm:p-5 text-center transition-all ${
-                        selectedSpots.length === 0
+                        alertSpotId === null
                           ? "bg-black text-white border-black"
                           : "bg-white text-black border-black hover:bg-gray-50"
                       }`}
@@ -302,7 +256,9 @@ export default function Members() {
                   {/* Compact slider bar */}
                   <div
                     className="relative h-8 sm:h-10 cursor-pointer group"
-                    onMouseMove={(e) => {
+                    onMouseDown={(e) => {
+                      setIsSliderDragging(true);
+                      // Calculate initial value on click
                       const rect = e.currentTarget.getBoundingClientRect();
                       const x = e.clientX - rect.left;
                       const percentage = x / rect.width;
@@ -310,6 +266,18 @@ export default function Members() {
                       const clampedValue = Math.max(50, Math.min(95, value));
                       setMinQualityScore(clampedValue);
                     }}
+                    onMouseMove={(e) => {
+                      // Only update if dragging
+                      if (!isSliderDragging) return;
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const x = e.clientX - rect.left;
+                      const percentage = x / rect.width;
+                      const value = Math.round((50 + percentage * 45) / 5) * 5;
+                      const clampedValue = Math.max(50, Math.min(95, value));
+                      setMinQualityScore(clampedValue);
+                    }}
+                    onMouseUp={() => setIsSliderDragging(false)}
+                    onMouseLeave={() => setIsSliderDragging(false)}
                   >
                     {/* Track background */}
                     <div className="absolute inset-y-2 sm:inset-y-3 left-0 right-0 bg-gray-200 rounded-sm overflow-hidden">
@@ -325,7 +293,7 @@ export default function Members() {
 
                     {/* Thumb */}
                     <div
-                      className="absolute top-1/2 w-4 h-6 sm:w-5 sm:h-8 bg-black rounded-sm shadow-md transition-all duration-75 group-hover:scale-110"
+                      className={`absolute top-1/2 w-4 h-6 sm:w-5 sm:h-8 bg-black rounded-sm shadow-md transition-all duration-75 ${isSliderDragging ? 'scale-110' : 'group-hover:scale-110'}`}
                       style={{
                         left: `${((minQualityScore - 50) / (95 - 50)) * 100}%`,
                         transform: 'translate(-50%, -50%)',
@@ -452,36 +420,9 @@ export default function Members() {
                       <span className="block text-[10px] text-gray-400 mt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Coming Soon</span>
                     </button>
                   </div>
-
-                  {/* Phone number input - shown when SMS is selected and user doesn't have phone */}
-                  {smsEnabled && !userHasPhone && (
-                    <div className="mt-4">
-                      <label
-                        htmlFor="alertPhone"
-                        className="block text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-gray-700 mb-1.5"
-                        style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                      >
-                        Phone Number
-                      </label>
-                      <Input
-                        id="alertPhone"
-                        type="tel"
-                        value={phoneNumber}
-                        onChange={handlePhoneChange}
-                        placeholder="(555) 123-4567"
-                        maxLength={14}
-                        className="border-2 border-black rounded-none focus:ring-2 focus:ring-black focus:ring-offset-0"
-                      />
-                    </div>
-                  )}
-
-                  {/* TCPA Compliance Disclaimer - shown when SMS is selected */}
-                  {smsEnabled && (
-                    <p
-                      className="mt-3 text-[10px] sm:text-xs text-gray-500 leading-relaxed"
-                      style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
-                    >
-                      By enabling SMS alerts, you agree to receive automated swell alerts from NYC Surf Co. Msg & data rates may apply. Reply STOP to opt out.
+                  {!emailEnabled && (
+                    <p className="mt-3 text-[10px] sm:text-xs text-amber-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      Please enable email to receive alerts
                     </p>
                   )}
                 </div>
@@ -541,11 +482,18 @@ export default function Members() {
                             </p>
                           </div>
                           <button
-                            onClick={() => deleteAlertMutation.mutate({ alertId: alert.id })}
-                            disabled={deleteAlertMutation.isPending}
-                            className="p-2 text-gray-400 hover:text-white hover:bg-black transition-all"
+                            onClick={() => {
+                              setDeletingAlertId(alert.id);
+                              deleteAlertMutation.mutate({ alertId: alert.id });
+                            }}
+                            disabled={deletingAlertId === alert.id}
+                            className={`p-2 transition-all ${deletingAlertId === alert.id ? 'text-gray-300' : 'text-gray-400 hover:text-white hover:bg-black'}`}
                           >
-                            <X className="h-4 w-4" />
+                            {deletingAlertId === alert.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <X className="h-4 w-4" />
+                            )}
                           </button>
                         </div>
                       );

@@ -1,4 +1,4 @@
-import { getAllActiveSwellAlerts, getAllSpots, checkIfAlertAlreadySent, logSwellAlertSent, updateSwellAlertLogEmailSent, updateSwellAlertLogSmsSent, getUserById, updateAlertLastScore } from "../db";
+import { getAllActiveSwellAlerts, getAllSpots, checkIfAlertAlreadySent, logSwellAlertSent, updateSwellAlertLogEmailSent, updateSwellAlertLogSmsSent, getUserById, updateAlertLastScore, getLastAlertNotificationTime } from "../db";
 import { detectUpcomingSwells, type DetectedSwell } from "../services/swellDetection";
 import { sendEmail } from "../services/email";
 import { sendSMS } from "../services/sms";
@@ -159,10 +159,12 @@ function selectBestSpotOnly(detectedSwells: DetectedSwell[]): DetectedSwell[] {
 /**
  * Determines if a notification should be sent based on the alert's notification frequency.
  *
- * For "threshold" frequency:
- * - Only sends when score CROSSES from below to above threshold
- * - Updates lastNotifiedScore to track state
- * - Resets tracking when score drops below threshold
+ * Frequency options:
+ * - "threshold": Only notify when score CROSSES from below to above threshold (once per crossing)
+ * - "once": Once daily - max 1 notification per 24 hours (morning preferred: 6-9 AM ET)
+ * - "twice": Twice daily - max 1 notification per 12 hours (AM: 6-9 AM, PM: 4-7 PM ET)
+ * - "realtime": As forecast updates - send whenever conditions match (respects duplicate protection)
+ * - "immediate": Same as realtime - send immediately when conditions match
  */
 async function shouldSendNotification(
   alert: SwellAlert,
@@ -173,18 +175,20 @@ async function shouldSendNotification(
   const currentScore = detectedSwell.peakQualityScore;
   const threshold = alert.minQualityScore || 0;
   const lastScore = alert.lastNotifiedScore ?? 0;
+  const now = new Date();
+
+  // First check: score must meet threshold for all frequency types
+  if (currentScore < threshold) {
+    // For threshold mode, reset tracking when score drops below
+    if (frequency === "threshold") {
+      await updateAlertLastScore(alert.id, currentScore);
+      console.log(`[Swell Alerts] Score ${currentScore} below threshold ${threshold}, resetting tracking`);
+    }
+    return false;
+  }
 
   // THRESHOLD ONLY: Only notify when score crosses from below to above threshold
   if (frequency === "threshold") {
-    // Check if score is above threshold
-    if (currentScore < threshold) {
-      // Score is below threshold - reset tracking (update lastNotifiedScore to current)
-      // This ensures next crossing will trigger a notification
-      await updateAlertLastScore(alert.id, currentScore);
-      console.log(`[Swell Alerts] Score ${currentScore} below threshold ${threshold}, resetting tracking`);
-      return false;
-    }
-
     // Score is above threshold - check if this is a CROSSING
     if (lastScore < threshold && currentScore >= threshold) {
       // CROSSING DETECTED: Score went from below to above threshold
@@ -197,8 +201,91 @@ async function shouldSendNotification(
     }
   }
 
-  // For all other frequencies, send if score meets threshold
-  // (daily/twice/realtime digest logic would go here)
-  return currentScore >= threshold;
+  // ONCE DAILY: Max 1 notification per 24 hours
+  if (frequency === "once") {
+    const lastNotificationTime = await getLastAlertNotificationTime(alert.id);
+    
+    if (lastNotificationTime) {
+      const hoursSinceLastNotification = (now.getTime() - lastNotificationTime.getTime()) / (1000 * 60 * 60);
+      
+      if (hoursSinceLastNotification < 24) {
+        console.log(`[Swell Alerts] Once daily: Last notification was ${hoursSinceLastNotification.toFixed(1)}h ago, skipping (need 24h)`);
+        return false;
+      }
+    }
+    
+    // Check if we're in the morning window (6 AM - 10 AM ET)
+    // Convert to Eastern Time (UTC-5 or UTC-4 depending on DST)
+    const etHour = getEasternTimeHour(now);
+    const isInMorningWindow = etHour >= 6 && etHour < 10;
+    
+    // If we haven't sent in 24+ hours and we're in morning window, send
+    // Also send if we haven't sent in 30+ hours (fallback for missed morning)
+    const lastNotificationHoursAgo = lastNotificationTime 
+      ? (now.getTime() - lastNotificationTime.getTime()) / (1000 * 60 * 60)
+      : Infinity;
+    
+    if (isInMorningWindow || lastNotificationHoursAgo >= 30) {
+      console.log(`[Swell Alerts] Once daily: Sending notification (morning window: ${isInMorningWindow}, hours since last: ${lastNotificationHoursAgo.toFixed(1)})`);
+      return true;
+    } else {
+      console.log(`[Swell Alerts] Once daily: Not in morning window (ET hour: ${etHour}), waiting`);
+      return false;
+    }
+  }
+
+  // TWICE DAILY: Max 1 notification per 12 hours
+  if (frequency === "twice") {
+    const lastNotificationTime = await getLastAlertNotificationTime(alert.id);
+    
+    if (lastNotificationTime) {
+      const hoursSinceLastNotification = (now.getTime() - lastNotificationTime.getTime()) / (1000 * 60 * 60);
+      
+      if (hoursSinceLastNotification < 12) {
+        console.log(`[Swell Alerts] Twice daily: Last notification was ${hoursSinceLastNotification.toFixed(1)}h ago, skipping (need 12h)`);
+        return false;
+      }
+    }
+    
+    // Check if we're in AM window (6-10 AM) or PM window (4-8 PM) ET
+    const etHour = getEasternTimeHour(now);
+    const isInAMWindow = etHour >= 6 && etHour < 10;
+    const isInPMWindow = etHour >= 16 && etHour < 20;
+    
+    // If we haven't sent in 12+ hours and we're in a notification window, send
+    // Also send if we haven't sent in 18+ hours (fallback)
+    const lastNotificationHoursAgo = lastNotificationTime 
+      ? (now.getTime() - lastNotificationTime.getTime()) / (1000 * 60 * 60)
+      : Infinity;
+    
+    if (isInAMWindow || isInPMWindow || lastNotificationHoursAgo >= 18) {
+      console.log(`[Swell Alerts] Twice daily: Sending notification (AM: ${isInAMWindow}, PM: ${isInPMWindow}, hours since last: ${lastNotificationHoursAgo.toFixed(1)})`);
+      return true;
+    } else {
+      console.log(`[Swell Alerts] Twice daily: Not in notification window (ET hour: ${etHour}), waiting`);
+      return false;
+    }
+  }
+
+  // REALTIME / IMMEDIATE: Send if conditions match (duplicate protection handled separately)
+  // These modes will send whenever the job runs and conditions are met
+  console.log(`[Swell Alerts] ${frequency}: Conditions met, sending notification`);
+  return true;
+}
+
+/**
+ * Gets the current hour in Eastern Time (ET).
+ * Accounts for daylight saving time.
+ */
+function getEasternTimeHour(date: Date): number {
+  // Create a formatter for Eastern Time
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    hour: 'numeric',
+    hour12: false,
+  });
+  
+  const etHourStr = formatter.format(date);
+  return parseInt(etHourStr, 10);
 }
 

@@ -1161,3 +1161,21 @@ export async function updateSwellAlertLogSmsSent(
     })
     .where(eq(swellAlertLogs.id, logId));
 }
+
+/**
+ * Gets the last notification time for an alert (for frequency limiting).
+ * Returns the createdAt timestamp of the most recent alert log entry.
+ */
+export async function getLastAlertNotificationTime(alertId: number): Promise<Date | null> {
+  const db = await getDb();
+  if (!db) return null;
+  
+  const result = await db
+    .select({ createdAt: swellAlertLogs.createdAt })
+    .from(swellAlertLogs)
+    .where(eq(swellAlertLogs.alertId, alertId))
+    .orderBy(desc(swellAlertLogs.createdAt))
+    .limit(1);
+  
+  return result.length > 0 ? result[0].createdAt : null;
+}
