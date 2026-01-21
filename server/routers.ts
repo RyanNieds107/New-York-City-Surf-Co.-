@@ -1271,7 +1271,13 @@ export const appRouter = router({
         tidePhase: z.string().nullable(),
       }))
       .mutation(async ({ input }) => {
-        const db = getDb();
+        const db = await getDb();
+        if (!db) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Database not available",
+          });
+        }
         const now = new Date();
 
         await db.insert(conditionsLog).values({
