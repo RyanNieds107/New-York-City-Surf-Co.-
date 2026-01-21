@@ -1,5 +1,6 @@
 import type { SwellAlert, SurfSpot } from "../../drizzle/schema";
 import type { DetectedSwell } from "./swellDetection";
+import { formatDaylightTimeWindow, getLastLightForDate } from "../utils/sunTimes";
 
 export interface FormattedNotification {
   subject: string;
@@ -27,12 +28,17 @@ export function formatSwellAlertNotification(
   // Calculate hours until swell
   const hoursUntil = Math.round((swellStartTime.getTime() - Date.now()) / (1000 * 60 * 60));
   
-  // Format time window (e.g., "Sat 7AM-11AM")
+  // Get spot coordinates for daylight calculations
+  const lat = parseFloat(spot.latitude);
+  const lng = parseFloat(spot.longitude);
+  
+  // Cap end time at last light (sunset) - don't show times after dark
+  const lastLight = getLastLightForDate(swellEndTime, lat, lng);
+  const effectiveEndTime = swellEndTime.getTime() > lastLight.getTime() ? lastLight : swellEndTime;
+  
+  // Format time window with daylight-aware labels (e.g., "Sat Morning-Afternoon")
   const formatTimeWindow = (): string => {
-    const startDay = swellStartTime.toLocaleDateString("en-US", { weekday: "short" });
-    const startHour = swellStartTime.toLocaleTimeString("en-US", { hour: "numeric", hour12: true }).replace(" ", "");
-    const endHour = swellEndTime.toLocaleTimeString("en-US", { hour: "numeric", hour12: true }).replace(" ", "");
-    return `${startDay} ${startHour}-${endHour}`;
+    return formatDaylightTimeWindow(swellStartTime, effectiveEndTime, lat, lng);
   };
 
   // Format wave height range (e.g., "4-5ft")

@@ -4,6 +4,7 @@ import { generateForecastTimeline } from "./forecast";
 import { getCurrentTideInfo } from "./tides";
 import { getAverageCrowdLevel } from "../db";
 import { getForecastTimeline } from "../db";
+import { isDaylightHours, getLastLightForDate } from "../utils/sunTimes";
 
 export interface DetectedSwell {
   alertId: number;
@@ -162,8 +163,8 @@ function findMatchingSwellWindows(
     const point = sortedPoints[i];
     const pointTime = new Date(point.forecastTimestamp);
 
-    // Check if point matches criteria
-    if (pointMatchesCriteria(point, alert)) {
+    // Check if point matches criteria (including daylight check)
+    if (pointMatchesCriteria(point, alert, spot)) {
       // Check if this point is consecutive with the last point in current window
       if (currentWindow.length > 0) {
         const lastPoint = currentWindow[currentWindow.length - 1];
@@ -176,7 +177,7 @@ function findMatchingSwellWindows(
         } else {
           // Save current window if it has at least 2 hours
           if (currentWindow.length >= 2) {
-            const window = createWindowFromPoints(currentWindow);
+            const window = createWindowFromPoints(currentWindow, spot);
             if (window) windows.push(window);
           }
           currentWindow = [point];
@@ -187,7 +188,7 @@ function findMatchingSwellWindows(
     } else {
       // Save current window if it has at least 2 hours
       if (currentWindow.length >= 2) {
-        const window = createWindowFromPoints(currentWindow);
+        const window = createWindowFromPoints(currentWindow, spot);
         if (window) windows.push(window);
       }
       currentWindow = [];
@@ -196,7 +197,7 @@ function findMatchingSwellWindows(
 
   // Save final window if it has at least 2 hours
   if (currentWindow.length >= 2) {
-    const window = createWindowFromPoints(currentWindow);
+    const window = createWindowFromPoints(currentWindow, spot);
     if (window) windows.push(window);
   }
 
@@ -205,11 +206,22 @@ function findMatchingSwellWindows(
 
 /**
  * Checks if a forecast point matches the alert criteria.
+ * Also filters out nighttime hours - only daylight surfing hours count.
  */
 function pointMatchesCriteria(
   point: ForecastTimelineResult,
-  alert: SwellAlert
+  alert: SwellAlert,
+  spot?: SurfSpot
 ): boolean {
+  // DAYLIGHT CHECK: Only include points during daylight surfing hours
+  const pointTime = new Date(point.forecastTimestamp);
+  const lat = spot ? parseFloat(spot.latitude) : 40.588; // Default to Long Beach area
+  const lng = spot ? parseFloat(spot.longitude) : -73.658;
+  
+  if (!isDaylightHours(pointTime, lat, lng)) {
+    return false; // Skip nighttime hours
+  }
+
   // Check wave height
   const breakingHeight = point.breakingWaveHeightFt ?? point.dominantSwellHeightFt ?? point.waveHeightFt ?? 0;
   if (alert.minWaveHeightFt !== null && breakingHeight < Number(alert.minWaveHeightFt)) {
@@ -241,14 +253,25 @@ function pointMatchesCriteria(
 
 /**
  * Creates a SwellWindow from an array of consecutive matching points.
+ * Caps end time at last light (sunset) for the day.
  */
 function createWindowFromPoints(
-  points: ForecastTimelineResult[]
+  points: ForecastTimelineResult[],
+  spot?: SurfSpot
 ): SwellWindow | null {
   if (points.length === 0) return null;
 
   const firstTime = new Date(points[0].forecastTimestamp);
-  const lastTime = new Date(points[points.length - 1].forecastTimestamp);
+  let lastTime = new Date(points[points.length - 1].forecastTimestamp);
+  
+  // Cap end time at last light for the day
+  const lat = spot ? parseFloat(spot.latitude) : 40.588;
+  const lng = spot ? parseFloat(spot.longitude) : -73.658;
+  const lastLight = getLastLightForDate(lastTime, lat, lng);
+  
+  if (lastTime.getTime() > lastLight.getTime()) {
+    lastTime = lastLight;
+  }
 
   // Calculate peak values
   let peakHeight = 0;
