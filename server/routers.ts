@@ -1240,7 +1240,10 @@ export const appRouter = router({
       if (!ctx.user) {
         throw new TRPCError({ code: "UNAUTHORIZED", message: "User must be authenticated" });
       }
-      return await getAllSwellAlertsForUser(ctx.user.id);
+      console.log(`[alerts.list] Fetching alerts for userId: ${ctx.user.id}`);
+      const alerts = await getAllSwellAlertsForUser(ctx.user.id);
+      console.log(`[alerts.list] Found ${alerts.length} alerts for userId: ${ctx.user.id}`);
+      return alerts;
     }),
 
     get: protectedProcedure
@@ -1281,6 +1284,7 @@ export const appRouter = router({
         if (!ctx.user) {
           throw new TRPCError({ code: "UNAUTHORIZED", message: "User must be authenticated" });
         }
+        console.log(`[alerts.create] Creating alert for userId: ${ctx.user.id}, input:`, JSON.stringify(input));
 
         // If SMS is enabled, update user's smsOptIn and phone
         if (input.smsEnabled) {
@@ -1316,6 +1320,7 @@ export const appRouter = router({
           daysAdvanceNotice: null,
           lastNotifiedScore: null,
         });
+        console.log(`[alerts.create] Alert created with id: ${alertId} for userId: ${ctx.user.id}`);
         
         // Send confirmation email if user has email and email notifications are enabled
         if (ctx.user.email && input.emailEnabled) {

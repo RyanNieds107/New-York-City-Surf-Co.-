@@ -801,8 +801,12 @@ export async function deleteAllForecastPointsForSpot(
 
 export async function getAllSwellAlertsForUser(userId: number): Promise<SwellAlert[]> {
   const db = await getDb();
-  if (!db) return [];
-  
+  if (!db) {
+    console.log(`[getAllSwellAlertsForUser] Database not available for userId: ${userId}`);
+    return [];
+  }
+
+  console.log(`[getAllSwellAlertsForUser] Querying alerts for userId: ${userId}`);
   const result = await db
     .select()
     .from(swellAlerts)
@@ -813,7 +817,11 @@ export async function getAllSwellAlertsForUser(userId: number): Promise<SwellAle
       )
     )
     .orderBy(desc(swellAlerts.createdAt));
-  
+
+  console.log(`[getAllSwellAlertsForUser] Found ${result.length} active alerts for userId: ${userId}`);
+  if (result.length > 0) {
+    console.log(`[getAllSwellAlertsForUser] First alert:`, JSON.stringify(result[0]));
+  }
   return result;
 }
 
@@ -980,6 +988,7 @@ export async function createSwellAlert(alert: InsertSwellAlert): Promise<number>
   ];
   
   try {
+    console.log(`[createSwellAlert] Inserting alert with params:`, JSON.stringify(params));
     const [result] = await _pool.execute(
       `INSERT INTO swell_alerts (
         userId, spotId, minWaveHeightFt, minQualityScore, minPeriodSec,
@@ -989,8 +998,10 @@ export async function createSwellAlert(alert: InsertSwellAlert): Promise<number>
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       params
     );
-    
-    return (result as any).insertId;
+
+    const insertId = (result as any).insertId;
+    console.log(`[createSwellAlert] Successfully inserted alert with id: ${insertId}`);
+    return insertId;
   } catch (error: any) {
     console.error('[ERROR] Raw SQL insert failed:', error.message);
     console.error('[ERROR] SQL:', error.sql);

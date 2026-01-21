@@ -17,9 +17,12 @@ export default function Members() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
   const { data: spots } = trpc.spots.list.useQuery();
-  const { data: alerts } = trpc.alerts.list.useQuery(undefined, {
+  const { data: alerts, refetch: refetchAlerts, isLoading: alertsLoading, error: alertsError } = trpc.alerts.list.useQuery(undefined, {
     enabled: !!user,
   });
+
+  // Debug logging for alerts query
+  console.log("[alerts.list] Query state - user:", user?.id, "enabled:", !!user, "loading:", alertsLoading, "error:", alertsError, "data:", alerts);
 
   // Scroll to top on mount
   useEffect(() => {
@@ -42,14 +45,26 @@ export default function Members() {
   const [crowdLevel, setCrowdLevel] = useState<number>(3);
 
   const createAlertMutation = trpc.alerts.create.useMutation({
-    onSuccess: async () => {
+    onSuccess: async (data) => {
+      console.log("[alerts.create] Mutation succeeded, data:", data);
       toast.success("Alert created successfully!");
+      // Invalidate cache and refetch to ensure UI updates
+      console.log("[alerts.create] Invalidating alerts.list cache...");
       await utils.alerts.list.invalidate();
+      console.log("[alerts.create] Refetching alerts...");
+      const refetchResult = await refetchAlerts();
+      console.log("[alerts.create] Refetch result:", refetchResult.data);
+      // Reset form state
       setAlertSpotId(null);
+      setSelectedSpots([]);
       setDaysAdvanceNotice(7);
-      setMinQualityScore(60);
+      setMinQualityScore(70);
+      setAlertFrequency("once");
+      setEmailEnabled(false);
+      setSmsEnabled(false);
     },
     onError: (error) => {
+      console.error("[alerts.create] Mutation failed:", error);
       toast.error(error.message || "Failed to create alert");
     },
   });
@@ -57,7 +72,9 @@ export default function Members() {
   const deleteAlertMutation = trpc.alerts.delete.useMutation({
     onSuccess: async () => {
       toast.success("Alert deleted");
+      // Invalidate cache and refetch to ensure UI updates
       await utils.alerts.list.invalidate();
+      await refetchAlerts();
     },
     onError: (error) => {
       toast.error(error.message || "Failed to delete alert");
