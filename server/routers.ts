@@ -1566,6 +1566,16 @@ export const appRouter = router({
             avgPeriodSec: input.periodSec,
             bestDay: swellStartTime,
             confidenceScore: 85,
+            conditions: [
+              {
+                windType: "offshore" as const,
+                windSpeed: 8,
+                windDirection: 315,
+                primarySwellDirection: 180,
+                primarySwellPeriod: input.periodSec,
+                primarySwellHeight: input.waveHeightFt,
+              },
+            ],
           };
 
           const fakeAlert = {
