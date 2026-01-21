@@ -162,11 +162,11 @@ export default function Members() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3">
           <div className="flex items-center justify-between">
             <Logo logoSize="h-9 sm:h-10" showLink={true} />
-            <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-4 sm:gap-5">
               {/* User email - hidden on very small screens */}
               {user?.email && (
-                <span 
-                  className="hidden sm:block text-xs text-gray-500 truncate max-w-[150px]"
+                <span
+                  className="hidden sm:block text-xs text-gray-500 truncate max-w-[200px]"
                   style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   title={user.email}
                 >
@@ -179,20 +179,20 @@ export default function Members() {
                   await logout();
                   setLocation("/login");
                 }}
-                className="text-gray-500 hover:text-black transition-colors text-xs uppercase tracking-wider flex items-center gap-1"
+                className="text-gray-500 hover:text-black transition-colors text-xs uppercase tracking-wider flex items-center gap-1.5"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
-                <LogOut className="h-3 w-3" />
+                <LogOut className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Sign Out</span>
               </button>
               {/* Dashboard Link */}
               <button
                 onClick={() => setLocation("/dashboard")}
-                className="text-gray-600 hover:text-black transition-colors text-xs uppercase tracking-wider flex items-center gap-1"
+                className="text-gray-900 hover:text-black transition-colors text-xs uppercase tracking-wider flex items-center gap-1"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
                 All Spots
-                <ChevronRight className="h-3 w-3" />
+                <ChevronRight className="h-3.5 w-3.5" />
               </button>
             </div>
           </div>
@@ -204,7 +204,7 @@ export default function Members() {
         {/* Tabbed Interface */}
         <Tabs defaultValue="alerts" className="w-full">
           {/* Tab Navigation */}
-          <div className="border-b-2 border-black mb-0 overflow-x-auto">
+          <div className="border-b-2 border-black mb-0">
             <TabsList className="bg-transparent p-0 h-auto flex gap-0 min-w-max">
               <TabsTrigger
                 value="alerts"
