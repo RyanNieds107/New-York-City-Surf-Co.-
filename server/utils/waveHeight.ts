@@ -212,17 +212,22 @@ export function getTideMultiplier(
  * Directional wrap penalties are applied AFTER selection, when calculating the
  * final breaking_height for display.
  *
+ * DYNAMIC PERIOD SELECTION: If buoyPeriodS is provided (from NOAA buoy), it will be
+ * passed to calculateBreakingWaveHeight for more accurate period-based amplification.
+ *
  * @param forecastPoint - Forecast point with all swell components
  * @param profile - Spot profile with multiplier for breaking height calculation
  * @param tideHeightFt - Tide height in decimal feet (e.g., 3.5, not 35) or null
  * @param tidePhase - Tide phase: 'high', 'low', 'rising', 'falling', or null
+ * @param buoyPeriodS - Optional: NOAA buoy dominant period in seconds (for Dynamic Period Selection)
  * @returns Dominant swell component with breaking_height calculated, or null if no valid data
  */
 export function getDominantSwell(
   forecastPoint: ForecastPoint,
   profile: SpotProfile,
   tideHeightFt?: number | null,
-  tidePhase?: string | null
+  tidePhase?: string | null,
+  buoyPeriodS?: number | null
 ): SwellComponent | null {
   console.log('🔍 [getDominantSwell] Checking forecast point:', {
     primary: {
@@ -332,13 +337,15 @@ export function getDominantSwell(
   const winner = sorted[0];
 
   // NOW calculate breaking height for the winner, applying tide and directional penalties
+  // Pass through buoyPeriodS for Dynamic Period Selection if available
   const breakingHeight = calculateBreakingWaveHeight(
     winner.height_ft,
     winner.period_s,
     profile,
     winner.direction_deg,
     tideHeightFt ?? null,
-    tidePhase
+    tidePhase,
+    buoyPeriodS
   );
 
   const dominant: SwellComponent = {
@@ -376,10 +383,15 @@ export function getDominantSwell(
  * - SELECTION: Uses H² × T energy formula (in getDominantSwell)
  * - DISPLAY: Uses H × (T/9)^0.5 × directionMultiplier × spotMultiplier × tideMultiplier (this function)
  *
+ * DYNAMIC PERIOD SELECTION:
+ * If buoyPeriodS is provided (from NOAA buoy), it will be used instead of periodS
+ * for the breaking height calculation. This allows using more accurate real-time
+ * period data from the buoy while still using Open-Meteo for wave height.
+ *
  * Formula (in order):
  * 1. Period-adjusted base height: H × (T / 9)^0.5 - power function with 9s baseline
- * 2. Apply spot multiplier (Lido: 1.1x, Long Beach: 1.05x, Rockaway: 1.1x)
- * 3. Apply tide multiplier (special: Lido/Long Beach rising tide 1-2.1ft: 1.2x, mid-tide 2.1-3.2ft: interpolated 1.2x-0.85x, high tide >3.2ft: 0.7x)
+ * 2. Apply spot multiplier (Lido: 1.1x + 0.1 for >10s, Long Beach: 1.05x + 0.1 for >10s, Rockaway: 1.1x + 0.1 for >10s)
+ * 3. Apply tide multiplier (special: Lido/Long Beach/Rockaway rising tide 1-2.1ft: 1.2x, mid-tide 2.1-3.2ft: interpolated 1.2x-0.85x, high tide >3.2ft: 0.7x)
  * 4. Apply directional kill switch (250-310° West) → 0
  * 5. Apply directional wrap penalty (< 110° East) → 0.7x
  * 6. Round to nearest 0.1ft - ONLY at the very end
@@ -389,11 +401,12 @@ export function getDominantSwell(
  * Example: 3ft @ 14s at Lido (1.5x) = 3 × (14/9)^0.5 × 1.5 = 3 × 1.25 × 1.5 = 5.63ft
  *
  * @param swellHeightFt - Offshore swell height in decimal feet (MUST be in feet)
- * @param periodS - Swell period in seconds
+ * @param periodS - Swell period in seconds (from Open-Meteo or forecast data)
  * @param profile - Spot profile with multiplier
  * @param swellDirectionDeg - Swell direction in degrees (0-360) or null
  * @param tideHeightFt - Tide height in decimal feet (e.g., 3.5, not 35) or null
  * @param tidePhase - Tide phase: 'high', 'low', 'rising', 'falling', or null
+ * @param buoyPeriodS - Optional: NOAA buoy dominant period in seconds (takes precedence over periodS if provided)
  * @returns Predicted breaking wave face height in feet (rounded to 0.1ft)
  */
 export function calculateBreakingWaveHeight(
@@ -402,11 +415,19 @@ export function calculateBreakingWaveHeight(
   profile: SpotProfile,
   swellDirectionDeg?: number | null,
   tideHeightFt?: number | null,
-  tidePhase?: string | null
+  tidePhase?: string | null,
+  buoyPeriodS?: number | null
 ): number {
+  // DYNAMIC PERIOD SELECTION: Use NOAA buoy period if available
+  // The buoy provides more accurate real-time period data than Open-Meteo's modeled period
+  const effectivePeriod = buoyPeriodS != null && buoyPeriodS > 0 ? buoyPeriodS : periodS;
+  
+  if (buoyPeriodS != null && buoyPeriodS > 0 && buoyPeriodS !== periodS) {
+    console.log(`🔄 [Dynamic Period Selection] Using NOAA buoy period ${buoyPeriodS}s instead of Open-Meteo ${periodS}s`);
+  }
   // Validate inputs are in correct units (feet, seconds)
-  if (swellHeightFt < 0 || periodS <= 0) {
-    console.log('⚠️ [calculateBreakingWaveHeight] Invalid input:', { swellHeightFt, periodS });
+  if (swellHeightFt < 0 || effectivePeriod <= 0) {
+    console.log('⚠️ [calculateBreakingWaveHeight] Invalid input:', { swellHeightFt, effectivePeriod, originalPeriodS: periodS, buoyPeriodS });
     return 0;
   }
 
@@ -414,11 +435,14 @@ export function calculateBreakingWaveHeight(
   const spotKey = getSpotKey(profile.name) || profile.name.toLowerCase().replace(/\s+/g, '-');
   
   // Calculate physically accurate spot multiplier based on swell height and period
-  const spotMultiplier = calculateSpotMultiplier(spotKey, swellHeightFt, periodS);
+  // Uses effectivePeriod (NOAA buoy period if available) for groundswell bonus calculation
+  const spotMultiplier = calculateSpotMultiplier(spotKey, swellHeightFt, effectivePeriod);
 
   console.log('🌊 [calculateBreakingWaveHeight] INPUT:', {
     swellHeightFt,
     periodS,
+    effectivePeriod,
+    buoyPeriodS: buoyPeriodS ?? 'N/A',
     swellDirectionDeg,
     tideHeightFt,
     tidePhase,
@@ -430,21 +454,22 @@ export function calculateBreakingWaveHeight(
   // STEP 1: Calculate period-adjusted base height using power function
   // Formula: H × (T / 9)^0.5 - power function with 9s baseline
   // A 9s swell has multiplier of 1.0, 8s is ~0.94x, 14s+ tapers off smoothly
+  // Uses effectivePeriod (NOAA buoy period if available) for more accurate amplification
   const periodBaseline = 9;
-  const periodFactor = Math.pow(periodS / periodBaseline, 0.5);
+  const periodFactor = Math.pow(effectivePeriod / periodBaseline, 0.5);
   const periodAdjustedHeight = swellHeightFt * periodFactor;
   
   console.log('📊 [Period-Adjusted Height]:', periodAdjustedHeight.toFixed(2),
-    `ft (${swellHeightFt.toFixed(1)} × (${periodS}/${periodBaseline})^0.5 = ${periodFactor.toFixed(3)})`);
+    `ft (${swellHeightFt.toFixed(1)} × (${effectivePeriod}/${periodBaseline})^0.5 = ${periodFactor.toFixed(3)})`);
 
   // Test cases for verification
-  if ((Math.abs(swellHeightFt - 2.5) < 0.1 && Math.abs(periodS - 8) < 0.1) ||
-      (Math.abs(swellHeightFt - 3.0) < 0.1 && Math.abs(periodS - 6) < 0.1)) {
+  if ((Math.abs(swellHeightFt - 2.5) < 0.1 && Math.abs(effectivePeriod - 8) < 0.1) ||
+      (Math.abs(swellHeightFt - 3.0) < 0.1 && Math.abs(effectivePeriod - 6) < 0.1)) {
     console.log('🧪 [TEST CASE]', {
-      input: `${swellHeightFt.toFixed(1)}ft @ ${periodS}s`,
+      input: `${swellHeightFt.toFixed(1)}ft @ ${effectivePeriod}s`,
       periodFactor: periodFactor.toFixed(3),
       periodAdjustedHeight: periodAdjustedHeight.toFixed(2),
-      expected: periodS === 8 ? '~2.35-2.5ft' : '~2.4ft'
+      expected: effectivePeriod === 8 ? '~2.35-2.5ft' : '~2.4ft'
     });
   }
 

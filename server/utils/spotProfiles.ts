@@ -85,10 +85,16 @@ export function getSpotKey(spotName: string): string | undefined {
  * 
  * Implements period-based tier system and global small swell damping ("Lake Atlantic" rule).
  * 
+ * ENHANCEMENT: Long-period groundswells (>10s) receive an additional +0.1 multiplier
+ * because they produce disproportionately larger breaking waves due to:
+ * - More energy per wave
+ * - Better refraction into the breaks
+ * - Hudson Canyon effect amplification for Lido
+ * 
  * @param spotKey - Spot identifier key ("lido", "long-beach", "rockaway")
  * @param swellHeightFt - Offshore swell height in feet
  * @param periodS - Swell period in seconds
- * @returns Spot multiplier (0.8 for small swells, or period-based tier multiplier)
+ * @returns Spot multiplier (0.8 for small swells, or period-based tier multiplier + groundswell bonus)
  */
 export function calculateSpotMultiplier(
   spotKey: string,
@@ -101,40 +107,45 @@ export function calculateSpotMultiplier(
     return 0.8;
   }
 
+  // Groundswell bonus: +0.1 for periods > 10s
+  // Long-period groundswells produce disproportionately larger breaking waves
+  const groundswellBonus = periodS > 10 ? 0.1 : 0;
+
   // Spot-specific period-based tiers
+  let baseMultiplier: number;
+  
   switch (spotKey) {
     case 'lido':
     case 'LIDO_BEACH':
       // Lido Beach: Hudson Canyon refraction + inlet shoaling
-      if (periodS < 12) {
-        return 1.1; // Tier A: Inlet shoaling only
-      } else {
-        return 1.1; // Tier B: Hudson Canyon refraction + inlet
-      }
+      baseMultiplier = 1.1;
+      break;
 
     case 'long-beach':
     case 'LONG_BEACH':
       // Long Beach: Jetty-driven sandbars
-      if (periodS < 12) {
-        return 1.05; // Tier A
-      } else {
-        return 1.05; // Tier B
-      }
+      baseMultiplier = 1.05;
+      break;
 
     case 'rockaway':
     case 'ROCKAWAY':
       // Rockaway Beach: Deep in NY Bight shadow
-      if (periodS < 11) {
-        return 1.1; // Tier A
-      } else {
-        return 1.1; // Tier B
-      }
+      baseMultiplier = 1.1;
+      break;
 
     default:
       // Fallback to neutral multiplier for unknown spots
       console.warn(`[calculateSpotMultiplier] Unknown spot key: ${spotKey}, using 1.0`);
-      return 1.0;
+      baseMultiplier = 1.0;
   }
+
+  const finalMultiplier = baseMultiplier + groundswellBonus;
+  
+  if (groundswellBonus > 0) {
+    console.log(`🌊 [Groundswell Bonus] Period ${periodS}s > 10s: ${baseMultiplier} + ${groundswellBonus} = ${finalMultiplier}`);
+  }
+
+  return finalMultiplier;
 }
 
 
