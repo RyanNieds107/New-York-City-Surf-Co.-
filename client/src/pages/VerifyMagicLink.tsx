@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useLocation, useSearch } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Logo } from "@/components/Logo";
@@ -11,6 +11,7 @@ export default function VerifyMagicLink() {
   const utils = trpc.useUtils();
   const [verificationState, setVerificationState] = useState<"loading" | "success" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState("");
+  const hasVerifiedRef = useRef(false); // Prevent multiple verification attempts
 
   // Extract token from URL
   const params = new URLSearchParams(search);
@@ -28,7 +29,14 @@ export default function VerifyMagicLink() {
     },
     onError: (error) => {
       setVerificationState("error");
-      setErrorMessage(error.message || "Invalid or expired magic link");
+      // Provide more helpful error messages
+      if (error.message.includes("expired")) {
+        setErrorMessage("This magic link has expired. Please request a new one.");
+      } else if (error.message.includes("Invalid") || error.message.includes("invalid")) {
+        setErrorMessage("This magic link has already been used or is invalid. If you requested a new link, please use the most recent one.");
+      } else {
+        setErrorMessage(error.message || "Invalid or expired magic link. Please request a new one.");
+      }
     },
   });
 
@@ -39,11 +47,13 @@ export default function VerifyMagicLink() {
       return;
     }
 
-    // Only verify once
-    if (verificationState === "loading" && !verifyMutation.isPending) {
+    // Only verify once - prevent race conditions from double-loading
+    if (!hasVerifiedRef.current && verificationState === "loading" && !verifyMutation.isPending && !verifyMutation.isSuccess) {
+      hasVerifiedRef.current = true;
       verifyMutation.mutate({ token });
     }
-  }, [token]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]); // Only depend on token to run once when component mounts
 
   return (
     <div className="min-h-screen bg-white flex flex-col">

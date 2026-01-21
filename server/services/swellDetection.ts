@@ -53,8 +53,8 @@ export async function detectUpcomingSwells(
 
   // Check each spot
   for (const spot of spotsToCheck) {
-    // Get forecast timeline (120 hours)
-    const forecastPoints = await getForecastTimeline(spot.id, 120);
+    // Get forecast timeline (168 hours = 7 days)
+    const forecastPoints = await getForecastTimeline(spot.id, 168);
     
     if (forecastPoints.length === 0) {
       continue;

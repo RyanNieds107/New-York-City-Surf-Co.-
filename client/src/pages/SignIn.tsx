@@ -179,7 +179,7 @@ export default function SignIn() {
                   className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5"
                   style={{ fontFamily: "'JetBrains Mono', monospace" }}
                 >
-                  Phone Number
+                  Phone Number (Optional)
                 </label>
                 <Input
                   id="phone"
@@ -187,7 +187,6 @@ export default function SignIn() {
                   value={phone}
                   onChange={handlePhoneChange}
                   placeholder="(555) 123-4567"
-                  required
                   maxLength={14}
                   className="border-2 border-black rounded-none focus:ring-2 focus:ring-black focus:ring-offset-0"
                   disabled={signUpMutation.isPending}

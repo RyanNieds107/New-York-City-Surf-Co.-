@@ -283,16 +283,27 @@ export const appRouter = router({
         const tokenRecord = tokenRecords[0];
 
         if (!tokenRecord) {
+          // Check if token exists but is expired vs doesn't exist at all
+          const expiredToken = await db
+            .select()
+            .from(verificationTokens)
+            .where(eq(verificationTokens.token, input.token))
+            .limit(1);
+          
+          if (expiredToken.length > 0) {
+            throw new TRPCError({
+              code: "UNAUTHORIZED",
+              message: "This magic link has expired. Please request a new one.",
+            });
+          }
+          
           throw new TRPCError({
             code: "UNAUTHORIZED",
-            message: "Invalid or expired magic link. Please request a new one.",
+            message: "Invalid or expired magic link. This link may have already been used. Please request a new one.",
           });
         }
 
         const email = tokenRecord.identifier;
-
-        // Delete the used token (single-use)
-        await db.delete(verificationTokens).where(eq(verificationTokens.token, input.token));
 
         // Generate openId hash from email (same logic as other auth flows)
         const openIdHash = (await sha256(email)).substring(0, 32);
@@ -301,38 +312,48 @@ export const appRouter = router({
         // Check if user exists, if not create them
         let existingUser = await getUserByEmail(email);
 
-        if (!existingUser) {
-          // Create new user
-          await upsertUser({
-            openId: customOpenId,
-            name: email.split("@")[0], // Use part before @ as default name
-            email: email,
-            phone: null,
-            smsOptIn: 0,
-            loginMethod: "magic_link",
-            lastSignedIn: new Date(),
-          });
-          existingUser = await getUserByEmail(email);
-        } else {
-          // Update last signed in
-          await db.update(users).set({ lastSignedIn: new Date() }).where(eq(users.email, email));
+        try {
+          if (!existingUser) {
+            // Create new user
+            await upsertUser({
+              openId: customOpenId,
+              name: email.split("@")[0], // Use part before @ as default name
+              email: email,
+              phone: null,
+              smsOptIn: 0,
+              loginMethod: "magic_link",
+              lastSignedIn: new Date(),
+            });
+            existingUser = await getUserByEmail(email);
+          } else {
+            // Update last signed in
+            await db.update(users).set({ lastSignedIn: new Date() }).where(eq(users.email, email));
+          }
+
+          // Create session token (30-day sessions as requested)
+          const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+          const sessionToken = await signCustomSessionToken(
+            customOpenId,
+            existingUser?.name || email.split("@")[0],
+            THIRTY_DAYS_MS
+          );
+
+          // Set cookie
+          const cookieOptions = getSessionCookieOptions(ctx.req);
+          ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: THIRTY_DAYS_MS });
+
+          // Delete the used token (single-use) - ONLY after successful verification
+          await db.delete(verificationTokens).where(eq(verificationTokens.token, input.token));
+
+          console.log(`[Magic Link] Successfully verified and logged in user: ${email}`);
+
+          return { success: true, email };
+        } catch (error) {
+          // If anything fails after finding the token, log it but don't delete the token yet
+          // This way user can retry if there's a transient error
+          console.error(`[Magic Link] Error during verification for ${email}:`, error);
+          throw error;
         }
-
-        // Create session token (30-day sessions as requested)
-        const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-        const sessionToken = await signCustomSessionToken(
-          customOpenId,
-          existingUser?.name || email.split("@")[0],
-          THIRTY_DAYS_MS
-        );
-
-        // Set cookie
-        const cookieOptions = getSessionCookieOptions(ctx.req);
-        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: THIRTY_DAYS_MS });
-
-        console.log(`[Magic Link] Successfully verified and logged in user: ${email}`);
-
-        return { success: true, email };
       }),
   }),
 
