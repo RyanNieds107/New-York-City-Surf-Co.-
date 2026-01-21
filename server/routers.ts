@@ -202,7 +202,13 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ input }) => {
-        const db = getDb();
+        const db = await getDb();
+        if (!db) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Database not available",
+          });
+        }
         const { sendMagicLinkEmail } = await import("./services/email");
 
         const email = input.email.toLowerCase().trim();
@@ -250,7 +256,13 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ ctx, input }) => {
-        const db = getDb();
+        const db = await getDb();
+        if (!db) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Database not available",
+          });
+        }
         const { upsertUser, getUserByEmail } = await import("./db");
         const { signCustomSessionToken } = await import("./_core/jwt");
         const { COOKIE_NAME, ONE_YEAR_MS } = await import("@shared/const");
