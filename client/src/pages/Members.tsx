@@ -19,33 +19,12 @@ export default function Members() {
   });
   const utils = trpc.useUtils();
 
-  // Show loading state while checking auth
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-black" />
-          <p className="text-sm text-gray-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-            Loading...
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // If no user after loading, don't render (redirect will happen)
-  if (!user) {
-    return null;
-  }
+  // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
+  // Query hooks
   const { data: spots } = trpc.spots.list.useQuery();
   const { data: alerts, refetch: refetchAlerts } = trpc.alerts.list.useQuery(undefined, {
     enabled: !!user,
   });
-
-  // Scroll to top on mount
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
 
   // Real-time alerts state
   const [alertSpotId, setAlertSpotId] = useState<number | null>(null);
@@ -113,6 +92,31 @@ export default function Members() {
       toast.error(error.message || "Failed to submit report");
     },
   });
+
+  // Scroll to top on mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  // CONDITIONAL RETURNS - must come AFTER all hooks
+  // Show loading state while checking auth
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-black" />
+          <p className="text-sm text-gray-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+            Loading...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // If no user after loading, don't render (redirect will happen)
+  if (!user) {
+    return null;
+  }
 
   const handleCreateAlert = (e: React.FormEvent) => {
     e.preventDefault();
