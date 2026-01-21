@@ -1415,20 +1415,17 @@ export default function LandingPage() {
                     <User className="h-3 w-3 sm:h-5 sm:w-5 md:h-6 md:w-6" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48 bg-white border-2 border-black rounded-none">
+                <DropdownMenuContent align="end" className="w-56 bg-white border border-gray-200 rounded-md shadow-lg">
                   {isAuthenticated ? (
                     <>
                       {user?.email && (
-                        <div className="px-4 py-2 text-xs text-gray-500 border-b border-gray-200" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        <div className="px-3 py-2 text-xs text-gray-500 border-b border-gray-100 truncate">
                           {user.email}
                         </div>
                       )}
                       <DropdownMenuItem
-                        onClick={() => {
-                          setLocation("/members");
-                        }}
-                        className="cursor-pointer px-4 py-3 text-sm font-medium"
-                        style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
+                        onClick={() => setLocation("/members")}
+                        className="cursor-pointer px-3 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100 focus:bg-gray-100"
                       >
                         Members Portal
                       </DropdownMenuItem>
@@ -1437,19 +1434,15 @@ export default function LandingPage() {
                           await logout();
                           setLocation("/");
                         }}
-                        className="cursor-pointer px-4 py-3 text-sm font-medium text-red-600 hover:text-red-700"
-                        style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
+                        className="cursor-pointer px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 focus:bg-red-50 focus:text-red-700"
                       >
                         Sign Out
                       </DropdownMenuItem>
                     </>
                   ) : (
                     <DropdownMenuItem
-                      onClick={() => {
-                        setLocation("/login");
-                      }}
-                      className="cursor-pointer px-4 py-3 text-sm font-medium"
-                      style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
+                      onClick={() => setLocation("/login")}
+                      className="cursor-pointer px-3 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100 focus:bg-gray-100"
                     >
                       Login or Sign Up
                     </DropdownMenuItem>
