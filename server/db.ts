@@ -233,6 +233,25 @@ export async function getUserById(userId: number) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+export async function getUserByEmail(email: string) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get user: database not available");
+    return undefined;
+  }
+
+  try {
+    const result = await db.select().from(users).where(eq(users.email, email.toLowerCase())).limit(1);
+    return result.length > 0 ? result[0] : undefined;
+  } catch (error) {
+    console.error("[Database] Failed to get user by email:", {
+      email,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return undefined;
+  }
+}
+
 // ==================== SURF SPOTS ====================
 
 export async function getAllSpots(): Promise<SurfSpot[]> {

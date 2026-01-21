@@ -5,24 +5,19 @@ import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
-import { Loader2 } from "lucide-react";
-import { getLoginUrl } from "@/const";
+import { Loader2, Mail } from "lucide-react";
 
 export default function Login() {
   const [, setLocation] = useLocation();
-  const utils = trpc.useUtils();
   const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
 
-  const loginMutation = trpc.auth.login.useMutation({
-    onSuccess: async () => {
-      toast.success("Logged in successfully!");
-      // Invalidate auth state to refresh user info
-      await utils.auth.me.invalidate();
-      setLocation("/members");
+  const sendMagicLinkMutation = trpc.auth.sendMagicLink.useMutation({
+    onSuccess: () => {
+      // Redirect to check-email page
+      setLocation(`/check-email?email=${encodeURIComponent(email)}`);
     },
     onError: (error) => {
-      toast.error(error.message || "Failed to login. Please check your email and phone number.");
+      toast.error(error.message || "Failed to send magic link. Please try again.");
     },
   });
 
@@ -30,7 +25,7 @@ export default function Login() {
     e.preventDefault();
     
     // Prevent double submission
-    if (loginMutation.isPending) {
+    if (sendMagicLinkMutation.isPending) {
       return;
     }
     
@@ -43,41 +38,10 @@ export default function Login() {
       toast.error("Please enter a valid email address");
       return;
     }
-    if (!phone.trim()) {
-      toast.error("Please enter your phone number");
-      return;
-    }
 
-    // Basic phone validation (remove non-digits and check length)
-    const phoneDigits = phone.replace(/\D/g, "");
-    if (phoneDigits.length < 10) {
-      toast.error("Please enter a valid phone number");
-      return;
-    }
-
-    loginMutation.mutate({
-      email: email.trim(),
-      phone: phoneDigits,
+    sendMagicLinkMutation.mutate({
+      email: email.trim().toLowerCase(),
     });
-  };
-
-  const formatPhoneInput = (value: string) => {
-    // Remove all non-digit characters
-    const digits = value.replace(/\D/g, "");
-    
-    // Format as (XXX) XXX-XXXX
-    if (digits.length <= 3) {
-      return digits;
-    } else if (digits.length <= 6) {
-      return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-    } else {
-      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
-    }
-  };
-
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatPhoneInput(e.target.value);
-    setPhone(formatted);
   };
 
   return (
@@ -114,13 +78,13 @@ export default function Login() {
                 className="text-3xl sm:text-4xl md:text-5xl font-black text-black uppercase tracking-tight mb-2"
                 style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
               >
-                Log In
+                Members Portal
               </h1>
               <p
                 className="text-sm text-gray-600"
                 style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
               >
-                Enter your email and phone number to access your account
+                Enter your email to receive a secure login link
               </p>
             </div>
 
@@ -133,107 +97,79 @@ export default function Login() {
                   className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5"
                   style={{ fontFamily: "'JetBrains Mono', monospace" }}
                 >
-                  Email
+                  Email Address
                 </label>
                 <Input
                   id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="john@example.com"
+                  placeholder="you@example.com"
                   required
+                  autoComplete="email"
                   className="border-2 border-black rounded-none focus:ring-2 focus:ring-black focus:ring-offset-0"
-                  disabled={loginMutation.isPending}
-                />
-              </div>
-
-              {/* Phone Input */}
-              <div>
-                <label
-                  htmlFor="phone"
-                  className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5"
-                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                >
-                  Phone Number
-                </label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  value={phone}
-                  onChange={handlePhoneChange}
-                  placeholder="(555) 123-4567"
-                  required
-                  maxLength={14}
-                  className="border-2 border-black rounded-none focus:ring-2 focus:ring-black focus:ring-offset-0"
-                  disabled={loginMutation.isPending}
+                  disabled={sendMagicLinkMutation.isPending}
                 />
               </div>
 
               {/* Submit Button */}
               <Button
                 type="submit"
-                disabled={loginMutation.isPending}
+                disabled={sendMagicLinkMutation.isPending}
                 className="w-full bg-black text-white hover:bg-gray-800 border-2 border-black rounded-none uppercase tracking-wide font-bold py-6 text-sm sm:text-base mt-6 sm:mt-8"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
-                {loginMutation.isPending ? (
+                {sendMagicLinkMutation.isPending ? (
                   <span className="flex items-center justify-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Logging In...
+                    Sending Link...
                   </span>
                 ) : (
-                  "Log In"
+                  <span className="flex items-center justify-center gap-2">
+                    <Mail className="h-4 w-4" />
+                    Send Magic Link
+                  </span>
                 )}
               </Button>
             </form>
 
+            {/* Info Text */}
+            <div className="mt-6 sm:mt-8">
+              <p
+                className="text-xs text-gray-500 text-center"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                We'll email you a secure link to sign in. No password needed.
+              </p>
+            </div>
+
             {/* Divider */}
             <div className="relative my-6 sm:my-8">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t-2 border-black"></div>
+                <div className="w-full border-t-2 border-gray-200"></div>
               </div>
               <div className="relative flex justify-center text-xs uppercase tracking-wide">
                 <span
-                  className="bg-white px-4 text-gray-600"
+                  className="bg-white px-4 text-gray-400"
                   style={{ fontFamily: "'JetBrains Mono', monospace" }}
                 >
-                  Or
+                  New here?
                 </span>
               </div>
             </div>
 
-            {/* Sign Up Link */}
+            {/* Sign Up Note */}
             <div className="text-center">
               <p
-                className="text-sm text-gray-600 mb-4"
+                className="text-sm text-gray-600"
                 style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
               >
-                Don't have an account?{" "}
-                <button
-                  onClick={() => setLocation("/sign-in")}
-                  className="underline hover:text-black transition-colors font-medium"
-                >
-                  Sign up
-                </button>
+                Just enter your email above. If you don't have an account, we'll create one for you automatically.
               </p>
             </div>
-
-            {/* OAuth Option */}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                window.location.href = getLoginUrl();
-              }}
-              className="w-full border-2 border-black rounded-none uppercase tracking-wide font-bold py-6 text-sm sm:text-base hover:bg-black hover:text-white transition-colors"
-              style={{ fontFamily: "'JetBrains Mono', monospace" }}
-            >
-              Sign In with OAuth
-            </Button>
           </div>
         </div>
       </div>
     </div>
   );
 }
-

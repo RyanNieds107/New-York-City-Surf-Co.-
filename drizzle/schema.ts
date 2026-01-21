@@ -227,3 +227,15 @@ export const swellAlertLogs = mysqlTable("swell_alert_logs", {
 
 export type SwellAlertLog = typeof swellAlertLogs.$inferSelect;
 export type InsertSwellAlertLog = typeof swellAlertLogs.$inferInsert;
+
+// Verification Tokens Table (for magic link authentication)
+export const verificationTokens = mysqlTable("verification_tokens", {
+  id: int("id").autoincrement().primaryKey(),
+  identifier: varchar("identifier", { length: 320 }).notNull(), // email address
+  token: varchar("token", { length: 64 }).notNull().unique(), // unique hash token
+  expires: timestamp("expires").notNull(), // when the token expires
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type VerificationToken = typeof verificationTokens.$inferSelect;
+export type InsertVerificationToken = typeof verificationTokens.$inferInsert;

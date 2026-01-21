@@ -129,3 +129,110 @@ export async function sendBatchEmails(
 
   return { successCount: totalSuccessCount, errorCount: totalErrorCount };
 }
+
+export interface MagicLinkEmailOptions {
+  to: string;
+  magicLinkUrl: string;
+}
+
+/**
+ * Sends a magic link authentication email.
+ * Branded email with NYC Surf Co. styling.
+ */
+export async function sendMagicLinkEmail(options: MagicLinkEmailOptions): Promise<boolean> {
+  const { to, magicLinkUrl } = options;
+
+  const subject = "Your NYC Surf Co login link";
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign in to NYC Surf Co</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 500px; background-color: #ffffff; border: 2px solid #000000;">
+          
+          <!-- Header -->
+          <tr>
+            <td style="background-color: #000000; padding: 24px 32px; text-align: center;">
+              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; font-family: 'Bebas Neue', 'Oswald', Arial, sans-serif;">
+                NYC SURF CO
+              </h1>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px 32px;">
+              <h2 style="margin: 0 0 16px 0; color: #000000; font-size: 24px; font-weight: 700;">
+                Sign in to your account
+              </h2>
+              <p style="margin: 0 0 24px 0; color: #666666; font-size: 16px; line-height: 1.5;">
+                Click the button below to securely sign in to the NYC Surf Co members portal. This link will expire in 24 hours.
+              </p>
+
+              <!-- CTA Button -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center" style="padding: 8px 0 32px 0;">
+                    <a href="${magicLinkUrl}" style="display: inline-block; background-color: #000000; color: #ffffff; text-decoration: none; padding: 16px 32px; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
+                      Sign In to Members Portal
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin: 0 0 16px 0; color: #999999; font-size: 14px; line-height: 1.5;">
+                If you didn't request this email, you can safely ignore it. Only a person with access to your email can sign in using this link.
+              </p>
+
+              <!-- Link fallback -->
+              <p style="margin: 0; color: #999999; font-size: 12px; line-height: 1.5; word-break: break-all;">
+                Or copy and paste this URL into your browser:<br>
+                <a href="${magicLinkUrl}" style="color: #666666;">${magicLinkUrl}</a>
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f5f5f5; padding: 24px 32px; border-top: 2px solid #000000;">
+              <p style="margin: 0; color: #999999; font-size: 12px; text-align: center; text-transform: uppercase; letter-spacing: 1px;">
+                NYC Surf Co &bull; Long Island Surf Forecasts
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`;
+
+  const text = `Sign in to NYC Surf Co
+
+Click this link to sign in to your account:
+${magicLinkUrl}
+
+This link expires in 24 hours.
+
+If you didn't request this email, you can safely ignore it.
+
+---
+NYC Surf Co - Long Island Surf Forecasts`;
+
+  return sendEmail({
+    to,
+    subject,
+    html,
+    text,
+  });
+}

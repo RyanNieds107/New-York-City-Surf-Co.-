@@ -4,7 +4,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
-import { Loader2, Bell, Users, Briefcase, X, ChevronRight, Phone, Store, GraduationCap, Wrench } from "lucide-react";
+import { Loader2, Bell, Users, Briefcase, X, ChevronRight, Phone, Store, GraduationCap, Wrench, LogOut } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,8 +12,31 @@ import { formatDistanceToNow } from "date-fns";
 
 export default function Members() {
   const [, setLocation] = useLocation();
-  const { user } = useAuth();
+  // Use auth hook with redirect - if not authenticated, redirect to login
+  const { user, loading, logout } = useAuth({ 
+    redirectOnUnauthenticated: true,
+    redirectPath: "/login"
+  });
   const utils = trpc.useUtils();
+
+  // Show loading state while checking auth
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-black" />
+          <p className="text-sm text-gray-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+            Loading...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // If no user after loading, don't render (redirect will happen)
+  if (!user) {
+    return null;
+  }
   const { data: spots } = trpc.spots.list.useQuery();
   const { data: alerts, refetch: refetchAlerts } = trpc.alerts.list.useQuery(undefined, {
     enabled: !!user,
@@ -135,14 +158,39 @@ export default function Members() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3">
           <div className="flex items-center justify-between">
             <Logo logoSize="h-9 sm:h-10" showLink={true} />
-            <button
-              onClick={() => setLocation("/dashboard")}
-              className="text-gray-600 hover:text-black transition-colors text-xs uppercase tracking-wider flex items-center gap-1"
-              style={{ fontFamily: "'JetBrains Mono', monospace" }}
-            >
-              All Spots
-              <ChevronRight className="h-3 w-3" />
-            </button>
+            <div className="flex items-center gap-3 sm:gap-4">
+              {/* User email - hidden on very small screens */}
+              {user?.email && (
+                <span 
+                  className="hidden sm:block text-xs text-gray-500 truncate max-w-[150px]"
+                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                  title={user.email}
+                >
+                  {user.email}
+                </span>
+              )}
+              {/* Sign Out Button */}
+              <button
+                onClick={async () => {
+                  await logout();
+                  setLocation("/login");
+                }}
+                className="text-gray-500 hover:text-black transition-colors text-xs uppercase tracking-wider flex items-center gap-1"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                <LogOut className="h-3 w-3" />
+                <span className="hidden sm:inline">Sign Out</span>
+              </button>
+              {/* Dashboard Link */}
+              <button
+                onClick={() => setLocation("/dashboard")}
+                className="text-gray-600 hover:text-black transition-colors text-xs uppercase tracking-wider flex items-center gap-1"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                All Spots
+                <ChevronRight className="h-3 w-3" />
+              </button>
+            </div>
           </div>
         </div>
       </header>

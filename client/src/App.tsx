@@ -16,6 +16,8 @@ import Welcome from "./pages/Welcome";
 import Mission from "./pages/Mission";
 import Members from "./pages/Members";
 import AdminAlerts from "./pages/AdminAlerts";
+import VerifyMagicLink from "./pages/VerifyMagicLink";
+import CheckEmail from "./pages/CheckEmail";
 
 function Router() {
   return (
@@ -23,6 +25,8 @@ function Router() {
       <Route path="/" component={LandingPage} />
       <Route path="/sign-in" component={SignIn} />
       <Route path="/login" component={Login} />
+      <Route path="/auth/verify" component={VerifyMagicLink} />
+      <Route path="/check-email" component={CheckEmail} />
       <Route path="/welcome" component={Welcome} />
       <Route path="/members" component={Members} />
       <Route path="/dashboard" component={Dashboard} />

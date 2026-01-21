@@ -43,8 +43,9 @@ import { makeRequest, type DistanceMatrixResult, type TravelMode } from "./_core
 import { getSpotProfile, getSpotKey, SPOT_PROFILES } from "./utils/spotProfiles";
 import { getDominantSwell, calculateBreakingWaveHeight, formatWaveHeight } from "./utils/waveHeight";
 import { generateForecastOutput } from "./utils/forecastOutput";
-import { forecastPoints, conditionsLog, users, type User } from "../drizzle/schema";
-import { eq, desc } from "drizzle-orm";
+import { forecastPoints, conditionsLog, users, verificationTokens, type User } from "../drizzle/schema";
+import { eq, desc, and, gt } from "drizzle-orm";
+import { randomBytes } from "crypto";
 import { getDb } from "./db";
 import { fetchBuoy44065Cached, clearBuoyCache } from "./services/buoy44065";
 import { adminProcedure } from "./_core/trpc";
@@ -192,6 +193,135 @@ export const appRouter = router({
 
         return { success: true };
     }),
+
+    // ==================== MAGIC LINK AUTHENTICATION ====================
+    sendMagicLink: publicProcedure
+      .input(
+        z.object({
+          email: z.string().email(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const db = getDb();
+        const { sendMagicLinkEmail } = await import("./services/email");
+
+        const email = input.email.toLowerCase().trim();
+
+        // Generate secure token (64 character hex string)
+        const token = randomBytes(32).toString("hex");
+        
+        // Token expires in 24 hours
+        const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+        // Delete any existing tokens for this email
+        await db.delete(verificationTokens).where(eq(verificationTokens.identifier, email));
+
+        // Store the new token
+        await db.insert(verificationTokens).values({
+          identifier: email,
+          token,
+          expires,
+        });
+
+        // Build the magic link URL
+        const baseUrl = process.env.BASE_URL || process.env.PUBLIC_URL || "https://www.nycsurfco.com";
+        const magicLinkUrl = `${baseUrl}/auth/verify?token=${token}`;
+
+        // Send the email
+        const emailSent = await sendMagicLinkEmail({
+          to: email,
+          magicLinkUrl,
+        });
+
+        if (!emailSent) {
+          console.warn(`[Magic Link] Failed to send email to ${email}`);
+          // Don't reveal if email failed - just say we sent it
+        }
+
+        console.log(`[Magic Link] Token generated for ${email}, expires at ${expires.toISOString()}`);
+
+        return { success: true };
+      }),
+
+    verifyMagicLink: publicProcedure
+      .input(
+        z.object({
+          token: z.string().min(1),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const db = getDb();
+        const { upsertUser, getUserByEmail } = await import("./db");
+        const { signCustomSessionToken } = await import("./_core/jwt");
+        const { COOKIE_NAME, ONE_YEAR_MS } = await import("@shared/const");
+        const { getSessionCookieOptions } = await import("./_core/cookies");
+
+        // Find the token in the database
+        const tokenRecords = await db
+          .select()
+          .from(verificationTokens)
+          .where(
+            and(
+              eq(verificationTokens.token, input.token),
+              gt(verificationTokens.expires, new Date())
+            )
+          )
+          .limit(1);
+
+        const tokenRecord = tokenRecords[0];
+
+        if (!tokenRecord) {
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Invalid or expired magic link. Please request a new one.",
+          });
+        }
+
+        const email = tokenRecord.identifier;
+
+        // Delete the used token (single-use)
+        await db.delete(verificationTokens).where(eq(verificationTokens.token, input.token));
+
+        // Generate openId hash from email (same logic as other auth flows)
+        const openIdHash = (await sha256(email)).substring(0, 32);
+        const customOpenId = `email:${openIdHash}`;
+
+        // Check if user exists, if not create them
+        let existingUser = await getUserByEmail(email);
+
+        if (!existingUser) {
+          // Create new user
+          await upsertUser({
+            openId: customOpenId,
+            name: email.split("@")[0], // Use part before @ as default name
+            email: email,
+            phone: null,
+            smsOptIn: 0,
+            loginMethod: "magic_link",
+            lastSignedIn: new Date(),
+          });
+          existingUser = await getUserByEmail(email);
+        } else {
+          // Update last signed in
+          await db.update(users).set({ lastSignedIn: new Date() }).where(eq(users.email, email));
+        }
+
+        // Create session token (30-day sessions as requested)
+        const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+        const sessionToken = await signCustomSessionToken(
+          customOpenId,
+          existingUser?.name || email.split("@")[0],
+          THIRTY_DAYS_MS
+        );
+
+        // Set cookie
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: THIRTY_DAYS_MS });
+
+        console.log(`[Magic Link] Successfully verified and logged in user: ${email}`);
+
+        return { success: true, email };
+      }),
   }),
 
   // ==================== SPOTS ROUTER ====================
