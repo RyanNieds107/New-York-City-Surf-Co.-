@@ -32,6 +32,12 @@ export default function Members() {
   const [emailEnabled, setEmailEnabled] = useState(false);
   const [isSliderDragging, setIsSliderDragging] = useState(false);
   const [deletingAlertId, setDeletingAlertId] = useState<number | null>(null);
+  
+  // Advanced filters state
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [minWaveHeight, setMinWaveHeight] = useState<number | null>(null);
+  const [minPeriod, setMinPeriod] = useState<number | null>(null);
+  const [idealWindOnly, setIdealWindOnly] = useState(false);
 
   // Crowd report state
   const [crowdSpotId, setCrowdSpotId] = useState<number | null>(null);
@@ -49,6 +55,11 @@ export default function Members() {
       setMinQualityScore(70);
       setAlertFrequency("once");
       setEmailEnabled(false);
+      // Reset advanced filters
+      setShowAdvancedFilters(false);
+      setMinWaveHeight(null);
+      setMinPeriod(null);
+      setIdealWindOnly(false);
     },
     onError: (error) => {
       toast.error(error.message || "Failed to create alert");
@@ -92,6 +103,9 @@ export default function Members() {
     createAlertMutation.mutate({
       spotId: alertSpotId,
       minQualityScore,
+      minWaveHeightFt: minWaveHeight ?? undefined,
+      minPeriodSec: minPeriod ?? undefined,
+      idealWindOnly,
       emailEnabled,
       smsEnabled: false, // SMS coming soon
       hoursAdvanceNotice: daysAdvanceNotice * 24,
@@ -318,6 +332,116 @@ export default function Members() {
                     <span>50</span>
                     <span>95</span>
                   </div>
+
+                  {/* Advanced Filters Toggle */}
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                    className="mt-4 text-[10px] sm:text-xs text-gray-500 hover:text-black transition-colors uppercase tracking-widest"
+                    style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                  >
+                    {showAdvancedFilters ? '− Hide' : '+ Add'} wave/wind filters
+                  </button>
+
+                  {/* Advanced Filters */}
+                  {showAdvancedFilters && (
+                    <div className="mt-4 pt-4 border-t border-gray-200 space-y-4">
+                      {/* Min Wave Height */}
+                      <div>
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="text-[10px] sm:text-xs text-gray-600 uppercase tracking-widest" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                            Min Wave Height
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setMinWaveHeight(minWaveHeight === null ? 2 : null)}
+                            className="text-[10px] sm:text-xs text-gray-500 hover:text-black transition-colors"
+                            style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                          >
+                            {minWaveHeight !== null ? `${minWaveHeight}ft` : 'Any'}
+                          </button>
+                        </div>
+                        {minWaveHeight !== null && (
+                          <div className="relative">
+                            <input
+                              type="range"
+                              min="1"
+                              max="6"
+                              step="0.5"
+                              value={minWaveHeight}
+                              onChange={(e) => setMinWaveHeight(parseFloat(e.target.value))}
+                              className="w-full h-2 bg-gray-200 rounded-sm appearance-none cursor-pointer accent-black"
+                            />
+                            <div className="flex justify-between text-[8px] text-gray-400 mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                              <span>1ft</span>
+                              <span>6ft</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Min Swell Period */}
+                      <div>
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="text-[10px] sm:text-xs text-gray-600 uppercase tracking-widest" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                            Min Swell Period
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setMinPeriod(minPeriod === null ? 8 : null)}
+                            className="text-[10px] sm:text-xs text-gray-500 hover:text-black transition-colors"
+                            style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                          >
+                            {minPeriod !== null ? `${minPeriod}s` : 'Any'}
+                          </button>
+                        </div>
+                        {minPeriod !== null && (
+                          <div className="relative">
+                            <input
+                              type="range"
+                              min="6"
+                              max="16"
+                              step="1"
+                              value={minPeriod}
+                              onChange={(e) => setMinPeriod(parseInt(e.target.value))}
+                              className="w-full h-2 bg-gray-200 rounded-sm appearance-none cursor-pointer accent-black"
+                            />
+                            <div className="flex justify-between text-[8px] text-gray-400 mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                              <span>6s</span>
+                              <span>16s</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Ideal Wind Only */}
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => setIdealWindOnly(!idealWindOnly)}
+                          className={`w-full p-3 text-left transition-all border-2 ${
+                            idealWindOnly
+                              ? "bg-black text-white border-black"
+                              : "bg-white text-black border-gray-300 hover:border-black"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="font-bold text-[10px] sm:text-xs uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                Ideal Wind Only
+                              </div>
+                              <div className={`text-[9px] sm:text-[10px] mt-0.5 ${idealWindOnly ? "text-gray-300" : "text-gray-500"}`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                Offshore or side-offshore winds
+                              </div>
+                            </div>
+                            <div className={`w-4 h-4 border-2 flex items-center justify-center ${idealWindOnly ? "bg-white border-white" : "border-gray-400"}`}>
+                              {idealWindOnly && <span className="text-black text-xs">✓</span>}
+                            </div>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Section 03: Forecast Window */}
