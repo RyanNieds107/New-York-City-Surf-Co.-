@@ -1301,7 +1301,7 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
 
 export default function LandingPage() {
   const [, setLocation] = useLocation();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
   const [travelMode, setTravelMode] = useState<"driving" | "transit">("driving");
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -1416,15 +1416,44 @@ export default function LandingPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48 bg-white border-2 border-black rounded-none">
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setLocation("/login");
-                    }}
-                    className="cursor-pointer px-4 py-3 text-sm font-medium"
-                    style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
-                  >
-                    Login or Sign Up
-                  </DropdownMenuItem>
+                  {isAuthenticated ? (
+                    <>
+                      {user?.email && (
+                        <div className="px-4 py-2 text-xs text-gray-500 border-b border-gray-200" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                          {user.email}
+                        </div>
+                      )}
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setLocation("/members");
+                        }}
+                        className="cursor-pointer px-4 py-3 text-sm font-medium"
+                        style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
+                      >
+                        Members Portal
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={async () => {
+                          await logout();
+                          setLocation("/");
+                        }}
+                        className="cursor-pointer px-4 py-3 text-sm font-medium text-red-600 hover:text-red-700"
+                        style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
+                      >
+                        Sign Out
+                      </DropdownMenuItem>
+                    </>
+                  ) : (
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setLocation("/login");
+                      }}
+                      className="cursor-pointer px-4 py-3 text-sm font-medium"
+                      style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
+                    >
+                      Login or Sign Up
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

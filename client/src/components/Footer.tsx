@@ -1,8 +1,11 @@
 import { Link } from "wouter";
-import { Instagram, Facebook, Compass, Share2, FileText } from "lucide-react";
+import { Instagram, Facebook, Compass, Share2, FileText, Users } from "lucide-react";
 import { Logo } from "./Logo";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 export function Footer() {
+  const { user, isAuthenticated } = useAuth();
+
   return (
     <footer className="bg-white border-t-2 border-black mt-auto">
       {/* Main Footer Content */}
@@ -57,13 +60,25 @@ export function Footer() {
                 </li>
                 <li>
                   <Link
-                    href="/login"
-                    className="text-xs md:text-sm text-black hover:bg-black hover:text-white px-1 py-0.5 md:px-2 md:py-1 -ml-1 md:-ml-2 transition-colors inline-block font-medium"
+                    href="/members"
+                    className="flex items-center gap-1 md:gap-2 text-xs md:text-sm text-black hover:bg-black hover:text-white px-1 py-0.5 md:px-2 md:py-1 -ml-1 md:-ml-2 transition-colors font-medium"
                     style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
                   >
-                    Sign In
+                    <Users className="h-3 w-3 md:h-4 md:w-4" />
+                    Members Portal
                   </Link>
                 </li>
+                {!isAuthenticated && (
+                  <li>
+                    <Link
+                      href="/login"
+                      className="text-xs md:text-sm text-black hover:bg-black hover:text-white px-1 py-0.5 md:px-2 md:py-1 -ml-1 md:-ml-2 transition-colors inline-block font-medium"
+                      style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
+                    >
+                      Sign In
+                    </Link>
+                  </li>
+                )}
               </ul>
             </div>
 
