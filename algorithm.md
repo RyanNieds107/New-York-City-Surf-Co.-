@@ -81,11 +81,16 @@ breaking_wave_ft = swell_height_ft * amplification_factor * period_multiplier
 
 ### Period Multiplier (energy factor)
 
-- `period < 5s`: 0.6 (wind chop, weak energy)
-- `5-7s`: 0.8 (short period, some energy loss)
-- `8-10s`: 1.0 (optimal period for Long Island)
-- `11-13s`: 1.1 (long period, extra push)
-- `14s+`: 1.15 (powerful groundswell)
+**CRITICAL RULE: Period determines surfability, not just size.**
+
+A 3ft @ 4s reading is NOT 3ft surf - it's choppy, disorganized wind slop that cannot be surfed on beach breaks. The period threshold is the most important filter in surf forecasting.
+
+**Period Thresholds:**
+- `period < 5s`: **0.0 (EXCLUDED)** - Pure wind chop, not surfable
+- `5-6s`: 0.3 (marginal wind swell, heavily discounted)
+- `7-9s`: 1.0 (actual swell, optimal for Long Island)
+- `10-12s`: 1.1 (long period, extra push)
+- `13s+`: 1.15 (powerful groundswell)
 
 ### Direction Factor (East Swell Adjustment)
 

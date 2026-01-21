@@ -41,7 +41,7 @@ import { getCurrentConditionsFromOpenMeteo } from "./services/openMeteo";
 import { generateForecast, generateForecastTimeline } from "./services/forecast";
 import { makeRequest, type DistanceMatrixResult, type TravelMode } from "./_core/map";
 import { getSpotProfile, getSpotKey, SPOT_PROFILES } from "./utils/spotProfiles";
-import { getDominantSwell, calculateBreakingWaveHeight, formatWaveHeight } from "./utils/waveHeight";
+import { getDominantSwell, calculateBreakingWaveHeight, formatWaveHeight, calculateSwellEnergy } from "./utils/waveHeight";
 import { generateForecastOutput } from "./utils/forecastOutput";
 import { forecastPoints, conditionsLog, users, verificationTokens, type User } from "../drizzle/schema";
 import { eq, desc, and, gt } from "drizzle-orm";
@@ -1200,34 +1200,39 @@ export const appRouter = router({
           console.warn(`[Buoy Breaking Heights] Failed to get tide info for ${spotName}:`, error);
         }
 
-        // Calculate energy for both components to determine which is dominant
+        // Calculate QUALITY-WEIGHTED energy for both components to determine which is dominant
+        // SURF FORECASTER'S RULE: Period < 5s is wind chop, not surfable waves
+        // We use the same calculateSwellEnergy function that applies period quality factors
         const swellEnergy = reading.swellHeight !== null && reading.swellPeriod !== null
-          ? reading.swellHeight * reading.swellHeight * reading.swellPeriod
+          ? calculateSwellEnergy(reading.swellHeight, reading.swellPeriod)
           : 0;
         
         const windWaveEnergy = reading.windWaveHeight !== null && reading.windWavePeriod !== null
-          ? reading.windWaveHeight * reading.windWaveHeight * reading.windWavePeriod
+          ? calculateSwellEnergy(reading.windWaveHeight, reading.windWavePeriod)
           : 0;
 
-        // Use the height and period that correspond to the dominant energy component
+        // Use the height and period that correspond to the dominant SURFABLE energy component
         let waveHeight: number;
         let dominantPeriod: number;
         let waveDirection: number | null;
 
-        if (windWaveEnergy > swellEnergy && reading.windWaveHeight !== null && reading.windWavePeriod !== null) {
-          // Wind waves are dominant
+        // Wind waves only win if they have higher quality-weighted energy AND period >= 5s (surfable)
+        if (windWaveEnergy > swellEnergy && reading.windWaveHeight !== null && reading.windWavePeriod !== null && reading.windWavePeriod >= 5) {
+          // Wind waves are dominant AND surfable
           waveHeight = reading.windWaveHeight;
           dominantPeriod = reading.windWavePeriod;
           waveDirection = reading.windWaveDirectionDeg;
-          console.log(`[Buoy Breaking Heights] ${spotName}: Using wind waves (energy: ${windWaveEnergy.toFixed(1)}) - ${waveHeight.toFixed(1)}ft @ ${dominantPeriod}s`);
-        } else if (reading.swellHeight !== null && reading.swellPeriod !== null) {
-          // Swell is dominant (or wind waves unavailable)
+          console.log(`[Buoy Breaking Heights] ${spotName}: Using wind waves (quality-weighted energy: ${windWaveEnergy.toFixed(1)}) - ${waveHeight.toFixed(1)}ft @ ${dominantPeriod}s`);
+        } else if (reading.swellHeight !== null && reading.swellPeriod !== null && reading.swellPeriod >= 5) {
+          // Swell is dominant (or wind waves are unsurfable chop)
           waveHeight = reading.swellHeight;
           dominantPeriod = reading.swellPeriod;
           waveDirection = reading.swellDirectionDeg;
-          console.log(`[Buoy Breaking Heights] ${spotName}: Using swell (energy: ${swellEnergy.toFixed(1)}) - ${waveHeight.toFixed(1)}ft @ ${dominantPeriod}s`);
+          console.log(`[Buoy Breaking Heights] ${spotName}: Using swell (quality-weighted energy: ${swellEnergy.toFixed(1)}) - ${waveHeight.toFixed(1)}ft @ ${dominantPeriod}s`);
         } else {
-          console.warn(`[Buoy Breaking Heights] ${spotName}: No valid swell data available`);
+          // Both components have period < 5s - no surfable waves
+          console.warn(`[Buoy Breaking Heights] ${spotName}: No surfable waves - swell period ${reading.swellPeriod}s, wind wave period ${reading.windWavePeriod}s (both < 5s)`);
+          results[spotName] = 0;
           continue;
         }
 

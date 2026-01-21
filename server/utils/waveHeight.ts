@@ -42,17 +42,25 @@ export interface SwellComponent {
 /**
  * Get period-quality factor for swell energy calculation
  *
- * Very short period swells (< 5s) are wind chop that doesn't produce
- * rideable surf on beach breaks. We penalize them BEFORE swell selection
- * to prevent choppy wind swell from dominating over cleaner primary swells.
+ * SURF FORECASTER'S RULE: Period determines wave quality, not just size.
+ * Short period "waves" are wind chop that creates messy conditions but
+ * does NOT produce rideable surf on beach breaks.
+ *
+ * Period thresholds based on real-world surfability:
+ * - < 5s: Pure wind chop - creates texture on water but not surfable waves
+ * - 5-6s: Marginal wind swell - barely rideable, usually junky
+ * - ≥ 7s: Actual swell - organized waves that break properly
+ *
+ * Example: 3ft @ 4s is NOT 3ft surf - it's choppy, disorganized slop.
+ * Meanwhile, 1ft @ 9s is clean, organized, and actually rideable.
  *
  * @param periodS - Swell period in seconds
- * @returns Quality factor (0.1 for < 4s, 0.5 for 4-5s, 1.0 for >= 5s)
+ * @returns Quality factor (0.0 for < 5s, 0.3 for 5-6s, 1.0 for >= 7s)
  */
 export function getPeriodQualityFactor(periodS: number): number {
-  if (periodS < 4) return 0.1;  // Unsurfable chop - aggressively penalized
-  if (periodS < 5) return 0.5;  // Marginal wind swell
-  return 1.0;                    // Surfable period
+  if (periodS < 5) return 0.0;   // Pure wind chop - NOT surfable, exclude from selection
+  if (periodS < 7) return 0.3;   // Marginal wind swell - heavily discounted
+  return 1.0;                     // Actual swell - full weight
 }
 
 /**
@@ -61,14 +69,18 @@ export function getPeriodQualityFactor(periodS: number): number {
  * This is the PRIMARY metric for comparing swells.
  * Higher energy = more powerful waves that will produce larger surf.
  *
- * IMPORTANT: We apply a period-quality factor to penalize very short period
- * wind swell (< 5s) BEFORE swell selection. This prevents 2ft @ 3s chop
- * from beating a cleaner 1ft @ 6s primary swell in the energy comparison.
+ * SURF FORECASTER'S RULE: Period is everything.
+ * A 3ft @ 4s wind chop reading is NOT 3ft surf - it's unsurfable slop.
+ * We apply aggressive period-quality factors to filter out wind chop
+ * and ensure the displayed wave height reflects ACTUAL SURFABLE CONDITIONS.
  *
- * Example with quality factor:
- * - 2.6ft wind swell @ 3s: Energy = 2.6² × 3 × 0.1 = 2.03 (aggressively penalized)
- * - 0.7ft primary swell @ 8s: Energy = 0.7² × 8 × 1.0 = 3.92 (no penalty)
- * - The primary swell wins because short-period chop is heavily discounted
+ * Real-world examples with updated quality factors:
+ * - 3.3ft wind chop @ 4s: Energy = 3.3² × 4 × 0.0 = 0 (excluded - not surfable)
+ * - 2.0ft wind swell @ 6s: Energy = 2.0² × 6 × 0.3 = 7.2 (discounted - marginal)
+ * - 0.7ft actual swell @ 9s: Energy = 0.7² × 9 × 1.0 = 4.4 (full weight - clean swell)
+ *
+ * In this case, the 0.7ft @ 9s swell wins because it's actual organized swell,
+ * not wind-generated chop that the model sees but surfers can't ride.
  *
  * @param heightFt - Swell height in feet (must be in feet for correct scale)
  * @param periodS - Swell period in seconds
@@ -78,7 +90,7 @@ export function calculateSwellEnergy(heightFt: number, periodS: number): number 
   // Ensure height is positive
   if (heightFt <= 0 || periodS <= 0) return 0;
 
-  // Apply period-quality factor to penalize unsurfable short-period chop
+  // Apply period-quality factor to exclude unsurfable wind chop
   const qualityFactor = getPeriodQualityFactor(periodS);
   return heightFt * heightFt * periodS * qualityFactor;
 }
@@ -425,9 +437,18 @@ export function calculateBreakingWaveHeight(
   if (buoyPeriodS != null && buoyPeriodS > 0 && buoyPeriodS !== periodS) {
     console.log(`🔄 [Dynamic Period Selection] Using NOAA buoy period ${buoyPeriodS}s instead of Open-Meteo ${periodS}s`);
   }
+  
   // Validate inputs are in correct units (feet, seconds)
   if (swellHeightFt < 0 || effectivePeriod <= 0) {
     console.log('⚠️ [calculateBreakingWaveHeight] Invalid input:', { swellHeightFt, effectivePeriod, originalPeriodS: periodS, buoyPeriodS });
+    return 0;
+  }
+
+  // SURF FORECASTER'S RULE: Period < 5s is NOT surfable
+  // Even if the model reports 3ft @ 4s, that's choppy wind slop, not rideable waves.
+  // We cap the height contribution from short-period chop to prevent misleading forecasts.
+  if (effectivePeriod < 5) {
+    console.log(`⚠️ [calculateBreakingWaveHeight] Period ${effectivePeriod}s < 5s is wind chop, not surfable waves. Returning 0.`);
     return 0;
   }
 
