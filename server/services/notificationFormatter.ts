@@ -9,643 +9,161 @@ export interface FormattedNotification {
 }
 
 /**
- * Formats swell alert notifications based on user preferences.
- * Includes/excludes confidence intervals and explanations as configured.
+ * Formats swell alert notifications - ruthlessly minimal.
+ * The alert's job: Make someone decide "do I go?" 
+ * Save the detailed breakdown for the full forecast page.
  */
 export function formatSwellAlertNotification(
   detectedSwell: DetectedSwell,
   alert: SwellAlert,
   spot: SurfSpot
 ): FormattedNotification {
-  const { peakWaveHeightFt, peakQualityScore, avgPeriodSec, swellStartTime, swellEndTime } =
+  const { peakWaveHeightFt, peakQualityScore, avgPeriodSec, swellStartTime, swellEndTime, conditions } =
     detectedSwell;
 
-  const dateStr = swellStartTime.toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-
-  const endDateStr = swellEndTime.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-
-  // Build explanation if requested
-  let explanation = "";
-  if (alert.includeExplanation === 1) {
-    if (peakQualityScore >= 70) {
-      explanation = "Excellent conditions expected! Ideal swell direction, period, and wind setup.";
-    } else if (peakQualityScore >= 60) {
-      explanation = "Great conditions for this spot. Good swell size and period with favorable winds.";
-    } else if (peakQualityScore >= 50) {
-      explanation = "Surfable conditions. Worth checking out if you're in the area.";
-    }
-  }
-
-  // Build confidence info if requested
-  let confidenceText = "";
-  if (alert.includeConfidenceIntervals === 1) {
-    // Simple confidence estimation based on how far out the forecast is
-    const hoursUntilSwell = (swellStartTime.getTime() - Date.now()) / (1000 * 60 * 60);
-    if (hoursUntilSwell > 72) {
-      confidenceText = "Confidence: Medium (forecast may change as we get closer)";
-    } else if (hoursUntilSwell > 24) {
-      confidenceText = "Confidence: High (forecast is looking solid)";
-    } else {
-      confidenceText = "Confidence: Very High (conditions are imminent)";
-    }
-  }
-
-  // Format wave height range
-  const hoursDuration =
-    (swellEndTime.getTime() - swellStartTime.getTime()) / (1000 * 60 * 60);
-  const durationText = hoursDuration >= 24
-    ? `${Math.round(hoursDuration / 24)} days`
-    : `${Math.round(hoursDuration)} hours`;
-
-  // Dynamic quality label based on score
-  const getQualityLabel = (score: number): string => {
-    if (score >= 80) return "FIRING";
-    if (score >= 60) return "GOOD";
-    return "FAIR";
+  // Get wind type from first condition (most relevant)
+  const windType = conditions[0]?.windType || "variable";
+  
+  // Calculate hours until swell
+  const hoursUntil = Math.round((swellStartTime.getTime() - Date.now()) / (1000 * 60 * 60));
+  
+  // Format time window (e.g., "Sat 7AM-11AM")
+  const formatTimeWindow = (): string => {
+    const startDay = swellStartTime.toLocaleDateString("en-US", { weekday: "short" });
+    const startHour = swellStartTime.toLocaleTimeString("en-US", { hour: "numeric", hour12: true }).replace(" ", "");
+    const endHour = swellEndTime.toLocaleTimeString("en-US", { hour: "numeric", hour12: true }).replace(" ", "");
+    return `${startDay} ${startHour}-${endHour}`;
   };
 
-  // Dynamic timing label for subject (surf-appropriate times)
-  const getTimingLabel = (): string => {
-    const now = new Date();
-    const hoursUntil = (swellStartTime.getTime() - now.getTime()) / (1000 * 60 * 60);
-    const swellHour = swellStartTime.getHours();
-
-    // Determine time of day label
-    const getTimeOfDay = (hour: number): string => {
-      if (hour >= 5 && hour < 12) return "Morning";
-      if (hour >= 12 && hour < 17) return "Afternoon";
-      return "Evening";
-    };
-
-    if (hoursUntil <= 0) return "NOW";
-
-    // Check if it's today
-    const isToday = swellStartTime.toDateString() === now.toDateString();
-    if (isToday) {
-      return `This ${getTimeOfDay(swellHour)}`;
-    }
-
-    // Check if it's tomorrow
-    const tomorrow = new Date(now);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const isTomorrow = swellStartTime.toDateString() === tomorrow.toDateString();
-    if (isTomorrow) {
-      return `Tomorrow ${getTimeOfDay(swellHour)}`;
-    }
-
-    // Further out - show day name
-    const dayName = swellStartTime.toLocaleDateString("en-US", { weekday: "short" });
-    return `${dayName} ${getTimeOfDay(swellHour)}`;
-  };
-
-  const qualityLabel = getQualityLabel(peakQualityScore);
-  const timingLabel = getTimingLabel();
+  // Format wave height range (e.g., "4-5ft")
   const waveHeight = Math.round(peakWaveHeightFt);
   const waveHeightRange = `${waveHeight}-${waveHeight + 1}ft`;
 
-  // Short date for subject line (e.g., "Jan 14")
-  const subjectDateStr = swellStartTime.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
-
-  // Subject line - brutalist format
-  const subject = `SWELL ALERT: ${spot.name} | ${waveHeightRange} ${qualityLabel} | ${subjectDateStr}`;
-
-  // Preview text - dynamic based on conditions
-  const getConfidencePhrase = (): string => {
-    const hoursUntilSwell = (swellStartTime.getTime() - Date.now()) / (1000 * 60 * 60);
-    if (hoursUntilSwell <= 24) return "Conditions are imminent.";
-    if (hoursUntilSwell <= 72) return "Forecast is looking solid.";
-    return "Tracking a promising swell.";
+  // Quality label
+  const getQualityLabel = (score: number): string => {
+    if (score >= 80) return "FIRING";
+    if (score >= 70) return "GREAT";
+    if (score >= 60) return "GOOD";
+    if (score >= 50) return "FAIR";
+    return "POOR";
   };
+  const qualityLabel = getQualityLabel(peakQualityScore);
 
-  const getQualityPhrase = (score: number): string => {
-    if (score >= 80) return "Excellent";
-    if (score >= 70) return "Great";
-    if (score >= 60) return "Good";
-    return "Decent";
-  };
-
-  const previewText = `${getConfidencePhrase()} ${getQualityPhrase(peakQualityScore)} swell direction, ${avgPeriodSec}s period, and favorable wind setup.`;
-
-  // SMS text (160 chars max, simplified)
-  const smsText = `🏄 NYC Surf Co.\n\n${spot.name}: ${peakWaveHeightFt.toFixed(1)}ft @ ${avgPeriodSec}s\nQuality: ${peakQualityScore}/100\nStarts: ${dateStr}\n${confidenceText ? `${confidenceText}\n` : ""}${explanation ? `\n${explanation}` : ""}`;
-
-  // Get confidence level details
-  const getConfidenceDetails = () => {
-    const hoursUntilSwell = (swellStartTime.getTime() - Date.now()) / (1000 * 60 * 60);
-    if (hoursUntilSwell <= 24) {
-      return { level: "VERY HIGH", description: "Conditions are imminent. Excellent swell direction, period, and wind setup." };
-    } else if (hoursUntilSwell <= 72) {
-      return { level: "HIGH", description: "Forecast is looking solid. Good confidence in predicted conditions." };
+  // Wind label (e.g., "NW Offshore")
+  const getWindLabel = (type: string | null): string => {
+    if (!type) return "Variable";
+    switch (type) {
+      case "offshore": return "Offshore";
+      case "side-offshore": return "Side-offshore";
+      case "side-onshore": return "Side-onshore";
+      case "onshore": return "Onshore";
+      default: return "Variable";
     }
-    return { level: "MEDIUM", description: "Forecast may change as we get closer. Keep an eye on updates." };
   };
+  const windLabel = getWindLabel(windType);
 
-  const confidenceDetails = alert.includeConfidenceIntervals === 1 ? getConfidenceDetails() : null;
-
-  // Get quality score color and text color (matching website's ratingColors.ts)
-  const getQualityBadgeColors = (score: number): { bg: string; text: string } => {
-    const s = Math.round(score);
-    if (s >= 91) return { bg: "#059669", text: "#ffffff" }; // emerald-600 - All-Time
-    if (s >= 76) return { bg: "#16a34a", text: "#ffffff" }; // green-600 - Firing
-    if (s >= 60) return { bg: "#84cc16", text: "#000000" }; // lime-500 - Go Surf
-    if (s >= 40) return { bg: "#eab308", text: "#000000" }; // yellow-500 - Worth a Look
-    return { bg: "#ef4444", text: "#ffffff" }; // red-500 - Don't Bother
+  // Confidence based on hours out (decreases with time)
+  const getConfidence = (hours: number): { percent: number; message: string } => {
+    if (hours <= 12) return { percent: 98, message: "Conditions are locked in. Go surf." };
+    if (hours <= 24) return { percent: 95, message: "Forecast is looking solid. Get prepared." };
+    if (hours <= 48) return { percent: 90, message: "Looking promising. Keep an eye on it." };
+    if (hours <= 72) return { percent: 80, message: "Tracking a swell. Check back tomorrow." };
+    if (hours <= 120) return { percent: 65, message: "Early signal. Still time for changes." };
+    return { percent: 50, message: "Long-range outlook. A lot can change." };
   };
-  const qualityColors = getQualityBadgeColors(peakQualityScore);
+  const confidence = getConfidence(hoursUntil);
 
-  // Estimate comparable ratings for other apps
-  const getSurflineRating = (score: number) => {
-    if (score >= 80) return "Epic";
-    if (score >= 70) return "Good-Epic";
-    if (score >= 60) return "Fair-Good";
-    if (score >= 50) return "Fair";
-    return "Poor-Fair";
+  // Subject line - minimal
+  const subject = `${spot.name}: ${waveHeightRange} ${qualityLabel} - ${formatTimeWindow()}`;
+
+  // Hours out text
+  const hoursOutText = hoursUntil <= 1 ? "NOW" : `${hoursUntil}hrs out`;
+
+  // Quality color for badge
+  const getQualityColor = (score: number): string => {
+    if (score >= 80) return "#059669"; // emerald
+    if (score >= 70) return "#16a34a"; // green
+    if (score >= 60) return "#84cc16"; // lime
+    if (score >= 50) return "#eab308"; // yellow
+    return "#ef4444"; // red
   };
+  const qualityColor = getQualityColor(peakQualityScore);
 
-  const getMagicSeaweedStars = (score: number) => {
-    if (score >= 80) return "5★";
-    if (score >= 70) return "4★";
-    if (score >= 60) return "3★";
-    if (score >= 50) return "2★";
-    return "1★";
-  };
+  // SMS text (160 chars max)
+  const smsText = `${spot.name.toUpperCase()}
+${formatTimeWindow()}: ${waveHeightRange} - ${qualityLabel}
+${peakWaveHeightFt.toFixed(0)}ft @ ${avgPeriodSec}s | ${windLabel}
+${confidence.percent}% confidence
+${confidence.message}`;
 
-  // Email HTML - Brutalist NYC grit aesthetic, mobile-optimized
-  const surflineRating = getSurflineRating(peakQualityScore);
-  const magicSeaweedStars = getMagicSeaweedStars(peakQualityScore);
-
+  // Email HTML - ruthlessly minimal
   const emailHtml = `
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <!--[if !mso]><!-->
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-    <!--<![endif]-->
-    <style type="text/css">
-        /* Mobile-first responsive styles */
-        @media only screen and (max-width: 600px) {
-            .mobile-full-width { width: 100% !important; }
-            .mobile-padding { padding: 16px !important; }
-            .mobile-text-large { font-size: 28px !important; }
-            .mobile-text-medium { font-size: 24px !important; }
-            .mobile-stack { display: block !important; width: 100% !important; }
-        }
+    <style>
+        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f5f5f5; }
+        .container { max-width: 400px; margin: 0 auto; background: #fff; }
+        .header { background: #000; color: #fff; padding: 16px 20px; }
+        .spot-name { font-size: 24px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; margin: 0; }
+        .content { padding: 20px; }
+        .main-line { font-size: 18px; font-weight: 700; color: #000; margin: 0 0 16px 0; }
+        .badge { display: inline-block; background: ${qualityColor}; color: ${peakQualityScore >= 60 && peakQualityScore < 70 ? '#000' : '#fff'}; padding: 2px 8px; font-size: 12px; font-weight: 700; text-transform: uppercase; margin-left: 8px; }
+        .details { font-size: 14px; color: #333; line-height: 1.6; margin: 0 0 16px 0; }
+        .detail-row { margin: 4px 0; }
+        .label { color: #666; }
+        .confidence { background: #f0f0f0; padding: 12px; margin: 16px 0; }
+        .confidence-header { font-size: 13px; font-weight: 600; color: #000; margin: 0 0 4px 0; }
+        .confidence-message { font-size: 13px; color: #333; margin: 0; }
+        .cta { display: block; background: #000; color: #fff; text-align: center; padding: 14px 20px; text-decoration: none; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+        .footer { padding: 16px 20px; text-align: center; font-size: 11px; color: #999; }
+        .footer a { color: #666; }
     </style>
 </head>
-<body style="margin: 0; padding: 0; background-color: #1a1a1a; font-family: 'Arial Black', Gadget, sans-serif; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;">
-    <!-- Preview text (preheader) -->
-    <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all;">
-        ${previewText}
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="spot-name">${spot.name}</h1>
+        </div>
+        <div class="content">
+            <p class="main-line">
+                ${formatTimeWindow()}: ${waveHeightRange}<span class="badge">${qualityLabel}</span>
+            </p>
+            <div class="details">
+                <div class="detail-row"><span class="label">Swell:</span> ${peakWaveHeightFt.toFixed(0)}ft @ ${avgPeriodSec}s</div>
+                <div class="detail-row"><span class="label">Wind:</span> ${windLabel}, ${hoursOutText}</div>
+            </div>
+            <div class="confidence">
+                <p class="confidence-header">${confidence.percent}% confidence</p>
+                <p class="confidence-message">${confidence.message}</p>
+            </div>
+        </div>
+        <a href="${process.env.APP_URL || "https://nycsurfco.com"}/spot/${spot.id}" class="cta">View Forecast →</a>
+        <div class="footer">
+            <a href="${process.env.APP_URL || "https://nycsurfco.com"}/members">Manage Alerts</a> · NYC Surf Co.
+        </div>
     </div>
-    <!-- Spacer to push hidden content -->
-    <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all;">
-        &nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;
-    </div>
-    <!-- Outer wrapper - 100% width -->
-    <table width="100%" border="0" cellpadding="0" cellspacing="0" style="background-color: #1a1a1a;">
-        <tr>
-            <td align="center" style="padding: 0;">
-                <!-- Inner container - fluid with max 600px -->
-                <table class="mobile-full-width" width="100%" border="0" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border: 3px solid #000000;">
-
-                    <!-- Header -->
-                    <tr>
-                        <td class="mobile-padding" style="padding: 20px; background-color: #000000;">
-                            <table border="0" cellpadding="0" cellspacing="0" width="100%">
-                                <tr>
-                                    <td style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 24px; font-weight: 900; color: #ffffff; text-transform: uppercase; letter-spacing: 2px;">
-                                        SWELL ALERT
-                                    </td>
-                                </tr>
-                                <tr><td height="6"></td></tr>
-                                <tr>
-                                    <td style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #888888; text-transform: uppercase; letter-spacing: 1px;">
-                                        NYC SURF CO. // CONDITIONS FIRING
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-
-                    <!-- Spacer -->
-                    <tr><td height="16"></td></tr>
-
-                    <!-- Section 01: Spot (tight inline container) -->
-                    <tr>
-                        <td class="mobile-padding" style="padding: 0 20px;">
-                            <table border="0" cellpadding="0" cellspacing="0">
-                                <tr>
-                                    <td style="font-family: 'Courier New', Courier, monospace; font-size: 9px; color: #666666; text-transform: uppercase; letter-spacing: 1px;">
-                                        01 // SPOT
-                                    </td>
-                                </tr>
-                                <tr><td height="6"></td></tr>
-                                <tr>
-                                    <td>
-                                        <table border="0" cellpadding="0" cellspacing="0" style="border: 3px solid #000000; background-color: #000000;">
-                                            <tr>
-                                                <td style="padding: 8px 16px; font-family: 'Arial Black', Gadget, sans-serif; font-size: 13px; font-weight: 900; color: #ffffff; text-transform: uppercase; letter-spacing: 1px;">
-                                                    ${spot.name.toUpperCase()}
-                                                </td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-
-                    <!-- Spacer -->
-                    <tr><td height="16"></td></tr>
-
-                    <!-- Section 02: Conditions -->
-                    <tr>
-                        <td class="mobile-padding" style="padding: 0 20px;">
-                            <table border="0" cellpadding="0" cellspacing="0" width="100%">
-                                <tr>
-                                    <td style="font-family: 'Courier New', Courier, monospace; font-size: 9px; color: #666666; text-transform: uppercase; letter-spacing: 1px;">
-                                        02 // CONDITIONS
-                                    </td>
-                                </tr>
-                                <tr><td height="8"></td></tr>
-                                <tr>
-                                    <td>
-                                        <table border="0" cellpadding="0" cellspacing="0" width="100%">
-                                            <tr>
-                                                <td width="48%" valign="top" class="mobile-stack">
-                                                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border: 3px solid #000000;">
-                                                        <tr>
-                                                            <td style="padding: 12px;">
-                                                                <table border="0" cellpadding="0" cellspacing="0">
-                                                                    <tr>
-                                                                        <td style="font-family: 'Courier New', Courier, monospace; font-size: 8px; color: #666666; text-transform: uppercase; letter-spacing: 1px;">
-                                                                            WAVE HEIGHT
-                                                                        </td>
-                                                                    </tr>
-                                                                    <tr><td height="4"></td></tr>
-                                                                    <tr>
-                                                                        <td class="mobile-text-large" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 32px; font-weight: 900; color: #000000; line-height: 1;">
-                                                                            ${peakWaveHeightFt.toFixed(1)}<span style="font-size: 14px;">FT</span>
-                                                                        </td>
-                                                                    </tr>
-                                                                </table>
-                                                            </td>
-                                                        </tr>
-                                                    </table>
-                                                </td>
-                                                <td width="4%"></td>
-                                                <td width="48%" valign="top" class="mobile-stack">
-                                                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border: 3px solid #000000;">
-                                                        <tr>
-                                                            <td style="padding: 12px;">
-                                                                <table border="0" cellpadding="0" cellspacing="0">
-                                                                    <tr>
-                                                                        <td style="font-family: 'Courier New', Courier, monospace; font-size: 8px; color: #666666; text-transform: uppercase; letter-spacing: 1px;">
-                                                                            PERIOD
-                                                                        </td>
-                                                                    </tr>
-                                                                    <tr><td height="4"></td></tr>
-                                                                    <tr>
-                                                                        <td class="mobile-text-large" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 32px; font-weight: 900; color: #000000; line-height: 1;">
-                                                                            ${avgPeriodSec}<span style="font-size: 14px;">S</span>
-                                                                        </td>
-                                                                    </tr>
-                                                                </table>
-                                                            </td>
-                                                        </tr>
-                                                    </table>
-                                                </td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-
-                    <!-- Spacer -->
-                    <tr><td height="16"></td></tr>
-
-                    <!-- Section 03: Quality Score (compact, color-coded) -->
-                    <tr>
-                        <td class="mobile-padding" style="padding: 0 20px;">
-                            <table border="0" cellpadding="0" cellspacing="0" width="100%">
-                                <tr>
-                                    <td style="font-family: 'Courier New', Courier, monospace; font-size: 9px; color: #666666; text-transform: uppercase; letter-spacing: 1px;">
-                                        03 // QUALITY
-                                    </td>
-                                </tr>
-                                <tr><td height="8"></td></tr>
-                                <tr>
-                                    <td>
-                                        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border: 3px solid #000000;">
-                                            <tr>
-                                                <td style="padding: 12px 16px;">
-                                                    <table border="0" cellpadding="0" cellspacing="0" width="100%">
-                                                        <tr>
-                                                            <td valign="middle" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 32px; font-weight: 900; color: #000000; line-height: 1;">
-                                                                ${peakQualityScore}
-                                                            </td>
-                                                            <td valign="middle" align="right">
-                                                                <table border="0" cellpadding="0" cellspacing="0">
-                                                                    <tr>
-                                                                        <td style="background-color: ${qualityColors.bg}; padding: 6px 12px; font-family: 'Arial Black', Gadget, sans-serif; font-size: 11px; font-weight: 900; color: ${qualityColors.text}; text-transform: uppercase; letter-spacing: 1px;">
-                                                                            ${qualityLabel}
-                                                                        </td>
-                                                                    </tr>
-                                                                </table>
-                                                            </td>
-                                                        </tr>
-                                                    </table>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td style="padding: 0 16px 12px 16px;">
-                                                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #e5e5e5;">
-                                                        <tr>
-                                                            <td width="${peakQualityScore}%" style="background-color: ${qualityColors.bg}; height: 6px;"></td>
-                                                            <td width="${100 - peakQualityScore}%" style="height: 6px;"></td>
-                                                        </tr>
-                                                    </table>
-                                                </td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-
-                    <!-- Section 04: Forecast Consensus -->
-                    <tr>
-                        <td class="mobile-padding" style="padding: 0 20px;">
-                            <table border="0" cellpadding="0" cellspacing="0" width="100%">
-                                <tr>
-                                    <td style="font-family: 'Courier New', Courier, monospace; font-size: 9px; color: #666666; text-transform: uppercase; letter-spacing: 1px;">
-                                        04 // FORECAST CONSENSUS
-                                    </td>
-                                </tr>
-                                <tr><td height="8"></td></tr>
-                                <tr>
-                                    <td>
-                                        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border: 3px solid #000000;">
-                                            <tr>
-                                                <td style="padding: 10px 14px; border-bottom: 2px solid #000000; font-family: 'Arial Black', Gadget, sans-serif; font-size: 11px; color: #000000; text-transform: uppercase;">
-                                                    NYC SURF CO.
-                                                </td>
-                                                <td align="right" style="padding: 10px 14px; border-bottom: 2px solid #000000; font-family: 'Courier New', Courier, monospace; font-size: 12px; font-weight: bold; color: #000000;">
-                                                    ${peakQualityScore}/100
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td style="padding: 10px 14px; border-bottom: 2px solid #000000; font-family: 'Arial Black', Gadget, sans-serif; font-size: 11px; color: #000000; text-transform: uppercase;">
-                                                    SURFLINE
-                                                </td>
-                                                <td align="right" style="padding: 10px 14px; border-bottom: 2px solid #000000; font-family: 'Courier New', Courier, monospace; font-size: 12px; font-weight: bold; color: #000000;">
-                                                    ${surflineRating}
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td style="padding: 10px 14px; font-family: 'Arial Black', Gadget, sans-serif; font-size: 11px; color: #000000; text-transform: uppercase;">
-                                                    MAGIC SEAWEED
-                                                </td>
-                                                <td align="right" style="padding: 10px 14px; font-family: 'Courier New', Courier, monospace; font-size: 12px; font-weight: bold; color: #000000;">
-                                                    ${magicSeaweedStars}
-                                                </td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-
-                    <!-- Spacer -->
-                    <tr><td height="16"></td></tr>
-
-                    <!-- Section 05: Swell Source -->
-                    <tr>
-                        <td class="mobile-padding" style="padding: 0 20px;">
-                            <table border="0" cellpadding="0" cellspacing="0" width="100%">
-                                <tr>
-                                    <td style="font-family: 'Courier New', Courier, monospace; font-size: 9px; color: #666666; text-transform: uppercase; letter-spacing: 1px;">
-                                        05 // SWELL SOURCE
-                                    </td>
-                                </tr>
-                                <tr><td height="8"></td></tr>
-                                <tr>
-                                    <td>
-                                        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border: 3px solid #000000; background-color: #FFF9C4;">
-                                            <tr>
-                                                <td style="padding: 12px;">
-                                                    <table border="0" cellpadding="0" cellspacing="0">
-                                                        <tr>
-                                                            <td style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 12px; font-weight: 900; color: #000000; text-transform: uppercase;">
-                                                                ${avgPeriodSec >= 12 ? "GROUNDSWELL" : avgPeriodSec >= 8 ? "MIXED SWELL" : "WINDSWELL"}
-                                                            </td>
-                                                        </tr>
-                                                        <tr><td height="6"></td></tr>
-                                                        <tr>
-                                                            <td style="font-family: 'Courier New', Courier, monospace; font-size: 11px; color: #333333; line-height: 1.4;">
-                                                                ${avgPeriodSec >= 12
-                                                                  ? "Long-period swell from a distant storm. Expect clean, organized waves with good power."
-                                                                  : avgPeriodSec >= 8
-                                                                    ? "Mixed energy from multiple sources. Conditions may be variable but surfable."
-                                                                    : "Short-period wind swell. Waves may be choppy but can still offer fun sessions."}
-                                                            </td>
-                                                        </tr>
-                                                    </table>
-                                                </td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-
-                    <!-- Spacer -->
-                    <tr><td height="16"></td></tr>
-
-                    <!-- Section 06: Timing -->
-                    <tr>
-                        <td class="mobile-padding" style="padding: 0 20px;">
-                            <table border="0" cellpadding="0" cellspacing="0" width="100%">
-                                <tr>
-                                    <td style="font-family: 'Courier New', Courier, monospace; font-size: 9px; color: #666666; text-transform: uppercase; letter-spacing: 1px;">
-                                        06 // FORECAST WINDOW
-                                    </td>
-                                </tr>
-                                <tr><td height="8"></td></tr>
-                                <tr>
-                                    <td>
-                                        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border: 3px solid #000000;">
-                                            <tr>
-                                                <td style="padding: 10px 14px; border-bottom: 2px solid #000000;">
-                                                    <table border="0" cellpadding="0" cellspacing="0" width="100%">
-                                                        <tr>
-                                                            <td style="font-family: 'Courier New', Courier, monospace; font-size: 9px; color: #666666; text-transform: uppercase;">START</td>
-                                                            <td align="right" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 11px; color: #000000;">${dateStr}</td>
-                                                        </tr>
-                                                    </table>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td style="padding: 10px 14px; border-bottom: 2px solid #000000;">
-                                                    <table border="0" cellpadding="0" cellspacing="0" width="100%">
-                                                        <tr>
-                                                            <td style="font-family: 'Courier New', Courier, monospace; font-size: 9px; color: #666666; text-transform: uppercase;">END</td>
-                                                            <td align="right" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 11px; color: #000000;">${endDateStr}</td>
-                                                        </tr>
-                                                    </table>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td style="padding: 10px 14px;">
-                                                    <table border="0" cellpadding="0" cellspacing="0" width="100%">
-                                                        <tr>
-                                                            <td style="font-family: 'Courier New', Courier, monospace; font-size: 9px; color: #666666; text-transform: uppercase;">DURATION</td>
-                                                            <td align="right" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 11px; font-weight: 900; color: #000000;">${durationText.toUpperCase()}</td>
-                                                        </tr>
-                                                    </table>
-                                                </td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-
-                    ${confidenceDetails ? `
-                    <!-- Spacer -->
-                    <tr><td height="16"></td></tr>
-
-                    <!-- Section 07: Confidence -->
-                    <tr>
-                        <td class="mobile-padding" style="padding: 0 20px;">
-                            <table border="0" cellpadding="0" cellspacing="0" width="100%">
-                                <tr>
-                                    <td style="font-family: 'Courier New', Courier, monospace; font-size: 9px; color: #666666; text-transform: uppercase; letter-spacing: 1px;">
-                                        07 // CONFIDENCE
-                                    </td>
-                                </tr>
-                                <tr><td height="8"></td></tr>
-                                <tr>
-                                    <td>
-                                        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border: 3px solid #000000;">
-                                            <tr>
-                                                <td style="padding: 12px;">
-                                                    <table border="0" cellpadding="0" cellspacing="0">
-                                                        <tr>
-                                                            <td style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 14px; font-weight: 900; color: #000000; text-transform: uppercase;">
-                                                                ${confidenceDetails.level}
-                                                            </td>
-                                                        </tr>
-                                                        <tr><td height="6"></td></tr>
-                                                        <tr>
-                                                            <td style="font-family: 'Courier New', Courier, monospace; font-size: 11px; color: #333333; line-height: 1.4;">
-                                                                ${confidenceDetails.description}
-                                                            </td>
-                                                        </tr>
-                                                    </table>
-                                                </td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-                    ` : ""}
-
-                    <!-- Spacer -->
-                    <tr><td height="24"></td></tr>
-
-                    <!-- CTA Button -->
-                    <tr>
-                        <td class="mobile-padding" style="padding: 0 20px;">
-                            <table border="0" cellpadding="0" cellspacing="0" width="100%">
-                                <tr>
-                                    <td align="center">
-                                        <a href="${process.env.APP_URL || "https://nycsurfco.com"}/spot/${spot.id}" style="display: inline-block; background-color: #000000; border: 3px solid #000000; color: #ffffff; font-family: 'Arial Black', Gadget, sans-serif; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; padding: 14px 28px; text-decoration: none;">
-                                            VIEW FULL FORECAST &rarr;
-                                        </a>
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-
-                    <!-- Spacer -->
-                    <tr><td height="24"></td></tr>
-
-                    <!-- Footer -->
-                    <tr>
-                        <td class="mobile-padding" style="padding: 20px; background-color: #000000; border-top: 3px solid #000000;">
-                            <table border="0" cellpadding="0" cellspacing="0" width="100%">
-                                <tr>
-                                    <td align="center" style="font-family: 'Courier New', Courier, monospace; font-size: 9px; color: #888888; text-transform: uppercase; letter-spacing: 1px;">
-                                        NYC SURF CO. // HYPER-LOCAL FORECASTING
-                                    </td>
-                                </tr>
-                                <tr><td height="10"></td></tr>
-                                <tr>
-                                    <td align="center">
-                                        <a href="${process.env.APP_URL || "https://nycsurfco.com"}/dashboard" style="font-family: 'Courier New', Courier, monospace; font-size: 9px; color: #666666; text-decoration: underline;">
-                                            MANAGE YOUR ALERTS
-                                        </a>
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-
-                </table>
-            </td>
-        </tr>
-    </table>
 </body>
 </html>
   `.trim();
 
   // Email text version (fallback)
   const emailText = `
-NYC Surf Co. - Swell Alert
+${spot.name.toUpperCase()}
 
-${spot.name}
+${formatTimeWindow()}: ${waveHeightRange} - ${qualityLabel}
 
-Conditions:
-- Wave Height: ${peakWaveHeightFt.toFixed(1)}ft
-- Period: ${avgPeriodSec}s
-- Quality Score: ${peakQualityScore}/100
-- Duration: ${durationText}
-- Start: ${dateStr}
-- End: ${endDateStr}
+Swell: ${peakWaveHeightFt.toFixed(0)}ft @ ${avgPeriodSec}s
+Wind: ${windLabel}, ${hoursOutText}
 
-${confidenceText ? `${confidenceText}\n` : ""}
-${explanation ? `${explanation}\n` : ""}
+${confidence.percent}% confidence - ${confidence.message}
 
-View full forecast: ${process.env.APP_URL || "https://nycsurfco.com"}/spot/${spot.id}
+View Forecast: ${process.env.APP_URL || "https://nycsurfco.com"}/spot/${spot.id}
 
-Manage your alerts: ${process.env.APP_URL || "https://nycsurfco.com"}/dashboard
+---
+Manage Alerts: ${process.env.APP_URL || "https://nycsurfco.com"}/members
   `.trim();
 
   return {
@@ -655,4 +173,3 @@ Manage your alerts: ${process.env.APP_URL || "https://nycsurfco.com"}/dashboard
     smsText,
   };
 }
-
