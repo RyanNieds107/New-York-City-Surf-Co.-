@@ -23,6 +23,9 @@ export interface DetectedSwell {
   }>;
 }
 
+// Spots that are "Coming Soon" and should be excluded from alerts
+const EXCLUDED_SPOT_NAMES = ["Belmar", "Gilgo Beach", "Montauk"];
+
 /**
  * Detects upcoming swells that match a user's alert criteria.
  * Returns swell windows that meet the alert requirements.
@@ -32,10 +35,13 @@ export async function detectUpcomingSwells(
   spots: SurfSpot[],
   now: Date = new Date()
 ): Promise<DetectedSwell[]> {
+  // Filter out "Coming Soon" spots that don't have active forecasts
+  const activeSpots = spots.filter(s => !EXCLUDED_SPOT_NAMES.includes(s.name));
+  
   // If alert is for a specific spot, only check that spot
-  // Otherwise, check all spots
+  // Otherwise, check all active spots (excludes Coming Soon spots)
   const spotsToCheck = alert.spotId === null 
-    ? spots 
+    ? activeSpots 
     : spots.filter(s => s.id === alert.spotId);
 
   if (spotsToCheck.length === 0) {
