@@ -127,7 +127,7 @@ export default function Login() {
                 ) : (
                   <span className="flex items-center justify-center gap-2">
                     <Mail className="h-4 w-4" />
-                    Send Magic Link
+                    Send Secure Link
                   </span>
                 )}
               </Button>
