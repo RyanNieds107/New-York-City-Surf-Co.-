@@ -143,6 +143,34 @@ export default function Login() {
               </p>
             </div>
 
+            {/* Or Divider */}
+            <div className="relative my-6 sm:my-8">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t-2 border-gray-200"></div>
+              </div>
+              <div className="relative flex justify-center text-xs uppercase tracking-wide">
+                <span
+                  className="bg-white px-4 text-gray-400"
+                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                >
+                  Or
+                </span>
+              </div>
+            </div>
+
+            {/* Google Sign In */}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                window.location.href = "/api/auth/google";
+              }}
+              className="w-full border-2 border-black rounded-none uppercase tracking-wide font-bold py-6 text-sm sm:text-base hover:bg-black hover:text-white transition-colors"
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              Sign In with Google
+            </Button>
+
             {/* Divider */}
             <div className="relative my-6 sm:my-8">
               <div className="absolute inset-0 flex items-center">

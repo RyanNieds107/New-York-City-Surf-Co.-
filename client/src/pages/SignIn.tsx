@@ -6,7 +6,6 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
 import { Loader2 } from "lucide-react";
-import { getLoginUrl } from "@/const";
 
 export default function SignIn() {
   const [, setLocation] = useLocation();
@@ -226,17 +225,17 @@ export default function SignIn() {
               </div>
             </div>
 
-            {/* OAuth Option */}
+            {/* Google Sign In Option */}
             <Button
               type="button"
               variant="outline"
               onClick={() => {
-                window.location.href = getLoginUrl();
+                window.location.href = "/api/auth/google";
               }}
               className="w-full border-2 border-black rounded-none uppercase tracking-wide font-bold py-6 text-sm sm:text-base hover:bg-black hover:text-white transition-colors"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}
             >
-              Sign In with OAuth
+              Sign In with Google
             </Button>
           </div>
 
