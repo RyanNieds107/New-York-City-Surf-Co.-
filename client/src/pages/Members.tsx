@@ -279,21 +279,21 @@ export default function Members() {
                     <button
                       type="button"
                       onClick={() => setAlertSpotId(null)}
-                      className={`p-3 sm:p-5 text-center transition-all ${
+                      className={`p-3 sm:p-4 text-left transition-all ${
                         alertSpotId === null
                           ? "bg-black text-white border-black"
                           : "bg-white text-black border-black hover:bg-gray-50"
                       }`}
                       style={{ borderWidth: "2px", borderStyle: "solid" }}
                     >
-                      <span className="font-bold text-xs sm:text-sm uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      <div className="font-bold text-xs sm:text-sm uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                         BEST SPOT ONLY
-                      </span>
+                      </div>
+                      <div className={`text-[10px] sm:text-[11px] mt-0.5 sm:mt-1 ${alertSpotId === null ? "text-gray-300" : "text-gray-500"}`}>
+                        Alerts for whichever beach has the highest quality score
+                      </div>
                     </button>
                   </div>
-                  <p className="text-[10px] sm:text-xs text-gray-500 mt-2 sm:mt-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    "Best spot only" will alert you to whichever beach has the highest quality score
-                  </p>
                 </div>
 
                 {/* Section 02: Quality Threshold */}
@@ -389,7 +389,7 @@ export default function Members() {
                   <button
                     type="button"
                     onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                    className="mt-4 text-[10px] sm:text-xs text-gray-500 hover:text-black transition-colors uppercase tracking-widest"
+                    className="mt-4 text-xs sm:text-sm text-black font-bold hover:text-gray-600 transition-colors uppercase tracking-wider"
                     style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
                     {showAdvancedFilters ? '− Hide' : '+ Add'} wave/wind filters
