@@ -12,6 +12,7 @@ import { Footer } from "@/components/Footer";
 import { YearInReview2025 } from "@/components/YearInReview2025";
 import { Logo } from "@/components/Logo";
 import { useEffect, useState } from "react";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 export default function Dashboard() {
   // Scroll to top when component mounts
@@ -56,6 +57,12 @@ export default function Dashboard() {
     { origin: userLocation ? `${userLocation.lat},${userLocation.lng}` : "", mode: "driving" },
     { enabled: !!userLocation }
   );
+
+  // Auth and alerts query for promo banner
+  const { user, isAuthenticated } = useAuth();
+  const alertsQuery = trpc.alerts.list.useQuery(undefined, {
+    enabled: isAuthenticated,
+  });
 
   const refreshAllMutation = trpc.forecasts.refreshAll.useMutation({
     onSuccess: () => {
@@ -338,6 +345,18 @@ export default function Dashboard() {
           </>
         ) : (
           <>
+            {/* Alerts Promo Banner - Show to authenticated users without alerts */}
+            {isAuthenticated && alertsQuery.data && alertsQuery.data.length === 0 && (
+              <div className="mb-4 sm:mb-6 p-3 bg-gray-50 border-2 border-black flex items-center justify-between">
+                <p className="text-xs text-gray-700" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  Pro tip: Set up alerts to never miss good conditions
+                </p>
+                <Link href="/members" className="text-xs text-black font-bold uppercase tracking-wider hover:underline" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  Set Up →
+                </Link>
+              </div>
+            )}
+
             {/* Top 3 Spots - Photo Cards */}
             {topThreeSpots.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-4 sm:mb-6">

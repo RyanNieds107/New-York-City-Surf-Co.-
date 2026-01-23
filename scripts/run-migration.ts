@@ -32,13 +32,16 @@ async function runMigration() {
     console.log("SQL:", sql.trim());
     
     // Split by semicolon and execute each statement
-    const statements = sql.split(";").filter(s => s.trim().length > 0);
+    // Filter out Drizzle's statement-breakpoint comments and empty statements
+    const statements = sql
+      .split(";")
+      .map(s => s.trim())
+      .filter(s => s.length > 0 && !s.startsWith("-->"));
     
     for (const statement of statements) {
-      const trimmed = statement.trim();
-      if (trimmed) {
-        await connection.execute(trimmed);
-        console.log("✓ Executed:", trimmed.substring(0, 50) + "...");
+      if (statement) {
+        await connection.execute(statement);
+        console.log("✓ Executed:", statement.substring(0, 50) + "...");
       }
     }
 
@@ -51,6 +54,9 @@ async function runMigration() {
     } else if (error.sqlMessage && error.sqlMessage.includes("Duplicate column name")) {
       console.log("ℹ️  Column already exists - migration already applied");
       console.log("   SQL Message:", error.sqlMessage);
+    } else if (error.code === "ER_TABLE_EXISTS_ERROR" || (error.sqlMessage && error.sqlMessage.includes("already exists"))) {
+      console.log("ℹ️  Table already exists - migration may have already been applied");
+      console.log("   Error details:", error.message);
     } else {
       console.error("❌ Migration failed:", error.message);
       if (error.sqlMessage) {

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, MapPin, Clock, Car, Train, ChevronDown, Users, User } from "lucide-react";
 import { SwellArrow, WindArrowBadge, Arrow } from "@/components/ui/arrow";
 import { useState, useEffect, useMemo } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { Footer } from "@/components/Footer";
 import { Logo } from "@/components/Logo";
 import {
@@ -193,11 +193,13 @@ type SpotForecastCardProps = {
   travelMode?: "driving" | "transit";
   useNeutralBackground?: boolean;
   buoyBasedHeight?: number | null;
+  buoySwellPeriod?: number | null;
+  buoySwellDirection?: number | null;
   buoyData?: BuoyReading;
   buoyLoading?: boolean;
 };
 
-function SpotForecastCard({ spot, forecast, isExpanded, onToggleExpand, onNavigate, travelMode = "driving", useNeutralBackground = false, buoyBasedHeight, buoyData, buoyLoading }: SpotForecastCardProps) {
+function SpotForecastCard({ spot, forecast, isExpanded, onToggleExpand, onNavigate, travelMode = "driving", useNeutralBackground = false, buoyBasedHeight, buoySwellPeriod, buoySwellDirection, buoyData, buoyLoading }: SpotForecastCardProps) {
   // Always fetch timeline for current conditions (fresh from Open-Meteo)
   // Fetch more hours when expanded for the full timeline view
   const timelineQuery = trpc.forecasts.getTimeline.useQuery(
@@ -241,12 +243,22 @@ function SpotForecastCard({ spot, forecast, isExpanded, onToggleExpand, onNaviga
   const surfHeight = formatSurfHeight(heightUsed);
   const ratingLabel = getRatingLabel(score, surfHeight);
 
-  // Get dominant swell period and direction (matching SpotDetail logic)
+  // Get dominant swell period and direction
+  // PRIORITY: Use buoy-based period/direction when available (matches buoyBasedHeight source)
   const getDominantSwellInfo = () => {
+    // If we have buoy-based data, use it for consistency with buoyBasedHeight
+    if (buoySwellPeriod !== null && buoySwellPeriod !== undefined && buoySwellPeriod > 0) {
+      return {
+        period: buoySwellPeriod,
+        direction: buoySwellDirection ?? null,
+      };
+    }
+
+    // Fallback to Open-Meteo forecast data
     if (!currentPoint) return { period: null, direction: null };
-    
+
     const dominantType = currentPoint.dominantSwellType;
-    
+
     if (dominantType === 'primary') {
       return {
         period: currentPoint.wavePeriodSec,
@@ -275,6 +287,15 @@ function SpotForecastCard({ spot, forecast, isExpanded, onToggleExpand, onNaviga
   const swellPeriod = dominantSwell.period !== null ? `${dominantSwell.period.toFixed(0)}s` : '—';
   const swellDirection = dominantSwell.direction !== null ? formatSwellDirection(dominantSwell.direction) : '—';
   const swellDirectionDeg = dominantSwell.direction;
+  // Get just the cardinal direction without degrees
+  const getCardinalDirection = (deg: number | null | undefined): string => {
+    if (deg === null || deg === undefined) return "—";
+    const cardinals = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
+                       'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+    const index = Math.round(deg / 22.5) % 16;
+    return cardinals[index];
+  };
+  const swellDirectionLabel = getCardinalDirection(dominantSwell.direction);
 
   // Format wind info
   const windSpeed = currentPoint?.windSpeedMph !== null && currentPoint?.windSpeedMph !== undefined
@@ -393,13 +414,10 @@ function SpotForecastCard({ spot, forecast, isExpanded, onToggleExpand, onNaviga
                 <div className="h-4 w-16 bg-blue-200 rounded animate-pulse"></div>
               ) : (
                 <div className="flex items-center gap-1 sm:gap-1.5">
-                  <span className="text-xs sm:text-sm font-bold text-black uppercase tracking-wider text-center leading-tight" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    {buoyData
-                      ? `${buoyData.dominantPeriod.toFixed(0)}s ${buoyData.directionLabel}`
-                      : swellPeriod}
+                  <span className="text-xs sm:text-sm font-bold text-black uppercase tracking-wider text-center leading-tight whitespace-nowrap" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    {swellPeriod} {swellDirectionLabel}
                   </span>
-                  {buoyData && <SwellArrow directionDeg={buoyData.waveDirection} size={12} />}
-                  {!buoyData && swellDirectionDeg !== null && <SwellArrow directionDeg={swellDirectionDeg} size={12} />}
+                  {swellDirectionDeg !== null && <SwellArrow directionDeg={swellDirectionDeg} size={12} />}
                 </div>
               )}
               <p className="text-[8px] sm:text-[10px] text-blue-600 uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
@@ -1696,7 +1714,7 @@ export default function LandingPage() {
                   </div>
                   <div className="flex items-start gap-3">
                     <span className="text-black text-lg leading-none mt-0.5">→</span>
-                    <p className="text-sm leading-relaxed text-gray-700" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}><strong className="text-black">Alerts</strong> — don't miss a session. Sign up for swell notifications.</p>
+                    <p className="text-sm leading-relaxed text-gray-700" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}><strong className="text-black">Alerts</strong> — don't miss a session. <Link href="/members" className="text-black underline hover:no-underline">Sign up for swell notifications</Link>.</p>
                   </div>
                 </div>
 
@@ -1824,7 +1842,9 @@ export default function LandingPage() {
                   onNavigate={setLocation}
                   travelMode={travelMode}
                   useNeutralBackground={true}
-                  buoyBasedHeight={buoyBreakingHeightsQuery.data?.[spot.name] ?? null}
+                  buoyBasedHeight={buoyBreakingHeightsQuery.data?.[spot.name]?.height ?? null}
+                  buoySwellPeriod={buoyBreakingHeightsQuery.data?.[spot.name]?.period ?? null}
+                  buoySwellDirection={buoyBreakingHeightsQuery.data?.[spot.name]?.direction ?? null}
                   buoyData={buoyQuery.data}
                   buoyLoading={buoyQuery.isLoading}
                 />

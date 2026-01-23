@@ -1193,7 +1193,7 @@ export const appRouter = router({
       }
 
       const featuredSpotNames = ["Rockaway Beach", "Long Beach", "Lido Beach"];
-      const results: Record<string, number> = {};
+      const results: Record<string, { height: number; period: number; direction: number | null }> = {};
 
       // Get all spots to access tide station IDs
       const allSpots = await getAllSpots();
@@ -1254,7 +1254,7 @@ export const appRouter = router({
         } else {
           // Both components have period < 5s - no surfable waves
           console.warn(`[Buoy Breaking Heights] ${spotName}: No surfable waves - swell period ${reading.swellPeriod}s, wind wave period ${reading.windWavePeriod}s (both < 5s)`);
-          results[spotName] = 0;
+          results[spotName] = { height: 0, period: 0, direction: null };
           continue;
         }
 
@@ -1268,7 +1268,7 @@ export const appRouter = router({
         );
 
         console.log(`[Buoy Breaking Heights] ${spotName}: ${waveHeight.toFixed(1)}ft @ ${dominantPeriod}s → ${breakingHeight.toFixed(1)}ft breaking (tide: ${tideHeightFt?.toFixed(1) ?? 'N/A'}ft ${tidePhase ?? ''})`);
-        results[spotName] = breakingHeight;
+        results[spotName] = { height: breakingHeight, period: dominantPeriod, direction: waveDirection };
       }
 
       console.log('[Buoy Breaking Heights] Final results:', results);

@@ -34,7 +34,7 @@ import { Footer } from "@/components/Footer";
 import { selectCurrentTimelinePoint, CURRENT_CONDITIONS_MAX_AGE_MS, formatSurfHeight, processTimelineForAreaChart, type ExtendedTimelinePoint, type AreaChartDataPoint } from "@/lib/forecastUtils";
 import { WaveHeightChart } from "@/components/WaveHeightChart";
 import { SpotContextHeader, SPOT_CONTEXT } from "@/components/SpotContextHeader";
-import { SwellSignalTeaser } from "@/components/SwellSignalTeaser";
+import { AlertsPromo } from "@/components/AlertsPromo";
 import { getScoreBadgeColors } from "@/lib/ratingColors";
 import { isNighttime } from "@/lib/sunTimes";
 
@@ -1314,7 +1314,7 @@ export default function SpotDetail() {
                           // Use NOAA-based breaking height from currentConditions if available
                           // This comes from getCurrentConditionsForAll which uses buoy data
                           // Fallback to buoyBreakingHeightsQuery if currentConditions doesn't have it
-                          const buoyBasedHeight = spot?.name ? buoyBreakingHeightsQuery.data?.[spot.name] : null;
+                          const buoyBasedHeight = spot?.name ? buoyBreakingHeightsQuery.data?.[spot.name]?.height : null;
                           const displayHeight = currentConditions?.breakingWaveHeightFt ??
                             buoyBasedHeight ??
                             currentConditions?.dominantSwellHeightFt ??
@@ -3344,9 +3344,9 @@ export default function SpotDetail() {
               </div>
             )}
 
-            {/* The Swell Signal - Long Range Forecast Teaser */}
-            <div className="mt-12">
-              <SwellSignalTeaser />
+            {/* Surf Alerts Promo */}
+            <div className="mt-6">
+              <AlertsPromo spotName={spot?.name} />
             </div>
 
             {/* Tabbed Content Interface */}

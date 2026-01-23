@@ -1,4 +1,4 @@
-import { decimal, int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { decimal, int, mysqlEnum, mysqlTable, text, timestamp, unique, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -239,3 +239,23 @@ export const verificationTokens = mysqlTable("verification_tokens", {
 
 export type VerificationToken = typeof verificationTokens.$inferSelect;
 export type InsertVerificationToken = typeof verificationTokens.$inferInsert;
+
+// Stormglass Verification Table (ECMWF model sense-check data)
+export const stormglassVerification = mysqlTable(
+  "stormglass_verification",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    spotId: int("spotId").notNull(), // FK to surf_spots.id
+    forecastTimestamp: timestamp("forecastTimestamp").notNull(), // UTC timestamp (hour-aligned)
+    waveHeightFt: decimal("waveHeightFt", { precision: 4, scale: 1 }), // ECMWF wave height in feet
+    swellHeightFt: decimal("swellHeightFt", { precision: 4, scale: 1 }), // Optional: primary swell height in feet
+    source: varchar("source", { length: 16 }).notNull().default("ecmwf"), // Data source (default: 'ecmwf')
+    fetchedAt: timestamp("fetchedAt").defaultNow().notNull(), // When this verification data was fetched
+  },
+  (table) => ({
+    uniqueSpotTimestamp: unique("unique_spot_timestamp").on(table.spotId, table.forecastTimestamp),
+  })
+);
+
+export type StormglassVerification = typeof stormglassVerification.$inferSelect;
+export type InsertStormglassVerification = typeof stormglassVerification.$inferInsert;
