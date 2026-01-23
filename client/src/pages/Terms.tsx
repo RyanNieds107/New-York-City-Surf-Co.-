@@ -6,9 +6,15 @@ import { useEffect } from "react";
 export default function Terms() {
   const [, setLocation] = useLocation();
   
-  // Scroll to top when component mounts
+  // Set document title and scroll to top when component mounts
   useEffect(() => {
+    const originalTitle = document.title;
+    document.title = "NYC Surf Co. | Terms and Conditions";
     window.scrollTo(0, 0);
+
+    return () => {
+      document.title = originalTitle;
+    };
   }, []);
 
   return (

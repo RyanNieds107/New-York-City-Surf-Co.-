@@ -98,7 +98,7 @@ export function Footer() {
               <ul className="space-y-1 md:space-y-2">
                 <li>
                   <a
-                    href="https://instagram.com"
+                    href="https://www.instagram.com/nycsurfco/"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 md:gap-2 text-xs md:text-sm text-black hover:bg-black hover:text-white px-1 py-0.5 md:px-2 md:py-1 -ml-1 md:-ml-2 transition-colors font-medium"
