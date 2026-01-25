@@ -1694,7 +1694,7 @@ export default function LandingPage() {
         )}
 
         {/* Forecast Cards Grid */}
-        {spotsQuery.isLoading || forecastsQuery.isLoading ? (
+        {spotsQuery.isLoading ? (
           <div className="max-w-7xl mx-auto relative">
             <div className="text-lg text-black text-center py-16" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
               Loading spots...
