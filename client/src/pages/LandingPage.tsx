@@ -1672,11 +1672,11 @@ export default function LandingPage() {
                   <ArrowRight className="hidden sm:block w-4 h-4 md:w-5 md:h-5 transform group-hover/link:translate-x-1 transition-transform" />
                 </Link>
                 <Link href="/members" className="flex items-center justify-between p-1.5 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                  <span className="text-[10px] sm:text-sm md:text-base lg:text-lg font-bold">Email</span>
+                  <span className="text-[10px] sm:text-sm md:text-base lg:text-lg font-bold">Email Notifications</span>
                   <ArrowRight className="hidden sm:block w-4 h-4 md:w-5 md:h-5 transform group-hover/link:translate-x-1 transition-transform" />
                 </Link>
                 <Link href="/members" className="flex items-center justify-between p-1.5 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                  <span className="text-[10px] sm:text-sm md:text-base lg:text-lg font-bold">Join {surferCountQuery.data !== undefined && surferCountQuery.data >= 30 ? surferCountQuery.data : '40+'}+</span>
+                  <span className="text-[10px] sm:text-sm md:text-base lg:text-lg font-bold">Join 40+ Other Surfers</span>
                   <ArrowRight className="hidden sm:block w-4 h-4 md:w-5 md:h-5 transform group-hover/link:translate-x-1 transition-transform" />
                 </Link>
               </div>
