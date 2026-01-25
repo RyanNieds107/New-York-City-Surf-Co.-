@@ -631,28 +631,16 @@ export function scoreWind(
       }
     }
   } else if (isWestCross) {
-    // Cross-shore W = MARGINAL but better than E
-    // Rockaway gets slightly better scores for W (faces more SE)
-    if (isRockaway) {
-      if (windSpeedKt < 10) {
-        return -5; // Slightly better for Rockaway
-      } else if (windSpeedKt < 15) {
-        return -15;
-      } else if (windSpeedKt < 20) {
-        return -35;
-      } else {
-        return -55;
-      }
-    }
-    // Lido/Long Beach - aggressive scaling
-    if (windSpeedKt < 10) {
-      return -10;
+    // Cross-shore W (includes WNW) - Calm winds ≤10mph should not be penalized
+    // WNW winds at 9-10mph are actually quite good for all Long Island spots
+    if (windSpeedKt <= 10) {
+      return 0; // No penalty for calm WNW/W winds
     } else if (windSpeedKt < 15) {
-      return -20;
+      return -15;
     } else if (windSpeedKt < 20) {
-      return -40;
+      return -35;
     } else {
-      return -60;
+      return -55;
     }
   } else if (isEastCross) {
     // Cross-shore E = MARGINAL

@@ -19,8 +19,8 @@ export interface SpotProfile {
 export const SPOT_PROFILES: Record<string, SpotProfile> = {
   'lido': {
     name: 'Lido Beach',
-    swell_target_deg: 140, // SE-SSE (shifted to better capture SSE swells)
-    swell_tolerance_deg: 50, // Widened to include ESE (90°) to SSE (180°) without penalty
+    swell_target_deg: 145, // Center of ideal range (110-180°)
+    swell_tolerance_deg: 35, // Covers 110° (ESE) to 180° (S) without penalty
     min_period_s: 6,
     multiplier: 1.5, // Fixed wave height multiplier
   },
@@ -33,8 +33,8 @@ export const SPOT_PROFILES: Record<string, SpotProfile> = {
   },
   'rockaway': {
     name: 'Rockaway Beach',
-    swell_target_deg: 135, // SE
-    swell_tolerance_deg: 45, // Covers 100° (ESE) to 180° (S)
+    swell_target_deg: 145, // Center of ideal range (110-180°)
+    swell_tolerance_deg: 35, // Covers 110° (ESE) to 180° (S) without penalty
     min_period_s: 5,
     multiplier: 1.1, // Fixed wave height multiplier
   },
