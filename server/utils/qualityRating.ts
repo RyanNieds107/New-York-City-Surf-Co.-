@@ -404,17 +404,18 @@ function getWindQualityForLido(windSpeedKt: number, windDirectionDeg: number): n
   }
 
   // TIER 4a - Cross-Shore West (260-295°): W - better than E
+  // Calm WNW/W winds (≤10kt) should not be penalized - they're actually quite good
   const isWestCross = normalized >= 260 && normalized < 295;
   if (isWestCross) {
     let score: number;
-    if (windSpeedKt < 10) {
-      score = -10;
+    if (windSpeedKt <= 10) {
+      score = 0; // No penalty for calm WNW/W winds
     } else if (windSpeedKt < 15) {
-      score = -20;
+      score = -15;
     } else if (windSpeedKt < 20) {
-      score = -40;
+      score = -35;
     } else {
-      score = -60;
+      score = -55;
     }
     console.log('🔍 [getWindQualityForLido] TIER 4a Cross-Shore West:', score);
     return score;
