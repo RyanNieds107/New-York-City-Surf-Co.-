@@ -255,6 +255,20 @@ export default function SpotDetail() {
     chartPoint: AreaChartDataPoint | null;
   } | null>(null);
 
+  // Handle hash navigation (e.g., /spot/3#guide)
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash) {
+      // Wait for content to render, then scroll to anchor
+      setTimeout(() => {
+        const element = document.querySelector(hash);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+    }
+  }, [spotId]); // Re-run when spotId changes (new spot page loaded)
+
   // Auto-refresh interval: 30 minutes
   const refetchInterval = 30 * 60 * 1000;
 
