@@ -373,7 +373,18 @@ function getWindQualityForLido(windSpeedKt: number, windDirectionDeg: number): n
     return score;
   }
 
-  // TIER 2 - Good Offshore (310-330°, 30-50°): NW, NE
+  // NE 35–45°: treat same as Side-Offshore (not ideal at Lido)
+  if (normalized >= 35 && normalized <= 45) {
+    let score: number;
+    if (windSpeedKt < 10) score = 5;
+    else if (windSpeedKt < 15) score = -5;
+    else if (windSpeedKt < 20) score = -30;
+    else score = -50;
+    console.log('🔍 [getWindQualityForLido] NE 35–45° (side-offshore):', score);
+    return score;
+  }
+
+  // TIER 2 - Good Offshore (310-330°, 30-34° and 46-50° NE): NW, narrow NE
   if (isGoodOffshore(normalized)) {
     let score: number;
     if (windSpeedKt <= 12) {
@@ -594,6 +605,22 @@ export function scoreWind(
     isSideOn,
     isOnshore,
   });
+
+  // All spots: NE 35–45° typically isn't great; treat same as Side-Offshore (46–70°)
+  if (normalized >= 35 && normalized <= 45) {
+    if (isRockaway) {
+      if (windSpeedKt < 10) return 10;
+      if (windSpeedKt < 15) return 5;
+      if (windSpeedKt < 20) return -20;
+      return -40;
+    } else {
+      // Long Beach (same as Lido side-offshore)
+      if (windSpeedKt < 10) return 5;
+      if (windSpeedKt < 15) return -5;
+      if (windSpeedKt < 20) return -30;
+      return -50;
+    }
+  }
 
   if (isOffshore) {
     // Offshore winds = GOOD

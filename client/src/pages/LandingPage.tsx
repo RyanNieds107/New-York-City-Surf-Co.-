@@ -1094,9 +1094,15 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
     const bannerBackground = getScoreBackgroundTint(bestSpot.score);
     const indicatorColor = getIndicatorColor(bestSpot.score);
 
-    // Determine the banner headline based on number of surfable spots and score
-    const getBannerHeadline = (surfableSpots: Array<{ name: string; score: number }>, bestScore: number): string => {
-      const s = Math.round(bestScore);
+    // Tier thresholds: FIRING >= 76, GO SURF >= 60, WORTH A LOOK >= 40
+    const bestScore = Math.round(bestSpot.score);
+    const tierThreshold = bestScore >= 76 ? 76 : bestScore >= 60 ? 60 : 40;
+    const spotsInTier = surfableSpots.filter((spot) => Math.round(spot.score) >= tierThreshold);
+
+    // Determine the banner headline based on number of spots in same tier as best
+    // "ALL SPOTS FIRING" only when all spots are actually firing (>= 76), not just surfable (>= 40)
+    const getBannerHeadline = (spots: Array<{ name: string; score: number }>, score: number): string => {
+      const s = Math.round(score);
       const getStatusText = () => {
         if (s >= 76) return "FIRING";
         if (s >= 60) return "GO SURF";
@@ -1104,24 +1110,21 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
       };
 
       const statusText = getStatusText();
-      
-      if (surfableSpots.length === 1) {
-        const spotName = surfableSpots[0].name.toUpperCase();
+
+      if (spots.length === 1) {
+        const spotName = spots[0].name.toUpperCase();
         return `${spotName} ${statusText}`;
-      } else if (surfableSpots.length === 2) {
-        const spotNames = surfableSpots
-          .map(spot => spot.name)
-          .join(" and ");
+      } else if (spots.length === 2) {
+        const spotNames = spots.map((spot) => spot.name).join(" and ");
         return `${spotNames} ${statusText.toLowerCase()}`;
-      } else if (surfableSpots.length >= 3) {
+      } else if (spots.length >= 3) {
         return `ALL SPOTS ${statusText.toLowerCase()}`;
       }
-      
-      // Fallback (shouldn't happen)
+
       return statusText;
     };
 
-    const bannerHeadline = getBannerHeadline(surfableSpots, bestSpot.score);
+    const bannerHeadline = getBannerHeadline(spotsInTier, bestSpot.score);
     const shareTitle = bestSpot.score >= 76 ? 'firing' : bestSpot.score >= 60 ? 'good' : 'worth checking';
     const shareText = bestSpot.score >= 76 ? 'firing!' : bestSpot.score >= 60 ? 'good!' : 'worth checking!';
 
@@ -1164,9 +1167,9 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
               </a>
               <button
                 onClick={() => {
-                  const spotNames = surfableSpots.length === 1 
+                  const spotNames = spotsInTier.length === 1
                     ? bestSpot.name
-                    : surfableSpots.map(s => s.name).join(" and ");
+                    : spotsInTier.map((s) => s.name).join(" and ");
                   if (navigator.share) {
                     navigator.share({
                       title: `${spotNames} ${shareTitle}!`,
