@@ -17,6 +17,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { selectCurrentTimelinePoint, formatSurfHeight } from "@/lib/forecastUtils";
 import { getScoreBadgeHexColor, getScoreBadgeTextHexColor } from "@/lib/ratingColors";
 import { isNighttime, calculateSunset } from "@/lib/sunTimes";
+import { useCurrentConditions } from "@/hooks/useCurrentConditions";
 
 // Helper functions for NYC grit forecast display
 // Rule: <1ft = Don't Bother (no surf), otherwise score-based labels
@@ -189,103 +190,41 @@ const formatBuoyTimestamp = (timestamp: Date | string): string => {
 // SpotForecastCard component - extracted to properly use hooks
 type SpotForecastCardProps = {
   spot: { id: number; name: string };
-  forecast: {
-    qualityScore?: number | null;
-    probabilityScore?: number | null;
-    waveHeightTenthsFt?: number | null;
-    tideHeightFt?: number | null;
-    tidePhase?: string | null;
-  } | undefined;
   isExpanded: boolean;
   onToggleExpand: () => void;
   onNavigate: (path: string) => void;
   travelMode?: "driving" | "transit";
   useNeutralBackground?: boolean;
-  buoyBasedHeight?: number | null;
-  buoySwellPeriod?: number | null;
-  buoySwellDirection?: number | null;
+  // Legacy props for compatibility (unused - hook handles data)
   buoyData?: BuoyReading;
-  buoyLoading?: boolean;
 };
 
-function SpotForecastCard({ spot, forecast, isExpanded, onToggleExpand, onNavigate, travelMode = "driving", useNeutralBackground = false, buoyBasedHeight, buoySwellPeriod, buoySwellDirection, buoyData, buoyLoading }: SpotForecastCardProps) {
-  // Always fetch timeline for current conditions (fresh from Open-Meteo)
-  // Fetch more hours when expanded for the full timeline view
-  const timelineQuery = trpc.forecasts.getTimeline.useQuery(
-    { spotId: spot.id, hours: isExpanded ? 24 : 3 }
-  );
+function SpotForecastCard({ spot, isExpanded, onToggleExpand, onNavigate, travelMode = "driving", useNeutralBackground = false, buoyData }: SpotForecastCardProps) {
+  // Use unified hook for current conditions (same logic as spot detail pages and banner)
+  const currentData = useCurrentConditions(spot.id);
 
-  // Fetch crowd data
+  // Fetch crowd data (not part of current conditions)
   const crowdQuery = trpc.crowd.getForSpot.useQuery({ spotId: spot.id });
+  
+  // Get timeline for expanded view (hook provides 120hr timeline)
+  const timelineQuery = currentData.queries.timeline;
+  
+  // Extract data for UI compatibility
+  const currentPoint = currentData.currentPoint;
+  const buoyLoading = currentData.isLoading;
+  const forecast = currentData.queries.forecast.data?.forecast; // Fallback forecast
 
-  // Find nearest point to now using shared utility
-  const currentPoint = useMemo(() => {
-    return selectCurrentTimelinePoint(timelineQuery.data?.timeline);
-  }, [timelineQuery.data?.timeline]);
-
-  // Prefer timeline data (fresh from Open-Meteo) over old forecast data
-  const score = currentPoint?.quality_score != null
-    ? Number(currentPoint.quality_score)
-    : (forecast?.qualityScore != null
-      ? Number(forecast.qualityScore)
-      : (forecast?.probabilityScore != null ? Number(forecast.probabilityScore) : 0));
-
-  // Use NOAA-based breaking height from currentConditions if available
-  // This comes from getCurrentConditionsForAll which uses buoy data
-  // Fallback to buoyBreakingHeightsQuery if currentConditions doesn't have it
-  const heightUsed = currentPoint?.breakingWaveHeightFt ??
-    buoyBasedHeight ??
-    currentPoint?.dominantSwellHeightFt ??
-    currentPoint?.waveHeightFt ??
-    (forecast?.waveHeightTenthsFt ? forecast.waveHeightTenthsFt / 10 : null);
-
+  // Use data from unified hook
+  const score = currentData.score;
+  const heightUsed = currentData.waveHeight;
   const surfHeight = formatSurfHeight(heightUsed);
   const ratingLabel = getRatingLabel(score, surfHeight);
 
-  // Get dominant swell period and direction
-  // PRIORITY: Use buoy-based period/direction when available (matches buoyBasedHeight source)
-  const getDominantSwellInfo = () => {
-    // If we have buoy-based data, use it for consistency with buoyBasedHeight
-    if (buoySwellPeriod !== null && buoySwellPeriod !== undefined && buoySwellPeriod > 0) {
-      return {
-        period: buoySwellPeriod,
-        direction: buoySwellDirection ?? null,
-      };
-    }
-
-    // Fallback to Open-Meteo forecast data
-    if (!currentPoint) return { period: null, direction: null };
-
-    const dominantType = currentPoint.dominantSwellType;
-
-    if (dominantType === 'primary') {
-      return {
-        period: currentPoint.wavePeriodSec,
-        direction: currentPoint.waveDirectionDeg,
-      };
-    } else if (dominantType === 'secondary') {
-      return {
-        period: currentPoint.secondarySwellPeriodS,
-        direction: currentPoint.secondarySwellDirectionDeg,
-      };
-    } else if (dominantType === 'wind') {
-      return {
-        period: currentPoint.windWavePeriodS,
-        direction: currentPoint.windWaveDirectionDeg,
-      };
-    }
-    
-    // Fallback
-    return {
-      period: currentPoint.dominantSwellPeriodS ?? currentPoint.wavePeriodSec,
-      direction: currentPoint.dominantSwellDirectionDeg ?? currentPoint.waveDirectionDeg,
-    };
-  };
-
-  const dominantSwell = getDominantSwellInfo();
-  const swellPeriod = dominantSwell.period !== null ? `${dominantSwell.period.toFixed(0)}s` : '—';
-  const swellDirection = dominantSwell.direction !== null ? formatSwellDirection(dominantSwell.direction) : '—';
-  const swellDirectionDeg = dominantSwell.direction;
+  // Swell info from unified hook
+  const swellPeriod = currentData.swell.period !== null ? `${currentData.swell.period.toFixed(0)}s` : '—';
+  const swellDirection = currentData.swell.direction !== null ? formatSwellDirection(currentData.swell.direction) : '—';
+  const swellDirectionDeg = currentData.swell.direction;
+  
   // Get just the cardinal direction without degrees
   const getCardinalDirection = (deg: number | null | undefined): string => {
     if (deg === null || deg === undefined) return "—";
@@ -294,17 +233,17 @@ function SpotForecastCard({ spot, forecast, isExpanded, onToggleExpand, onNaviga
     const index = Math.round(deg / 22.5) % 16;
     return cardinals[index];
   };
-  const swellDirectionLabel = getCardinalDirection(dominantSwell.direction);
+  const swellDirectionLabel = getCardinalDirection(currentData.swell.direction);
 
-  // Format wind info
-  const windSpeed = currentPoint?.windSpeedMph !== null && currentPoint?.windSpeedMph !== undefined
-    ? `${currentPoint.windSpeedMph.toFixed(0)}mph`
+  // Wind info from unified hook
+  const windSpeed = currentData.wind.speedMph !== null
+    ? `${currentData.wind.speedMph.toFixed(0)}mph`
     : '—';
-  const windDirection = currentPoint?.windDirectionDeg !== null && currentPoint?.windDirectionDeg !== undefined
-    ? formatSwellDirection(currentPoint.windDirectionDeg)
+  const windDirection = currentData.wind.directionDeg !== null
+    ? formatSwellDirection(currentData.wind.directionDeg)
     : '—';
-  const windDirectionDeg = currentPoint?.windDirectionDeg ?? null;
-  const windType = getWindType(currentPoint?.windType);
+  const windDirectionDeg = currentData.wind.directionDeg;
+  const windType = getWindType(currentData.wind.type);
 
   // Get crowd info
   const crowdLevel = crowdQuery.data?.averageLevel ?? null;
@@ -722,37 +661,19 @@ function DistanceDisplay({ spotName, mode }: DistanceDisplayProps) {
 
 // SurfStatusBanner - Big status banner showing current conditions or next window
 type SurfStatusBannerProps = {
-  featuredSpots: Array<{
-    spot: { id: number; name: string };
-    forecast: {
-      qualityScore?: number | null;
-      probabilityScore?: number | null;
-      waveHeightTenthsFt?: number | null;
-      breakingWaveHeightFt?: number | null;
-      dominantSwellHeightFt?: number | null;
-      windType?: string | null;
-      windSpeedMph?: number | null;
-      wavePeriodSec?: number | null;
-      windDirectionDeg?: number | null;
-      dominantSwellDirectionDeg?: number | null;
-      tideHeightFt?: number | null;
-      tidePhase?: string | null;
-      createdAt?: Date | string | null;
-    } | undefined;
-  }>;
+  featuredSpots: Array<{ id: number; name: string }>;
   travelMode: "driving" | "transit";
 };
 
 function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) {
-  // Fetch timeline: use 3hr to match cards (same "current" point). Also used for "Get there before X".
-  const rockawaytimeline = trpc.forecasts.getTimeline.useQuery({ spotId: featuredSpots.find(s => s.spot.name === "Rockaway Beach")?.spot.id ?? 0, hours: 3 }, { enabled: featuredSpots.length > 0 });
-  const longBeachTimeline = trpc.forecasts.getTimeline.useQuery({ spotId: featuredSpots.find(s => s.spot.name === "Long Beach")?.spot.id ?? 0, hours: 3 }, { enabled: featuredSpots.length > 0 });
-  const lidoTimeline = trpc.forecasts.getTimeline.useQuery({ spotId: featuredSpots.find(s => s.spot.name === "Lido Beach")?.spot.id ?? 0, hours: 3 }, { enabled: featuredSpots.length > 0 });
+  // Use unified hook for each spot (same logic as spot detail pages)
+  const rockawayId = featuredSpots.find(s => s.name === "Rockaway Beach")?.id ?? 0;
+  const longBeachId = featuredSpots.find(s => s.name === "Long Beach")?.id ?? 0;
+  const lidoId = featuredSpots.find(s => s.name === "Lido Beach")?.id ?? 0;
 
-  // Fetch buoy data for logging
-  const buoyQuery = trpc.buoy.get44065.useQuery(undefined, {
-    staleTime: 15 * 60 * 1000,
-  });
+  const rockawayData = useCurrentConditions(rockawayId);
+  const longBeachData = useCurrentConditions(longBeachId);
+  const lidoData = useCurrentConditions(lidoId);
 
   // Mutation to log conditions for pattern matching
   const logConditionsMutation = trpc.conditions.logSnapshot.useMutation();
@@ -780,51 +701,57 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
     "Lido Beach": "40.5890,-73.6250",
   };
 
-  // Analyze current conditions across all spots
-  const allTimelines = [
-    { name: "Rockaway Beach", timeline: rockawaytimeline.data?.timeline },
-    { name: "Long Beach", timeline: longBeachTimeline.data?.timeline },
-    { name: "Lido Beach", timeline: lidoTimeline.data?.timeline },
+  // Build currentConditions from unified hook data (same as spot detail pages)
+  const currentConditions = [
+    {
+      name: "Rockaway Beach",
+      score: rockawayData.score,
+      waveHeight: rockawayData.waveHeight ?? 0,
+      windType: rockawayData.wind.type ?? "",
+      windSpeed: rockawayData.wind.speedMph ?? 0,
+      current: {
+        forecastTimestamp: rockawayData.timestamp,
+        wavePeriodSec: rockawayData.swell.period,
+        waveDirectionDeg: rockawayData.swell.direction,
+        windDirectionDeg: rockawayData.wind.directionDeg,
+        tideHeightFt: rockawayData.tide.heightFt,
+        tidePhase: rockawayData.tide.phase,
+      },
+      timeline: rockawayData.queries.timeline.data?.timeline,
+    },
+    {
+      name: "Long Beach",
+      score: longBeachData.score,
+      waveHeight: longBeachData.waveHeight ?? 0,
+      windType: longBeachData.wind.type ?? "",
+      windSpeed: longBeachData.wind.speedMph ?? 0,
+      current: {
+        forecastTimestamp: longBeachData.timestamp,
+        wavePeriodSec: longBeachData.swell.period,
+        waveDirectionDeg: longBeachData.swell.direction,
+        windDirectionDeg: longBeachData.wind.directionDeg,
+        tideHeightFt: longBeachData.tide.heightFt,
+        tidePhase: longBeachData.tide.phase,
+      },
+      timeline: longBeachData.queries.timeline.data?.timeline,
+    },
+    {
+      name: "Lido Beach",
+      score: lidoData.score,
+      waveHeight: lidoData.waveHeight ?? 0,
+      windType: lidoData.wind.type ?? "",
+      windSpeed: lidoData.wind.speedMph ?? 0,
+      current: {
+        forecastTimestamp: lidoData.timestamp,
+        wavePeriodSec: lidoData.swell.period,
+        waveDirectionDeg: lidoData.swell.direction,
+        windDirectionDeg: lidoData.wind.directionDeg,
+        tideHeightFt: lidoData.tide.heightFt,
+        tidePhase: lidoData.tide.phase,
+      },
+      timeline: lidoData.queries.timeline.data?.timeline,
+    },
   ];
-
-  const now = Date.now();
-
-  // Use same score logic as cards: timeline currentPoint ?? forecast (qualityScore ?? probabilityScore).
-  // Build currentConditions by pairing each timeline with its forecast (featuredSpots).
-  const currentConditions = allTimelines
-    .map(({ name, timeline }) => {
-      const featured = featuredSpots.find((s) => s.spot.name === name);
-      const forecast = featured?.forecast;
-      const currentPoint = timeline?.length ? selectCurrentTimelinePoint(timeline, now) : undefined;
-      const score = currentPoint?.quality_score != null
-        ? Number(currentPoint.quality_score)
-        : (forecast?.qualityScore != null ? Number(forecast.qualityScore) : (forecast?.probabilityScore != null ? Number(forecast.probabilityScore) : 0));
-      const waveHeight = currentPoint
-        ? (currentPoint.dominantSwellHeightFt ?? currentPoint.waveHeightFt ?? 0)
-        : (forecast?.breakingWaveHeightFt ?? forecast?.dominantSwellHeightFt ?? (forecast?.waveHeightTenthsFt != null ? forecast.waveHeightTenthsFt / 10 : 0));
-      const windType = (currentPoint?.windType ?? forecast?.windType) ?? "";
-      const windSpeed = currentPoint?.windSpeedMph ?? forecast?.windSpeedMph ?? 0;
-      const current = currentPoint
-        ? {
-            forecastTimestamp: currentPoint.forecastTimestamp,
-            wavePeriodSec: currentPoint.wavePeriodSec,
-            waveDirectionDeg: currentPoint.waveDirectionDeg,
-            windDirectionDeg: currentPoint.windDirectionDeg,
-            tideHeightFt: currentPoint.tideHeightFt,
-            tidePhase: currentPoint.tidePhase,
-          }
-        : forecast
-          ? {
-              forecastTimestamp: forecast.createdAt,
-              wavePeriodSec: forecast.wavePeriodSec,
-              waveDirectionDeg: forecast.dominantSwellDirectionDeg,
-              windDirectionDeg: forecast.windDirectionDeg,
-              tideHeightFt: forecast.tideHeightFt,
-              tidePhase: forecast.tidePhase,
-            }
-          : { forecastTimestamp: null as Date | string | null, wavePeriodSec: null as number | null, waveDirectionDeg: null as number | null, windDirectionDeg: null as number | null, tideHeightFt: null as number | null, tidePhase: null as string | null };
-      return { name, score, waveHeight, windType, windSpeed, current };
-    });
 
   // Find all surfable spots (score >= 40)
   const surfableSpots = currentConditions.filter(spot => spot.score >= 40);
@@ -851,12 +778,15 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
       return;
     }
 
+    // Get buoy data from the best spot's hook (all spots share same buoy data)
+    const buoyData = rockawayData.buoyData;
+    const buoyWaveHeight = buoyData?.waveHeight ?? null;
+    const buoyPeriod = buoyData?.dominantPeriod ?? null;
+    const buoyDirection = buoyData?.waveDirection ?? null;
+
     // Determine unsurfable reason if not surfable (using buoy data for waves)
     let unsurfableReason: string | null = null;
     if (!isSurfable) {
-      // Use buoy data for wave conditions, forecast for wind
-      const buoyWaveHeight = buoyQuery.data?.waveHeight ?? null;
-      const buoyPeriod = buoyQuery.data?.dominantPeriod ?? null;
       const waveHeight = buoyWaveHeight ?? bestSpot.waveHeight;
       const period = buoyPeriod ?? bestSpot.current?.wavePeriodSec ?? null;
 
@@ -874,11 +804,6 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
       else unsurfableReason = "poor";
     }
 
-    // Log the snapshot - use buoy data for wave conditions
-    const buoyWaveHeight = buoyQuery.data?.waveHeight ?? null;
-    const buoyPeriod = buoyQuery.data?.dominantPeriod ?? null;
-    const buoyDirection = buoyQuery.data?.waveDirection ?? null;
-
     logConditionsMutation.mutate({
       bestSpotName: bestSpot.name,
       qualityScore: bestSpot.score,
@@ -888,9 +813,9 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
       windSpeedMph: bestSpot.windSpeed,
       windDirectionDeg: bestSpot.current?.windDirectionDeg ?? null,
       windType: bestSpot.windType || null,
-      buoyWaveHeightFt: buoyQuery.data?.waveHeight ?? null,
-      buoyPeriodSec: buoyQuery.data?.dominantPeriod ?? null,
-      buoyDirectionDeg: buoyQuery.data?.waveDirection ?? null,
+      buoyWaveHeightFt: buoyWaveHeight,
+      buoyPeriodSec: buoyPeriod,
+      buoyDirectionDeg: buoyDirection,
       isSurfable: !!isSurfable,
       unsurfableReason,
       tideHeightFt: bestSpot.current?.tideHeightFt ? bestSpot.current.tideHeightFt / 10 : null,
@@ -905,15 +830,19 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
         console.error('[Conditions Log] Failed to log snapshot:', error);
       }
     });
-  }, [bestSpot, isSurfable, buoyQuery.data, hasLoggedThisHour, logConditionsMutation]);
+  }, [bestSpot, isSurfable, rockawayData.buoyData, hasLoggedThisHour, logConditionsMutation]);
 
   // Find next surf window if not currently surfable
   const findNextWindow = () => {
     if (isSurfable) return null;
 
     const futureWindows: Array<{ name: string; time: Date; score: number; endTime?: Date }> = [];
+    
+    const now = Date.now();
 
-    for (const { name, timeline } of allTimelines) {
+    for (const spot of currentConditions) {
+      const timeline = spot.timeline;
+      const name = spot.name;
       if (!timeline) continue;
 
       // Get spot coordinates for nighttime check
@@ -985,7 +914,7 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
   };
 
   // Loading state
-  if (rockawaytimeline.isLoading || longBeachTimeline.isLoading || lidoTimeline.isLoading) {
+  if (rockawayData.isLoading || longBeachData.isLoading || lidoData.isLoading) {
     return (
       <div className="border-2 border-black bg-gray-100 p-6 mb-4">
         <div className="flex items-center gap-3">
@@ -1039,13 +968,15 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
   const getEndTimeLabel = () => {
     if (!bestSpot) return null;
 
-    const spotTimeline = allTimelines.find(t => t.name === bestSpot.name)?.timeline;
+    const spotTimeline = currentConditions.find(s => s.name === bestSpot.name)?.timeline;
     if (!spotTimeline) return null;
 
     // Get spot coordinates for sunset calculation
     const coords = spotCoordinates[bestSpot.name];
     if (!coords) return null;
     const [lat, lng] = coords.split(',').map(Number);
+    
+    const now = Date.now();
 
     // Find when score drops below 40 (Worth a Look threshold)
     for (const point of spotTimeline) {
@@ -1210,7 +1141,7 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
     }
 
     // Use NOAA buoy data for wave conditions, forecast for wind
-    const buoyData = buoyQuery.data;
+    const buoyData = rockawayData.buoyData;
     const buoyWaveHeight = buoyData?.waveHeight ?? null;
     const buoyPeriod = buoyData?.dominantPeriod ?? null;
 
@@ -1359,7 +1290,9 @@ export default function LandingPage() {
   const [isPaused, setIsPaused] = useState(false);
   const [expandedSpot, setExpandedSpot] = useState<number | null>(null);
   const spotsQuery = trpc.spots.list.useQuery();
-  const forecastsQuery = trpc.forecasts.getCurrentConditionsForAll.useQuery();
+  
+  // Note: Removed getCurrentConditionsForAll - now using useCurrentConditions hook per spot
+  // This unifies the data source between landing page and spot detail pages
 
   // Fetch breaking wave heights calculated from NOAA Buoy 44065 data
   // This gives us accurate current conditions based on real buoy readings
@@ -1405,13 +1338,9 @@ export default function LandingPage() {
   // Featured spots: Rockaway Beach, Long Beach, Lido Beach
   const featuredSpotNames = ["Rockaway Beach", "Long Beach", "Lido Beach"];
   
-  // Get featured spots and their forecasts
+  // Get featured spots (simplified - no forecast data, hooks fetch per spot)
   const featuredSpots = spotsQuery.data
-    ?.filter((spot) => featuredSpotNames.includes(spot.name))
-    .map((spot) => {
-      const forecastItem = forecastsQuery.data?.find((item) => item.spotId === spot.id);
-      return { spot, forecast: forecastItem?.currentConditions ?? undefined };
-    }) || [];
+    ?.filter((spot) => featuredSpotNames.includes(spot.name)) || [];
 
   const scrollToFeatured = () => {
     document.getElementById("featured-spots")?.scrollIntoView({ behavior: "smooth" });
@@ -1709,11 +1638,7 @@ export default function LandingPage() {
               <span className="text-gray-500">•</span>
               <div className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs text-gray-600">
                 <Clock className="h-3 w-3" />
-                <span>
-                  {forecastsQuery.data?.[0]?.currentConditions?.createdAt
-                    ? formatTimestamp(new Date(forecastsQuery.data[0].currentConditions.createdAt))
-                    : "Just now"}
-                </span>
+                <span>Live</span>
               </div>
             </div>
 
@@ -1777,21 +1702,16 @@ export default function LandingPage() {
           </div>
         ) : (
           <div className="max-w-7xl mx-auto flex md:grid gap-4 md:grid-cols-3 relative overflow-x-auto md:overflow-x-visible snap-x snap-mandatory md:snap-none scrollbar-hide">
-            {featuredSpots.map(({ spot, forecast }) => (
+            {featuredSpots.map((spot) => (
               <div key={spot.id} className="flex-shrink-0 w-[calc(100vw-5rem)] md:w-auto snap-center md:snap-none">
                 <SpotForecastCard
                   spot={spot}
-                  forecast={forecast}
                   isExpanded={expandedSpot === spot.id}
                   onToggleExpand={() => setExpandedSpot(expandedSpot === spot.id ? null : spot.id)}
                   onNavigate={setLocation}
                   travelMode={travelMode}
                   useNeutralBackground={true}
-                  buoyBasedHeight={buoyBreakingHeightsQuery.data?.[spot.name]?.height ?? null}
-                  buoySwellPeriod={buoyBreakingHeightsQuery.data?.[spot.name]?.period ?? null}
-                  buoySwellDirection={buoyBreakingHeightsQuery.data?.[spot.name]?.direction ?? null}
                   buoyData={buoyQuery.data}
-                  buoyLoading={buoyQuery.isLoading}
                 />
               </div>
             ))}

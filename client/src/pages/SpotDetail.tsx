@@ -31,12 +31,13 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { getLoginUrl } from "@/const";
 import { cn } from "@/lib/utils";
 import { Footer } from "@/components/Footer";
-import { selectCurrentTimelinePoint, CURRENT_CONDITIONS_MAX_AGE_MS, formatSurfHeight, processTimelineForAreaChart, type ExtendedTimelinePoint, type AreaChartDataPoint } from "@/lib/forecastUtils";
+import { CURRENT_CONDITIONS_MAX_AGE_MS, formatSurfHeight, processTimelineForAreaChart, type ExtendedTimelinePoint, type AreaChartDataPoint } from "@/lib/forecastUtils";
 import { WaveHeightChart } from "@/components/WaveHeightChart";
 import { SpotContextHeader, SPOT_CONTEXT } from "@/components/SpotContextHeader";
 import { AlertsPromo } from "@/components/AlertsPromo";
 import { getScoreBadgeColors } from "@/lib/ratingColors";
 import { isNighttime } from "@/lib/sunTimes";
+import { useCurrentConditions } from "@/hooks/useCurrentConditions";
 
 // Reusable component for spot info cards
 function SpotInfoCard({ title, children }: { title: string; children: React.ReactNode }) {
@@ -257,33 +258,21 @@ export default function SpotDetail() {
   // Auto-refresh interval: 30 minutes
   const refetchInterval = 30 * 60 * 1000;
 
-  const spotQuery = trpc.spots.get.useQuery({ id: spotId });
-  const forecastQuery = trpc.forecasts.getForSpot.useQuery(
-    { spotId },
-    { refetchInterval }
-  );
-  const timelineQuery = trpc.forecasts.getTimeline.useQuery(
-    { spotId, hours: 120 },
-    { refetchInterval }
-  );
+  // Use unified hook for current conditions (same logic as landing page)
+  const currentData = useCurrentConditions(spotId, { refetchInterval });
+  
+  // Extract queries from hook for compatibility with existing code
+  const spotQuery = currentData.queries.spot;
+  const timelineQuery = currentData.queries.timeline;
+  const forecastQuery = currentData.queries.forecast;
+  const buoyQuery = currentData.queries.buoy;
+  const buoyBreakingHeightsQuery = currentData.queries.buoyBreakingHeights;
+
+  // Crowd query (not part of current conditions hook)
   const crowdQuery = trpc.crowd.getForSpot.useQuery(
     { spotId },
     { refetchInterval }
   );
-  // Fetch raw NOAA Buoy 44065 data for dominant swell display
-  const buoyQuery = trpc.buoy.get44065.useQuery(undefined, {
-    refetchInterval,
-    staleTime: 15 * 60 * 1000, // Consider fresh for 15 minutes
-  });
-  // Fetch breaking wave heights calculated from NOAA Buoy 44065 using the spot-specific algorithm
-  const buoyBreakingHeightsQuery = trpc.buoy.getBreakingHeightsForSpots.useQuery(undefined, {
-    refetchInterval,
-    staleTime: 15 * 60 * 1000,
-  });
-  // const debugQuery = trpc.forecasts.debugWaveCalculation.useQuery(
-  //   { spotId: spotId },
-  //   { enabled: false }
-  // );
 
   // Group timeline by day
   const groupedTimeline = useMemo(() => {
@@ -391,49 +380,11 @@ export default function SpotDetail() {
   const spot = spotQuery.data;
   const forecast = forecastQuery.data?.forecast;
   const openMeteoPoint = forecastQuery.data?.openMeteoPoint;
-  const isLoading = spotQuery.isLoading || forecastQuery.isLoading;
-  const isError = spotQuery.error || forecastQuery.error;
+  const isLoading = currentData.isLoading;
+  const isError = currentData.error;
 
-  // Get current conditions from Open-Meteo - find nearest point to now using shared utility
-  const currentConditions = useMemo(() => {
-    return selectCurrentTimelinePoint(timelineQuery.data?.timeline) ?? null;
-  }, [timelineQuery.data?.timeline]);
-  
-  // Temporary debug logging
-  useEffect(() => {
-    if (currentConditions) {
-      console.log('🖥️ FRONTEND DISPLAY DEBUG:');
-      console.log('Current forecast object:', currentConditions);
-      console.log('What UI is showing:', {
-        displayed_wave_height: formatSurfHeight(currentConditions.breakingWaveHeightFt ?? currentConditions.dominantSwellHeightFt ?? currentConditions.waveHeightFt ?? null),
-        breakingWaveHeightFt_from_api: currentConditions.breakingWaveHeightFt,
-        dominantSwellHeightFt: currentConditions.dominantSwellHeightFt,
-        raw_wave_height: currentConditions.waveHeightFt,
-        direction: currentConditions.waveDirectionDeg
-      });
-      
-      // Check if UI is using the right field
-      console.log('Which field is the UI displaying?');
-      console.log('Is it using breakingWaveHeightFt?', !!currentConditions.breakingWaveHeightFt);
-      console.log('Is it using waveHeightFt?', !!currentConditions.waveHeightFt);
-    }
-  }, [currentConditions]);
-  
-  // 🖥️ STEP 6: Frontend Received
-  if (currentConditions) {
-    console.log('🖥️ STEP 6: Frontend Received');
-    console.log('🖥️ Frontend received forecast:', {
-      breakingWaveHeightFt: currentConditions.breakingWaveHeightFt,
-      raw_swell_height: currentConditions.waveHeightFt,
-      direction: currentConditions.waveDirectionDeg,
-      secondarySwellHeightFt: currentConditions.secondarySwellHeightFt,
-      secondarySwellPeriodS: currentConditions.secondarySwellPeriodS,
-      secondarySwellDirectionDeg: currentConditions.secondarySwellDirectionDeg,
-      windWaveHeightFt: currentConditions.windWaveHeightFt,
-      windWavePeriodS: currentConditions.windWavePeriodS,
-      windWaveDirectionDeg: currentConditions.windWaveDirectionDeg,
-    });
-  }
+  // Current conditions from unified hook (same logic as landing page)
+  const currentConditions = currentData.currentPoint;
 
   // Helper functions
   const formatPeriod = (periodDs: number | null) => {
@@ -1311,15 +1262,8 @@ export default function SpotDetail() {
                           Surf Height
                         </p>
                         {(() => {
-                          // Use NOAA-based breaking height from currentConditions if available
-                          // This comes from getCurrentConditionsForAll which uses buoy data
-                          // Fallback to buoyBreakingHeightsQuery if currentConditions doesn't have it
-                          const buoyBasedHeight = spot?.name ? buoyBreakingHeightsQuery.data?.[spot.name]?.height : null;
-                          const displayHeight = currentConditions?.breakingWaveHeightFt ??
-                            buoyBasedHeight ??
-                            currentConditions?.dominantSwellHeightFt ??
-                            currentConditions?.waveHeightFt ??
-                            (forecast?.waveHeightTenthsFt ? forecast.waveHeightTenthsFt / 10 : null);
+                          // Use wave height from unified hook (same priority as landing page)
+                          const displayHeight = currentData.waveHeight;
                           const description = getWaveHeightDescription(displayHeight);
 
                           return (
@@ -1847,7 +1791,7 @@ export default function SpotDetail() {
                     <div
                       className="absolute top-1/2 -translate-y-1/2 z-10"
                       style={{
-                        left: `${Math.min(100, Math.max(0, currentConditions?.quality_score ?? forecast.qualityScore ?? 0))}%`,
+                        left: `${Math.min(100, Math.max(0, currentData.score))}%`,
                         transform: `translate(-50%, -50%) rotate(45deg)`,
                         width: '12px',
                         height: '12px',
@@ -1863,7 +1807,7 @@ export default function SpotDetail() {
                     className="w-full text-center mt-2 group cursor-pointer"
                   >
                     <span className="text-sm font-medium text-black uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                      {getRatingLabel(currentConditions?.quality_score ?? forecast.qualityScore ?? 0)}
+                      {getRatingLabel(currentData.score)}
                     </span>
                     <span className="ml-2 text-xs text-gray-500 group-hover:text-black transition-colors flex items-center gap-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                       <ExpandArrow expanded={showScoreBreakdown} size={10} />
@@ -1946,7 +1890,7 @@ export default function SpotDetail() {
                         <div className="text-center">
                           <div className="text-xs text-gray-500 uppercase tracking-wider mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Score</div>
                           <div className="text-2xl font-black text-black" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                            {Math.round(currentConditions.quality_score ?? forecast.qualityScore ?? 0)}
+                            {Math.round(currentData.score)}
                           </div>
                           <div className="text-[10px] text-gray-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                             out of 100
