@@ -144,13 +144,17 @@ export async function checkSwellAlerts(): Promise<void> {
 /**
  * Selects only the best scoring spot from detected swells.
  * Used when user selects "Best Spot Only" (spotId is null).
+ * Uses average quality score to select the best overall window,
+ * not just the window with the highest single-hour peak.
  */
 function selectBestSpotOnly(detectedSwells: DetectedSwell[]): DetectedSwell[] {
   if (detectedSwells.length === 0) return [];
 
-  // Find the swell with the highest peak quality score
+  // Find the swell with the highest average quality score
+  // This ensures we select the window with the best overall conditions,
+  // not one with a single high spike but otherwise poor conditions
   const bestSwell = detectedSwells.reduce((best, current) => {
-    return current.peakQualityScore > best.peakQualityScore ? current : best;
+    return current.avgQualityScore > best.avgQualityScore ? current : best;
   }, detectedSwells[0]);
 
   return [bestSwell];

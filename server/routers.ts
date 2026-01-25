@@ -1750,6 +1750,7 @@ export const appRouter = router({
             swellEndTime,
             peakWaveHeightFt: input.waveHeightFt,
             peakQualityScore: input.qualityScore,
+            avgQualityScore: input.qualityScore,
             avgPeriodSec: input.periodSec,
             bestDay: swellStartTime,
             confidenceScore: 85,

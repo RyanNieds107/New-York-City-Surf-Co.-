@@ -14,6 +14,7 @@ export interface DetectedSwell {
   swellEndTime: Date;
   peakWaveHeightFt: number;
   peakQualityScore: number;
+  avgQualityScore: number;
   avgPeriodSec: number;
   conditions: Array<{
     timestamp: Date;
@@ -107,6 +108,7 @@ export async function detectUpcomingSwells(
         swellEndTime: window.endTime,
         peakWaveHeightFt: window.peakHeight,
         peakQualityScore: window.peakScore,
+        avgQualityScore: window.avgScore,
         avgPeriodSec: window.avgPeriod,
         conditions: window.conditions,
       });
@@ -121,6 +123,7 @@ interface SwellWindow {
   endTime: Date;
   peakHeight: number;
   peakScore: number;
+  avgScore: number;
   avgPeriod: number;
   conditions: Array<{
     timestamp: Date;
@@ -273,9 +276,10 @@ function createWindowFromPoints(
     lastTime = lastLight;
   }
 
-  // Calculate peak values
+  // Calculate peak and average values
   let peakHeight = 0;
   let peakScore = 0;
+  let totalScore = 0;
   let totalPeriod = 0;
   let validPeriods = 0;
 
@@ -286,6 +290,7 @@ function createWindowFromPoints(
 
     if (breakingHeight > peakHeight) peakHeight = breakingHeight;
     if (qualityScore > peakScore) peakScore = qualityScore;
+    totalScore += qualityScore;
     if (period > 0) {
       totalPeriod += period;
       validPeriods++;
@@ -301,12 +306,14 @@ function createWindowFromPoints(
   });
 
   const avgPeriod = validPeriods > 0 ? Math.round(totalPeriod / validPeriods) : 0;
+  const avgScore = conditions.length > 0 ? Math.round(totalScore / conditions.length) : 0;
 
   return {
     startTime: firstTime,
     endTime: lastTime,
     peakHeight,
     peakScore,
+    avgScore,
     avgPeriod,
     conditions,
   };
