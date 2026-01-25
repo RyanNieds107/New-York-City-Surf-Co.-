@@ -142,6 +142,10 @@ type BuoyReading = {
   waveHeight: number;
   waveHeightMeters: number;
   dominantPeriod: number;
+  dominantWaveHeight: number;           // Height of dominant component (SwH or WWH based on energy)
+  dominantWaveHeightMeters: number;     // Dominant height in meters
+  dominantDirectionDeg: number | null;  // Direction of dominant component in degrees
+  dominantDirectionLabel: string;       // Cardinal direction of dominant component
   waveDirection: number;
   directionLabel: string;
   timestamp: Date | string;
@@ -150,10 +154,15 @@ type BuoyReading = {
   swellHeight: number | null;      // SwH - background groundswell
   swellPeriod: number | null;      // SwP in seconds
   swellDirection: string | null;   // SwD cardinal direction (e.g., "SE")
+  swellDirectionDeg: number | null; // SwD in degrees
   windWaveHeight: number | null;   // WWH - local wind chop
   windWavePeriod: number | null;   // WWP in seconds
   windWaveDirection: string | null; // WWD cardinal direction (e.g., "WNW")
+  windWaveDirectionDeg: number | null; // WWD in degrees
   steepness: string | null;        // STEEPNESS classification
+  // Meteorological wind data
+  windSpeedKts: number | null;     // WSPD in knots
+  windDirectionDeg: number | null; // WDIR in degrees
 } | null;
 
 // Format buoy timestamp for display
@@ -229,16 +238,6 @@ function SpotForecastCard({ spot, forecast, isExpanded, onToggleExpand, onNaviga
     currentPoint?.dominantSwellHeightFt ??
     currentPoint?.waveHeightFt ??
     (forecast?.waveHeightTenthsFt ? forecast.waveHeightTenthsFt / 10 : null);
-
-  console.log(`[${spot.name}] Wave height debug:`, {
-    buoyBasedHeight,
-    dominantSwellHeightFt: currentPoint?.dominantSwellHeightFt,
-    waveHeightFt: currentPoint?.waveHeightFt,
-    heightUsed,
-    source: buoyBasedHeight != null ? 'BUOY' :
-            currentPoint?.dominantSwellHeightFt != null ? 'dominantSwellHeightFt' :
-            currentPoint?.waveHeightFt != null ? 'waveHeightFt' : 'forecast'
-  });
 
   const surfHeight = formatSurfHeight(heightUsed);
   const ratingLabel = getRatingLabel(score, surfHeight);
@@ -399,7 +398,7 @@ function SpotForecastCard({ spot, forecast, isExpanded, onToggleExpand, onNaviga
                 <div className="h-4 w-12 bg-blue-200 rounded animate-pulse"></div>
               ) : (
                 <p className="text-xs sm:text-sm font-bold text-black uppercase tracking-wider text-center leading-tight" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                  {buoyData ? `${buoyData.waveHeight.toFixed(1)}ft` : surfHeight}
+                  {buoyData ? `${(buoyData.dominantWaveHeight ?? buoyData.waveHeight).toFixed(1)}ft` : surfHeight}
                 </p>
               )}
               <p className="text-[8px] sm:text-[10px] text-blue-600 uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
@@ -729,16 +728,26 @@ type SurfStatusBannerProps = {
       qualityScore?: number | null;
       probabilityScore?: number | null;
       waveHeightTenthsFt?: number | null;
+      breakingWaveHeightFt?: number | null;
+      dominantSwellHeightFt?: number | null;
+      windType?: string | null;
+      windSpeedMph?: number | null;
+      wavePeriodSec?: number | null;
+      windDirectionDeg?: number | null;
+      dominantSwellDirectionDeg?: number | null;
+      tideHeightFt?: number | null;
+      tidePhase?: string | null;
+      createdAt?: Date | string | null;
     } | undefined;
   }>;
   travelMode: "driving" | "transit";
 };
 
 function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) {
-  // Fetch timeline for all featured spots to get current conditions and find next window
-  const rockawaytimeline = trpc.forecasts.getTimeline.useQuery({ spotId: featuredSpots.find(s => s.spot.name === "Rockaway Beach")?.spot.id ?? 0, hours: 72 }, { enabled: featuredSpots.length > 0 });
-  const longBeachTimeline = trpc.forecasts.getTimeline.useQuery({ spotId: featuredSpots.find(s => s.spot.name === "Long Beach")?.spot.id ?? 0, hours: 72 }, { enabled: featuredSpots.length > 0 });
-  const lidoTimeline = trpc.forecasts.getTimeline.useQuery({ spotId: featuredSpots.find(s => s.spot.name === "Lido Beach")?.spot.id ?? 0, hours: 72 }, { enabled: featuredSpots.length > 0 });
+  // Fetch timeline: use 3hr to match cards (same "current" point). Also used for "Get there before X".
+  const rockawaytimeline = trpc.forecasts.getTimeline.useQuery({ spotId: featuredSpots.find(s => s.spot.name === "Rockaway Beach")?.spot.id ?? 0, hours: 3 }, { enabled: featuredSpots.length > 0 });
+  const longBeachTimeline = trpc.forecasts.getTimeline.useQuery({ spotId: featuredSpots.find(s => s.spot.name === "Long Beach")?.spot.id ?? 0, hours: 3 }, { enabled: featuredSpots.length > 0 });
+  const lidoTimeline = trpc.forecasts.getTimeline.useQuery({ spotId: featuredSpots.find(s => s.spot.name === "Lido Beach")?.spot.id ?? 0, hours: 3 }, { enabled: featuredSpots.length > 0 });
 
   // Fetch buoy data for logging
   const buoyQuery = trpc.buoy.get44065.useQuery(undefined, {
@@ -778,22 +787,44 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
     { name: "Lido Beach", timeline: lidoTimeline.data?.timeline },
   ];
 
-  // Find current best spot (score >= 40 = "Worth a Look" or better)
   const now = Date.now();
-  const currentConditions = allTimelines.map(({ name, timeline }) => {
-    if (!timeline || timeline.length === 0) return null;
-    // Find the point closest to now
-    const current = timeline.reduce((closest, point) => {
-      const pointTime = new Date(point.forecastTimestamp).getTime();
-      const closestTime = new Date(closest.forecastTimestamp).getTime();
-      return Math.abs(pointTime - now) < Math.abs(closestTime - now) ? point : closest;
+
+  // Use same score logic as cards: timeline currentPoint ?? forecast (qualityScore ?? probabilityScore).
+  // Build currentConditions by pairing each timeline with its forecast (featuredSpots).
+  const currentConditions = allTimelines
+    .map(({ name, timeline }) => {
+      const featured = featuredSpots.find((s) => s.spot.name === name);
+      const forecast = featured?.forecast;
+      const currentPoint = timeline?.length ? selectCurrentTimelinePoint(timeline, now) : undefined;
+      const score = currentPoint?.quality_score != null
+        ? Number(currentPoint.quality_score)
+        : (forecast?.qualityScore != null ? Number(forecast.qualityScore) : (forecast?.probabilityScore != null ? Number(forecast.probabilityScore) : 0));
+      const waveHeight = currentPoint
+        ? (currentPoint.dominantSwellHeightFt ?? currentPoint.waveHeightFt ?? 0)
+        : (forecast?.breakingWaveHeightFt ?? forecast?.dominantSwellHeightFt ?? (forecast?.waveHeightTenthsFt != null ? forecast.waveHeightTenthsFt / 10 : 0));
+      const windType = (currentPoint?.windType ?? forecast?.windType) ?? "";
+      const windSpeed = currentPoint?.windSpeedMph ?? forecast?.windSpeedMph ?? 0;
+      const current = currentPoint
+        ? {
+            forecastTimestamp: currentPoint.forecastTimestamp,
+            wavePeriodSec: currentPoint.wavePeriodSec,
+            waveDirectionDeg: currentPoint.waveDirectionDeg,
+            windDirectionDeg: currentPoint.windDirectionDeg,
+            tideHeightFt: currentPoint.tideHeightFt,
+            tidePhase: currentPoint.tidePhase,
+          }
+        : forecast
+          ? {
+              forecastTimestamp: forecast.createdAt,
+              wavePeriodSec: forecast.wavePeriodSec,
+              waveDirectionDeg: forecast.dominantSwellDirectionDeg,
+              windDirectionDeg: forecast.windDirectionDeg,
+              tideHeightFt: forecast.tideHeightFt,
+              tidePhase: forecast.tidePhase,
+            }
+          : { forecastTimestamp: null as Date | string | null, wavePeriodSec: null as number | null, waveDirectionDeg: null as number | null, windDirectionDeg: null as number | null, tideHeightFt: null as number | null, tidePhase: null as string | null };
+      return { name, score, waveHeight, windType, windSpeed, current };
     });
-    const score = current.quality_score ?? current.probabilityScore ?? 0;
-    const waveHeight = current.dominantSwellHeightFt ?? current.waveHeightFt ?? 0;
-    const windType = current.windType ?? "";
-    const windSpeed = current.windSpeedMph ?? 0;
-    return { name, score, waveHeight, windType, windSpeed, current };
-  }).filter(Boolean) as Array<{ name: string; score: number; waveHeight: number; windType: string; windSpeed: number; current: any }>;
 
   // Find all surfable spots (score >= 40)
   const surfableSpots = currentConditions.filter(spot => spot.score >= 40);
@@ -1574,172 +1605,83 @@ export default function LandingPage() {
 
       </section>
 
-      {/* Three Phase Sections - Interactive Expandable Cards */}
-      <section className="w-full bg-white">
-        <div className="max-w-8xl mx-auto px-4 sm:px-6 pt-8 sm:pt-12 md:pt-16 pb-6 sm:pb-8">
-          <div className="grid gap-4 sm:gap-6 md:grid-cols-3 items-stretch">
-            {/* Phase 1 — Forecasting */}
-            <div
-              className={cn(
-                "bg-white border-2 border-black transition-all duration-300 group relative overflow-hidden",
-                "hover:shadow-lg hover:-translate-y-1",
-                "rounded-none",
-                "h-full flex flex-col"
-              )}
-              style={{
-                transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-              }}
-            >
-              {/* Black top border on hover */}
-              <div className="absolute top-0 left-0 right-0 h-0.5 bg-black transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" style={{ transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)" }}></div>
+      {/* Three Phase Sections - Bold Rule of Three Layout */}
+      <section className="w-full bg-white px-2 sm:px-4 md:px-8 pt-10 sm:pt-14 md:pt-20 pb-4 sm:pb-6 md:pb-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 md:gap-6">
 
-              <div className="p-4 sm:p-6 flex-1 flex flex-col">
-                <div className="mb-3 sm:mb-4">
-                  <h3 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase mb-1 text-black tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>Forecasting</h3>
-                  <p className="text-xs text-gray-600 uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                    Spot-tuned for the NYC surf scene.
-                  </p>
-                </div>
-
-                <div className="space-y-3 flex-1">
-                  <div className="flex items-start gap-3">
-                    <span className="text-black text-lg leading-none mt-0.5">→</span>
-                    <p className="text-sm leading-relaxed text-gray-700" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}><strong className="text-black">Rockaway</strong> — NYC's only legal surf beach. The heart of the scene.</p>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <span className="text-black text-lg leading-none mt-0.5">→</span>
-                    <p className="text-sm leading-relaxed text-gray-700" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}><strong className="text-black">Long Beach</strong> — High-performance jetty break. World-class lefts when it lines up.</p>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <span className="text-black text-lg leading-none mt-0.5">→</span>
-                    <p className="text-sm leading-relaxed text-gray-700" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}><strong className="text-black">Lido Beach</strong> — The crown jewel. Hollow A-frames, fast and unforgiving.</p>
-                  </div>
-                </div>
-
-                {/* Tags - hidden on mobile */}
-                <div className="mt-auto pt-4 hidden sm:block">
-                  <div className="border-t border-gray-300 pt-4">
-                    <div className="flex flex-wrap gap-2">
-                      <span className="px-2 py-1 border-2 border-black font-bold uppercase tracking-wider text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif", fontSize: '10px' }}>Proprietary Model</span>
-                      <span className="px-2 py-1 border-2 border-black font-bold uppercase tracking-wider text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif", fontSize: '10px' }}>Spot-Tuned</span>
-                      <span className="px-2 py-1 border-2 border-black font-bold uppercase tracking-wider text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif", fontSize: '10px' }}>Updated Hourly</span>
-                    </div>
-                  </div>
-                </div>
+            {/* FORECASTING */}
+            <div className="bg-white border border-black sm:border-2 p-2 sm:p-4 md:p-6 flex flex-col hover:bg-gray-50 md:hover:-translate-y-2 md:hover:shadow-2xl transition-all duration-300">
+              <h3 className="text-sm sm:text-2xl md:text-4xl lg:text-5xl font-black uppercase tracking-tight text-black mb-1 sm:mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                Forecasting
+              </h3>
+              <p className="hidden sm:block text-sm md:text-base lg:text-lg text-gray-700 mb-3 md:mb-5 font-medium" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                Spot-tuned for NYC.
+              </p>
+              <div className="space-y-1 sm:space-y-2 flex-1">
+                <Link href="/spot/3" className="flex items-center justify-between p-1.5 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                  <span className="text-[10px] sm:text-sm md:text-base lg:text-lg font-bold">Rockaway</span>
+                  <ArrowRight className="hidden sm:block w-4 h-4 md:w-5 md:h-5 transform group-hover/link:translate-x-1 transition-transform" />
+                </Link>
+                <Link href="/spot/2" className="flex items-center justify-between p-1.5 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                  <span className="text-[10px] sm:text-sm md:text-base lg:text-lg font-bold">Long Beach</span>
+                  <ArrowRight className="hidden sm:block w-4 h-4 md:w-5 md:h-5 transform group-hover/link:translate-x-1 transition-transform" />
+                </Link>
+                <Link href="/spot/1" className="flex items-center justify-between p-1.5 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                  <span className="text-[10px] sm:text-sm md:text-base lg:text-lg font-bold">Lido Beach</span>
+                  <ArrowRight className="hidden sm:block w-4 h-4 md:w-5 md:h-5 transform group-hover/link:translate-x-1 transition-transform" />
+                </Link>
               </div>
             </div>
 
-            {/* Phase 2 — Culture + Guides */}
-            <div
-              className={cn(
-                "bg-white border-2 border-black transition-all duration-300 group relative overflow-hidden",
-                "hover:shadow-lg hover:-translate-y-1",
-                "rounded-none",
-                "h-full flex flex-col"
-              )}
-              style={{
-                transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-              }}
-            >
-              {/* Black top border on hover */}
-              <div className="absolute top-0 left-0 right-0 h-0.5 bg-black transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" style={{ transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)" }}></div>
-
-              <div className="p-4 sm:p-6 flex-1 flex flex-col">
-                <div className="mb-3 sm:mb-4">
-                  <h3 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase mb-1 text-black tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>Culture + Guides</h3>
-                  <p className="text-xs text-gray-600 uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                    From those who've been doing it their whole lives.
-                  </p>
-                </div>
-
-                <div className="space-y-3 flex-1">
-                  <div className="flex items-start gap-3">
-                    <span className="text-black text-lg leading-none mt-0.5">→</span>
-                    <p className="text-sm leading-relaxed text-gray-700" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}><strong className="text-black">When It Works</strong> — We break down what actually makes Long Island produce.</p>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <span className="text-black text-lg leading-none mt-0.5">→</span>
-                    <p className="text-sm leading-relaxed text-gray-700" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}><strong className="text-black">NYC Logistics</strong> — Trains, parking, and not losing your mind on the way there.</p>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <span className="text-black text-lg leading-none mt-0.5">→</span>
-                    <p className="text-sm leading-relaxed text-gray-700" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}><strong className="text-black">Workday Surfing</strong> — Waves before 8 AM. Back at your desk by 9.</p>
-                  </div>
-                </div>
-
-                {/* Tags - hidden on mobile */}
-                <div className="mt-auto pt-4 hidden sm:block">
-                  <div className="border-t border-gray-300 pt-4">
-                    <div className="flex flex-wrap gap-2">
-                      <span className="px-2 py-1 border-2 border-black font-bold uppercase tracking-wider text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif", fontSize: '10px' }}>Transit Guides</span>
-                      <span className="px-2 py-1 border-2 border-black font-bold uppercase tracking-wider text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif", fontSize: '10px' }}>Historic Sessions</span>
-                      <span className="px-2 py-1 border-2 border-black font-bold uppercase tracking-wider text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif", fontSize: '10px' }}>Local Intel</span>
-                    </div>
-                  </div>
-                </div>
+            {/* CULTURE + GUIDES */}
+            <div className="bg-white border border-black sm:border-2 p-2 sm:p-4 md:p-6 flex flex-col hover:bg-gray-50 md:hover:-translate-y-2 md:hover:shadow-2xl transition-all duration-300">
+              <h3 className="text-sm sm:text-2xl md:text-4xl lg:text-5xl font-black uppercase tracking-tight text-black mb-1 sm:mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                Guides
+              </h3>
+              <p className="hidden sm:block text-sm md:text-base lg:text-lg text-gray-700 mb-3 md:mb-5 font-medium" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                Local break insights.
+              </p>
+              <div className="space-y-1 sm:space-y-2 flex-1">
+                <Link href="/spot/3#guide" className="flex items-center justify-between p-1.5 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                  <span className="text-[10px] sm:text-sm md:text-base lg:text-lg font-bold">Rockaway</span>
+                  <ArrowRight className="hidden sm:block w-4 h-4 md:w-5 md:h-5 transform group-hover/link:translate-x-1 transition-transform" />
+                </Link>
+                <Link href="/spot/2#guide" className="flex items-center justify-between p-1.5 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                  <span className="text-[10px] sm:text-sm md:text-base lg:text-lg font-bold">Long Beach</span>
+                  <ArrowRight className="hidden sm:block w-4 h-4 md:w-5 md:h-5 transform group-hover/link:translate-x-1 transition-transform" />
+                </Link>
+                <Link href="/spot/1#guide" className="flex items-center justify-between p-1.5 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                  <span className="text-[10px] sm:text-sm md:text-base lg:text-lg font-bold">Lido Beach</span>
+                  <ArrowRight className="hidden sm:block w-4 h-4 md:w-5 md:h-5 transform group-hover/link:translate-x-1 transition-transform" />
+                </Link>
               </div>
             </div>
 
-            {/* Phase 3 — Community */}
-            <div
-              className={cn(
-                "bg-white border-2 border-black transition-all duration-300 group relative overflow-hidden",
-                "hover:shadow-lg hover:-translate-y-1",
-                "rounded-none",
-                "h-full flex flex-col"
-              )}
-              style={{
-                transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-              }}
-            >
-              {/* Black top border on hover */}
-              <div className="absolute top-0 left-0 right-0 h-0.5 bg-black transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300" style={{ transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)" }}></div>
-
-              <div className="p-4 sm:p-6 flex-1 flex flex-col">
-                <div className="mb-3 sm:mb-4">
-                  <h3 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase mb-1 text-black tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>Community</h3>
-                  <p className="text-xs text-gray-600 uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                    The scene, centralized.
-                  </p>
-                </div>
-
-                <div className="space-y-3 flex-1">
-                  <div className="flex items-start gap-3">
-                    <span className="text-black text-lg leading-none mt-0.5">→</span>
-                    <p className="text-sm leading-relaxed text-gray-700" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}><strong className="text-black">Session Logs</strong> — Post waves, compare notes, see what's working.</p>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <span className="text-black text-lg leading-none mt-0.5">→</span>
-                    <p className="text-sm leading-relaxed text-gray-700" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}><strong className="text-black">Crowd Intel</strong> — Real-time lineup reports. Know before you go.</p>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <span className="text-black text-lg leading-none mt-0.5">→</span>
-                    <p className="text-sm leading-relaxed text-gray-700" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}><strong className="text-black">Alerts</strong> — don't miss a session. <Link href="/members" className="text-black underline hover:no-underline">Sign up for swell notifications</Link>.</p>
-                  </div>
-                </div>
-
-                {/* Surfer count / waitlist counter - only show when 30+ surfers */}
-                {surferCountQuery.data !== undefined && surferCountQuery.data >= 30 && (
-                  <div className="mt-4 flex items-center gap-2">
-                    <Users className="h-4 w-4 text-black" />
-                    <span className="text-sm font-semibold text-black" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      Join {surferCountQuery.data} other NYC surfer{surferCountQuery.data === 1 ? '' : 's'}
-                    </span>
-                  </div>
-                )}
-
-                {/* Tags - hidden on mobile */}
-                <div className="mt-auto pt-4 hidden sm:block">
-                  <div className="border-t border-gray-300 pt-4">
-                    <div className="flex flex-wrap gap-2">
-                      <span className="px-2 py-1 border-2 border-black font-bold uppercase tracking-wider text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif", fontSize: '10px' }}>Transparent</span>
-                      <span className="px-2 py-1 border-2 border-black font-bold uppercase tracking-wider text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif", fontSize: '10px' }}>No Gatekeeping</span>
-                      <span className="px-2 py-1 border-2 border-black font-bold uppercase tracking-wider text-black" style={{ fontFamily: "'Inter', 'Roboto', sans-serif", fontSize: '10px' }}>Real Intel</span>
-                    </div>
-                  </div>
-                </div>
+            {/* COMMUNITY */}
+            <div className="bg-white border border-black sm:border-2 p-2 sm:p-4 md:p-6 flex flex-col hover:bg-gray-50 md:hover:-translate-y-2 md:hover:shadow-2xl transition-all duration-300">
+              <h3 className="text-sm sm:text-2xl md:text-4xl lg:text-5xl font-black uppercase tracking-tight text-black mb-1 sm:mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                Community
+              </h3>
+              <p className="hidden sm:block text-sm md:text-base lg:text-lg text-gray-700 mb-3 md:mb-5 font-medium" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                Never miss a session.
+              </p>
+              <div className="space-y-1 sm:space-y-2 flex-1">
+                <Link href="/members" className="flex items-center justify-between p-1.5 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                  <span className="text-[10px] sm:text-sm md:text-base lg:text-lg font-bold">Alerts</span>
+                  <ArrowRight className="hidden sm:block w-4 h-4 md:w-5 md:h-5 transform group-hover/link:translate-x-1 transition-transform" />
+                </Link>
+                <Link href="/members" className="flex items-center justify-between p-1.5 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                  <span className="text-[10px] sm:text-sm md:text-base lg:text-lg font-bold">Email</span>
+                  <ArrowRight className="hidden sm:block w-4 h-4 md:w-5 md:h-5 transform group-hover/link:translate-x-1 transition-transform" />
+                </Link>
+                <Link href="/members" className="flex items-center justify-between p-1.5 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                  <span className="text-[10px] sm:text-sm md:text-base lg:text-lg font-bold">Join {surferCountQuery.data !== undefined && surferCountQuery.data >= 30 ? surferCountQuery.data : '40+'}+</span>
+                  <ArrowRight className="hidden sm:block w-4 h-4 md:w-5 md:h-5 transform group-hover/link:translate-x-1 transition-transform" />
+                </Link>
               </div>
             </div>
+
           </div>
         </div>
       </section>
@@ -1747,7 +1689,7 @@ export default function LandingPage() {
       {/* Today's NYC Surf at a Glance - Professional Dark Design */}
       <section
         id="featured-spots"
-        className="w-full pt-8 sm:pt-10 md:pt-14 pb-10 sm:pb-12 md:pb-16 px-4 md:px-8 relative bg-white"
+        className="w-full pt-4 sm:pt-6 md:pt-8 pb-10 sm:pb-12 md:pb-16 px-4 md:px-8 relative bg-white"
       >
         {/* Header */}
         <div className="max-w-7xl mx-auto mb-1 relative">

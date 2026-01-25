@@ -3351,7 +3351,7 @@ export default function SpotDetail() {
 
             {/* Tabbed Content Interface */}
             {spot && (spot.name === "Lido Beach" || spot.name === "Rockaway Beach" || spot.name === "Long Beach") && (
-              <div className="mt-8 sm:mt-12">
+              <div id="guide" className="mt-8 sm:mt-12">
                 {/* Tab Navigation */}
                 <div className="bg-gray-50 border-2 border-black mb-4 sm:mb-8">
                   <div className="px-3 py-2 sm:p-4 border-b-2 border-black">

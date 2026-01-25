@@ -14,6 +14,10 @@ export interface BuoyReading {
   waveHeight: number;        // in feet (converted from meters) - SWELL height (SwH), not combined WVHT
   waveHeightMeters: number;  // raw meters - SWELL height (SwH)
   dominantPeriod: number;    // in seconds - period of dominant energy
+  dominantWaveHeight: number; // in feet - height of dominant component (SwH or WWH based on energy)
+  dominantWaveHeightMeters: number; // raw meters - dominant component height
+  dominantDirectionDeg: number | null; // degrees - direction of dominant component
+  dominantDirectionLabel: string;     // cardinal direction of dominant component
   waveDirection: number;     // in degrees - mean wave direction
   directionLabel: string;    // e.g., "SSE"
   timestamp: Date;
@@ -181,25 +185,46 @@ export async function fetchBuoy44065(): Promise<BuoyReading | null> {
         const swellHeightFeet = swH * 3.28084;
         const windWaveHeightFeet = wwH !== null ? wwH * 3.28084 : null;
 
-        // Determine dominant period using energy comparison: H² × T
-        // Compare SwH (swell) vs WWH (wind waves) to pick the right period
+        // Determine dominant component using energy comparison: H² × T
+        // Compare SwH (swell) vs WWH (wind waves) to pick the dominant source
         const swellEnergy = swH * swH * swP;
         const windWaveEnergy = wwH !== null && wwP !== null ? (wwH * wwH * wwP) : 0;
-        const dominantPeriod = windWaveEnergy > swellEnergy ? (wwP ?? swP) : swP;
+        const windWavesDominate = windWaveEnergy > swellEnergy;
+
+        // Use same dominant source for height, period, and direction
+        const dominantPeriod = windWavesDominate ? (wwP ?? swP) : swP;
+        const dominantHeightFeet = windWavesDominate
+          ? (windWaveHeightFeet ?? swellHeightFeet)
+          : swellHeightFeet;
+        const dominantHeightMeters = windWavesDominate
+          ? (wwH ?? swH)
+          : swH;
 
         // Clean up cardinal directions (handle "MM" missing values)
         const cleanSwD = swD === "MM" || swD === "-" ? null : swD;
         const cleanWwD = wwD === "MM" || wwD === "-" ? null : wwD;
         const cleanSteepness = steepness === "MM" || steepness === "-" ? null : steepness;
 
+        // Dominant direction from the same source as height/period
+        const dominantDirDeg = windWavesDominate
+          ? cardinalToDegrees(cleanWwD)
+          : cardinalToDegrees(cleanSwD);
+        const dominantDirLabel = windWavesDominate
+          ? (cleanWwD ?? (dominantDirDeg !== null ? degreesToDirection(dominantDirDeg) : "N/A"))
+          : (cleanSwD ?? (dominantDirDeg !== null ? degreesToDirection(dominantDirDeg) : "N/A"));
+
         console.log(`[Buoy 44065] Spectral data: WVHT=${wvht}m, SwH=${swH}m @ ${swP}s from ${swD}, WWH=${wwH}m @ ${wwP}s from ${wwD}, Steepness=${steepness}`);
-        console.log(`[Buoy 44065] Energy comparison: swell=${swellEnergy.toFixed(2)} vs wind=${windWaveEnergy.toFixed(2)} → using ${windWaveEnergy > swellEnergy ? 'WWP' : 'SwP'}=${dominantPeriod}s`);
-        console.log(`[Buoy 44065] Output: waveHeight=${waveHeightFeet.toFixed(1)}ft (SwH), dominantPeriod=${dominantPeriod}s`);
+        console.log(`[Buoy 44065] Energy comparison: swell=${swellEnergy.toFixed(2)} vs wind=${windWaveEnergy.toFixed(2)} → ${windWavesDominate ? 'WIND WAVES' : 'SWELL'} dominate`);
+        console.log(`[Buoy 44065] Output: dominantHeight=${dominantHeightFeet.toFixed(1)}ft @ ${dominantPeriod}s from ${dominantDirLabel}`);
 
         return {
           waveHeight: waveHeightFeet,
           waveHeightMeters: swH,
           dominantPeriod: dominantPeriod,
+          dominantWaveHeight: dominantHeightFeet,
+          dominantWaveHeightMeters: dominantHeightMeters,
+          dominantDirectionDeg: dominantDirDeg,
+          dominantDirectionLabel: dominantDirLabel,
           waveDirection: mwd ?? 0,
           directionLabel: mwd !== null ? degreesToDirection(mwd) : "N/A",
           timestamp,
