@@ -440,7 +440,7 @@ function SpotForecastCard({ spot, isExpanded, onToggleExpand, onNavigate, travel
                 <>
                   {/* Primary Swell - the larger of wind wave or background swell */}
                   <div>
-                    <div className="text-[10px] text-gray-600 uppercase tracking-wider mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>PRIMARY SWELL</div>
+                    <div className="text-[10px] text-gray-600 uppercase tracking-wider mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>PRIMARY</div>
                     {buoyLoading ? (
                       <div className="h-8 w-24 bg-gray-200 rounded animate-pulse"></div>
                     ) : primaryHeight > 0 ? (
@@ -459,7 +459,7 @@ function SpotForecastCard({ spot, isExpanded, onToggleExpand, onNavigate, travel
 
                   {/* Secondary Swell - the smaller of wind wave or background swell */}
                   <div>
-                    <div className="text-[10px] text-gray-600 uppercase tracking-wider mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>SECONDARY SWELL</div>
+                    <div className="text-[10px] text-gray-600 uppercase tracking-wider mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>SECONDARY</div>
                     {buoyLoading ? (
                       <div className="h-8 w-24 bg-gray-200 rounded animate-pulse"></div>
                     ) : secondaryHeight > 0 ? (
@@ -479,16 +479,18 @@ function SpotForecastCard({ spot, isExpanded, onToggleExpand, onNavigate, travel
               );
             })()}
 
-            {/* Tertiary Swell - only show when there's a third swell component */}
+            {/* Wind Swell - wind-generated waves */}
             <div>
-              <div className="text-[10px] text-gray-600 uppercase tracking-wider mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>TERTIARY SWELL</div>
-              {currentPoint?.tertiarySwellHeightFt && currentPoint.tertiarySwellPeriodS ? (
+              <div className="text-[10px] text-gray-600 uppercase tracking-wider mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>WIND</div>
+              {buoyLoading ? (
+                <div className="h-8 w-24 bg-gray-200 rounded animate-pulse"></div>
+              ) : currentPoint?.windWaveHeightFt && currentPoint?.windWavePeriodS && currentPoint.windWaveHeightFt > 0 ? (
                 <>
                   <div className="text-2xl text-black font-bold" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.01em' }}>
-                    {Number(currentPoint.tertiarySwellHeightFt).toFixed(1)}ft @ {currentPoint.tertiarySwellPeriodS}s
+                    {Number(currentPoint.windWaveHeightFt).toFixed(1)}ft @ {currentPoint.windWavePeriodS.toFixed(0)}s
                   </div>
                   <div className="text-xs text-black mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    {currentPoint.tertiarySwellDirectionDeg !== null ? formatSwellDirection(currentPoint.tertiarySwellDirectionDeg) : 'N/A'}
+                    {currentPoint.windWaveDirectionDeg !== null ? formatSwellDirection(currentPoint.windWaveDirectionDeg) : 'N/A'}
                   </div>
                 </>
               ) : (
@@ -496,9 +498,9 @@ function SpotForecastCard({ spot, isExpanded, onToggleExpand, onNavigate, travel
               )}
             </div>
 
-            {/* Wind - from forecast */}
+            {/* Wind Conditions - speed and direction */}
             <div>
-              <div className="text-[10px] text-gray-600 uppercase tracking-wider mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>WIND</div>
+              <div className="text-[10px] text-gray-600 uppercase tracking-wider mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>WIND CONDITIONS</div>
               {currentPoint ? (
                 <>
                   <div className="text-2xl text-black font-bold" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.01em' }}>
