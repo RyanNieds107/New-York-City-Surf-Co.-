@@ -511,9 +511,9 @@ export const appRouter = router({
               const { insertForecastPoints } = await import("./db");
 
               try {
-                // IMPORTANT: Fetch 120 hours to match getTimeline behavior
-                // Previously was fetching 3 hours, which would delete full 120-hour data
-                const fetchedPoints = await fetchOpenMeteoForecastForSpot(spot, { maxHoursOut: 120 });
+                // IMPORTANT: Fetch 168 hours (7 days) to match getTimeline behavior
+                // Previously was fetching 3 hours, which would delete full forecast data
+                const fetchedPoints = await fetchOpenMeteoForecastForSpot(spot, { maxHoursOut: 168 });
                 
                 // #region agent log
                 fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/routers.ts:324',message:'Fetched points from Open-Meteo',data:{spotId:spot.id,fetchedCount:fetchedPoints.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
@@ -795,7 +795,7 @@ export const appRouter = router({
       .input(
         z.object({
           spotId: z.number(),
-          hours: z.number().min(1).max(180).default(120),
+          hours: z.number().min(1).max(180).default(168),
         })
       )
       .query(async ({ input }) => {
@@ -929,17 +929,17 @@ export const appRouter = router({
         const deletedCount = await deleteAllForecastPointsForSpot(input.spotId);
         console.log(`[Refresh Timeline] Deleted ${deletedCount} old forecast points`);
 
-        // Fetch forecast from Open-Meteo (120 hours = 5 days)
-        const forecastPoints = await fetchOpenMeteoForecastForSpot(spot, { maxHoursOut: 120 });
-        console.log(`[Refresh Timeline] Fetched ${forecastPoints.length} points from Open-Meteo (expected: 120)`);
+        // Fetch forecast from Open-Meteo (168 hours = 7 days)
+        const forecastPoints = await fetchOpenMeteoForecastForSpot(spot, { maxHoursOut: 168 });
+        console.log(`[Refresh Timeline] Fetched ${forecastPoints.length} points from Open-Meteo (expected: 168)`);
 
         if (forecastPoints.length === 0) {
           console.error(`[Refresh Timeline] ERROR: Fetched 0 forecast points from Open-Meteo!`);
           throw new Error("Failed to fetch forecast points from Open-Meteo");
         }
 
-        if (forecastPoints.length < 120) {
-          console.warn(`[Refresh Timeline] WARNING: Expected 120 points but got ${forecastPoints.length}`);
+        if (forecastPoints.length < 168) {
+          console.warn(`[Refresh Timeline] WARNING: Expected 168 points but got ${forecastPoints.length}`);
         }
 
         // Convert to database format

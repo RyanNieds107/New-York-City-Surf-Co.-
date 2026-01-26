@@ -21,9 +21,9 @@ export function useCurrentConditions(spotId: number, options?: { refetchInterval
   // Fetch spot info (for name, needed for buoy lookup)
   const spotQuery = trpc.spots.get.useQuery({ id: spotId });
 
-  // Fetch timeline (120hr, same as SpotDetail)
+  // Fetch timeline (168hr = 7 days, same as SpotDetail)
   const timelineQuery = trpc.forecasts.getTimeline.useQuery(
-    { spotId, hours: 120 },
+    { spotId, hours: 168 },
     { refetchInterval }
   );
 
