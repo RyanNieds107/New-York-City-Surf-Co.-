@@ -1542,76 +1542,67 @@ export default function LandingPage() {
       {/* Three Phase Sections - Bold Rule of Three Layout */}
       <section className="w-full bg-white px-2 sm:px-4 md:px-8 pt-10 sm:pt-14 md:pt-20 pb-4 sm:pb-6 md:pb-8">
         <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-3 gap-2 sm:gap-4 md:gap-6">
+          <div className="grid grid-cols-3 gap-1.5 sm:gap-4 md:gap-6">
 
             {/* FORECASTING */}
-            <div className="bg-white border border-black sm:border-2 p-2 sm:p-4 md:p-6 flex flex-col hover:bg-gray-50 md:hover:-translate-y-2 md:hover:shadow-2xl transition-all duration-300">
-              <h3 className="text-sm sm:text-2xl md:text-4xl lg:text-5xl font-black uppercase tracking-tight text-black mb-1 sm:mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+            <div className="bg-white border border-black sm:border-2 p-1.5 sm:p-4 md:p-6 flex flex-col hover:bg-gray-50 md:hover:-translate-y-2 md:hover:shadow-2xl transition-all duration-300">
+              <h3 className="text-[11px] sm:text-2xl md:text-4xl lg:text-5xl font-black uppercase tracking-tight text-black mb-1 sm:mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                 Forecasting
               </h3>
               <p className="hidden sm:block text-sm md:text-base lg:text-lg text-gray-700 mb-3 md:mb-5 font-medium" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                 Spot-tuned for NYC.
               </p>
-              <div className="space-y-1 sm:space-y-2 flex-1">
-                <Link href="/spot/3" className="flex items-center justify-between p-1.5 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                  <span className="text-[10px] sm:text-sm md:text-base lg:text-lg font-bold">Rockaway</span>
-                  <ArrowRight className="hidden sm:block w-4 h-4 md:w-5 md:h-5 transform group-hover/link:translate-x-1 transition-transform" />
+              <div className="space-y-0.5 sm:space-y-2 flex-1">
+                <Link href="/spot/3" className="block p-1 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-gray-300 sm:border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  <span className="text-[8px] sm:text-sm md:text-base lg:text-lg font-medium sm:font-bold">Rockaway</span>
                 </Link>
-                <Link href="/spot/2" className="flex items-center justify-between p-1.5 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                  <span className="text-[10px] sm:text-sm md:text-base lg:text-lg font-bold">Long Beach</span>
-                  <ArrowRight className="hidden sm:block w-4 h-4 md:w-5 md:h-5 transform group-hover/link:translate-x-1 transition-transform" />
+                <Link href="/spot/2" className="block p-1 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-gray-300 sm:border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  <span className="text-[8px] sm:text-sm md:text-base lg:text-lg font-medium sm:font-bold">Long Beach</span>
                 </Link>
-                <Link href="/spot/1" className="flex items-center justify-between p-1.5 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                  <span className="text-[10px] sm:text-sm md:text-base lg:text-lg font-bold">Lido Beach</span>
-                  <ArrowRight className="hidden sm:block w-4 h-4 md:w-5 md:h-5 transform group-hover/link:translate-x-1 transition-transform" />
+                <Link href="/spot/1" className="block p-1 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-gray-300 sm:border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  <span className="text-[8px] sm:text-sm md:text-base lg:text-lg font-medium sm:font-bold">Lido Beach</span>
                 </Link>
               </div>
             </div>
 
-            {/* CULTURE + GUIDES */}
-            <div className="bg-white border border-black sm:border-2 p-2 sm:p-4 md:p-6 flex flex-col hover:bg-gray-50 md:hover:-translate-y-2 md:hover:shadow-2xl transition-all duration-300">
-              <h3 className="text-sm sm:text-2xl md:text-4xl lg:text-5xl font-black uppercase tracking-tight text-black mb-1 sm:mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+            {/* GUIDES */}
+            <div className="bg-white border border-black sm:border-2 p-1.5 sm:p-4 md:p-6 flex flex-col hover:bg-gray-50 md:hover:-translate-y-2 md:hover:shadow-2xl transition-all duration-300">
+              <h3 className="text-[11px] sm:text-2xl md:text-4xl lg:text-5xl font-black uppercase tracking-tight text-black mb-1 sm:mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                 Guides
               </h3>
               <p className="hidden sm:block text-sm md:text-base lg:text-lg text-gray-700 mb-3 md:mb-5 font-medium" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                 Local break insights.
               </p>
-              <div className="space-y-1 sm:space-y-2 flex-1">
-                <Link href="/spot/3#guide" className="flex items-center justify-between p-1.5 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                  <span className="text-[10px] sm:text-sm md:text-base lg:text-lg font-bold">Rockaway</span>
-                  <ArrowRight className="hidden sm:block w-4 h-4 md:w-5 md:h-5 transform group-hover/link:translate-x-1 transition-transform" />
+              <div className="space-y-0.5 sm:space-y-2 flex-1">
+                <Link href="/spot/3#guide" className="block p-1 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-gray-300 sm:border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  <span className="text-[8px] sm:text-sm md:text-base lg:text-lg font-medium sm:font-bold">Rockaway</span>
                 </Link>
-                <Link href="/spot/2#guide" className="flex items-center justify-between p-1.5 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                  <span className="text-[10px] sm:text-sm md:text-base lg:text-lg font-bold">Long Beach</span>
-                  <ArrowRight className="hidden sm:block w-4 h-4 md:w-5 md:h-5 transform group-hover/link:translate-x-1 transition-transform" />
+                <Link href="/spot/2#guide" className="block p-1 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-gray-300 sm:border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  <span className="text-[8px] sm:text-sm md:text-base lg:text-lg font-medium sm:font-bold">Long Beach</span>
                 </Link>
-                <Link href="/spot/1#guide" className="flex items-center justify-between p-1.5 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                  <span className="text-[10px] sm:text-sm md:text-base lg:text-lg font-bold">Lido Beach</span>
-                  <ArrowRight className="hidden sm:block w-4 h-4 md:w-5 md:h-5 transform group-hover/link:translate-x-1 transition-transform" />
+                <Link href="/spot/1#guide" className="block p-1 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-gray-300 sm:border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  <span className="text-[8px] sm:text-sm md:text-base lg:text-lg font-medium sm:font-bold">Lido Beach</span>
                 </Link>
               </div>
             </div>
 
             {/* COMMUNITY */}
-            <div className="bg-white border border-black sm:border-2 p-2 sm:p-4 md:p-6 flex flex-col hover:bg-gray-50 md:hover:-translate-y-2 md:hover:shadow-2xl transition-all duration-300">
-              <h3 className="text-sm sm:text-2xl md:text-4xl lg:text-5xl font-black uppercase tracking-tight text-black mb-1 sm:mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+            <div className="bg-white border border-black sm:border-2 p-1.5 sm:p-4 md:p-6 flex flex-col hover:bg-gray-50 md:hover:-translate-y-2 md:hover:shadow-2xl transition-all duration-300">
+              <h3 className="text-[11px] sm:text-2xl md:text-4xl lg:text-5xl font-black uppercase tracking-tight text-black mb-1 sm:mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                 Community
               </h3>
               <p className="hidden sm:block text-sm md:text-base lg:text-lg text-gray-700 mb-3 md:mb-5 font-medium" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                 Never miss a session.
               </p>
-              <div className="space-y-1 sm:space-y-2 flex-1">
-                <Link href="/members" className="flex items-center justify-between p-1.5 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                  <span className="text-[10px] sm:text-sm md:text-base lg:text-lg font-bold">Alerts</span>
-                  <ArrowRight className="hidden sm:block w-4 h-4 md:w-5 md:h-5 transform group-hover/link:translate-x-1 transition-transform" />
+              <div className="space-y-0.5 sm:space-y-2 flex-1">
+                <Link href="/members" className="block p-1 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-gray-300 sm:border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  <span className="text-[8px] sm:text-sm md:text-base lg:text-lg font-medium sm:font-bold">Alerts</span>
                 </Link>
-                <Link href="/members" className="flex items-center justify-between p-1.5 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                  <span className="text-[10px] sm:text-sm md:text-base lg:text-lg font-bold">Email Notifications</span>
-                  <ArrowRight className="hidden sm:block w-4 h-4 md:w-5 md:h-5 transform group-hover/link:translate-x-1 transition-transform" />
+                <Link href="/members" className="block p-1 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-gray-300 sm:border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  <span className="text-[8px] sm:text-sm md:text-base lg:text-lg font-medium sm:font-bold">Email</span>
                 </Link>
-                <Link href="/members" className="flex items-center justify-between p-1.5 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                  <span className="text-[10px] sm:text-sm md:text-base lg:text-lg font-bold">Join 40+ Other Surfers</span>
-                  <ArrowRight className="hidden sm:block w-4 h-4 md:w-5 md:h-5 transform group-hover/link:translate-x-1 transition-transform" />
+                <Link href="/members" className="block p-1 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-gray-300 sm:border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  <span className="text-[8px] sm:text-sm md:text-base lg:text-lg font-medium sm:font-bold">Join 40+</span>
                 </Link>
               </div>
             </div>
