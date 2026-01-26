@@ -180,22 +180,38 @@ export function getFirstLightForDate(date: Date, lat: number = NYC_COORDS.lat, l
 }
 
 /**
- * Get time-of-day label based on hour
+ * Gets the hour in Eastern Time (ET).
+ * Accounts for daylight saving time automatically.
+ */
+function getEasternTimeHour(date: Date): number {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    hour: 'numeric',
+    hour12: false,
+  });
+
+  const etHourStr = formatter.format(date);
+  return parseInt(etHourStr, 10);
+}
+
+/**
+ * Get time-of-day label based on hour in Eastern Time
  * @param date - The date/time to get label for
  * @param lat - Latitude for sunset calculation
  * @param lng - Longitude for sunset calculation
  * @returns A friendly time-of-day label
  */
 export function getTimeOfDayLabel(date: Date, lat: number = NYC_COORDS.lat, lng: number = NYC_COORDS.lng): string {
-  const hour = date.getHours();
+  // Use Eastern Time for consistent labeling (server may be in UTC)
+  const hour = getEasternTimeHour(date);
   const lastLight = calculateLastLight(lat, lng, date);
-  const lastLightHour = lastLight.getHours();
-  
+  const lastLightHour = getEasternTimeHour(lastLight);
+
   // If within 1 hour of last light or after, it's evening
   if (hour >= lastLightHour - 1) {
     return "Evening";
   }
-  
+
   if (hour < 9) {
     return "Early Morning";
   }
@@ -217,12 +233,13 @@ export function getTimeOfDayLabel(date: Date, lat: number = NYC_COORDS.lat, lng:
  * @returns Formatted string like "Sat Morning-Afternoon" or "Sun Early Morning-Midday"
  */
 export function formatDaylightTimeWindow(
-  startTime: Date, 
-  endTime: Date, 
-  lat: number = NYC_COORDS.lat, 
+  startTime: Date,
+  endTime: Date,
+  lat: number = NYC_COORDS.lat,
   lng: number = NYC_COORDS.lng
 ): string {
-  const startDay = startTime.toLocaleDateString("en-US", { weekday: "short" });
+  // Use Eastern Time for consistent day labeling (server may be in UTC)
+  const startDay = startTime.toLocaleDateString("en-US", { weekday: "short", timeZone: "America/New_York" });
   
   // Get last light for the start day
   const lastLight = calculateLastLight(lat, lng, startTime);

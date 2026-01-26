@@ -56,15 +56,22 @@ export async function checkSwellAlerts(): Promise<void> {
           }
 
           // Check if we already sent a notification for this swell (duplicate protection)
-          const alreadySent = await checkIfAlertAlreadySent(
-            alert.id,
-            detectedSwell.spotId,
-            detectedSwell.swellStartTime,
-            detectedSwell.swellEndTime
-          );
+          // Skip duplicate protection for realtime/immediate - they should send every time the job runs
+          const frequency = alert.notificationFrequency || "immediate";
+          const skipDuplicateCheck = frequency === "realtime" || frequency === "immediate";
 
-          if (alreadySent) {
-            continue; // Skip if already notified for this exact swell window
+          if (!skipDuplicateCheck) {
+            const alreadySent = await checkIfAlertAlreadySent(
+              alert.id,
+              detectedSwell.spotId,
+              detectedSwell.swellStartTime,
+              detectedSwell.swellEndTime
+            );
+
+            if (alreadySent) {
+              console.log(`[Swell Alerts] Skipping duplicate for alert ${alert.id} (frequency: ${frequency})`);
+              continue; // Skip if already notified for this exact swell window
+            }
           }
 
           // Get user info for email/phone
