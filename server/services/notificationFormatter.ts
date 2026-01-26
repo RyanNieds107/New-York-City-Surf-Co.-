@@ -75,7 +75,8 @@ export function formatSwellAlertNotification(
     if (hours <= 48) return { percent: 90, message: "Looking promising. Keep an eye on it." };
     if (hours <= 72) return { percent: 80, message: "Tracking a swell. Check back tomorrow." };
     if (hours <= 120) return { percent: 65, message: "Early signal. Still time for changes." };
-    return { percent: 50, message: "Long-range outlook. A lot can change." };
+    // Days 6-7 (>120 hours): Extended forecast - much less accurate
+    return { percent: 25, message: "Extended forecast. Use as swell indicator only." };
   };
   const confidence = getConfidence(hoursUntil);
 

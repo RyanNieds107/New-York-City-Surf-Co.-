@@ -2775,7 +2775,8 @@ export default function SpotDetail() {
                         const windDirCardinal = avgWindDir !== null ? formatDirection(avgWindDir) : null;
                         
                         // Calculate confidence percentage (High = 95%, Medium = 75%, Low = 50%)
-                        const confidencePercentage = displayConfidence === "High" ? 95 : displayConfidence === "Medium" ? 75 : 50;
+                        // Days 6-7 (dayIndex >= 5) always show 25% due to extended forecast uncertainty
+                        const confidencePercentage = dayIndex >= 5 ? 25 : (displayConfidence === "High" ? 95 : displayConfidence === "Medium" ? 75 : 50);
                         
                         const isExpanded = expandedDays.has(dayKey);
                         
