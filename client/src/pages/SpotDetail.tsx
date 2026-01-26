@@ -587,7 +587,7 @@ export default function SpotDetail() {
     return "All-Time";
   };
 
-  // Helper functions for 5-day forecast UI
+  // Helper functions for 7-day forecast UI
   const getFullDayName = (date: Date): string => {
     return date.toLocaleDateString("en-US", { weekday: "long" }).toUpperCase();
   };
@@ -1924,10 +1924,10 @@ export default function SpotDetail() {
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h2 className="text-2xl md:text-4xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.02em' }}>
-                      5-DAY FORECAST
+                      7-DAY FORECAST
                     </h2>
                     <p className="mt-2 md:mt-3 text-sm md:text-base text-gray-700 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                      Quality scores and conditions for the next 5 days
+                      Quality scores and conditions for the next 7 days
                     </p>
                   </div>
                   {(!timelineQuery.data?.timeline || timelineQuery.data.timeline.length === 0) && (
@@ -3301,7 +3301,7 @@ export default function SpotDetail() {
                       ) : (
                         <span className="flex items-center gap-2">
                           <RefreshCw className="h-4 w-4" />
-                          FETCH 5-DAY FORECAST
+                          FETCH 7-DAY FORECAST
                         </span>
                       )}
                     </button>
