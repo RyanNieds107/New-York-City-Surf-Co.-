@@ -17,6 +17,7 @@ import {
   MapPin,
   Loader2,
   AlertCircle,
+  AlertTriangle,
   Droplet,
   Sun,
   ArrowUp,
@@ -2831,6 +2832,20 @@ export default function SpotDetail() {
                                         <Clock className="h-2.5 w-2.5 md:h-3.5 md:w-3.5" />
                                         {surfableDaylightHoursCount}hr surfable{bestQualityRating && (bestQualityRating === "Go Surf" || bestQualityRating === "Firing" || bestQualityRating === "All-Time") ? ` • ${bestQualityRating}` : ''}
                                       </span>
+                                    </div>
+                                  )}
+
+                                  {/* Extended forecast warning for days 6-7 */}
+                                  {dayIndex >= 5 && (
+                                    <div className="relative group mb-1">
+                                      <span className="inline-flex items-center gap-1 text-[8px] md:text-[10px] font-medium tracking-wide text-orange-700 bg-orange-50 px-1.5 py-0.5 rounded border border-orange-200 cursor-help" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                        <AlertTriangle className="h-2.5 w-2.5 md:h-3.5 md:w-3.5" />
+                                        Extended forecast
+                                      </span>
+                                      {/* Tooltip on hover */}
+                                      <div className="absolute left-0 bottom-full mb-1 hidden group-hover:block z-50 w-48 p-2 text-xs bg-gray-900 text-white rounded shadow-lg">
+                                        East Coast forecasts are less accurate 6+ days out. Use as a swell indicator only—local winds are difficult to predict.
+                                      </div>
                                     </div>
                                   )}
 
