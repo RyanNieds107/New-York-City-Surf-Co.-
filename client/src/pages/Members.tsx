@@ -39,7 +39,7 @@ export default function Members() {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [minWaveHeight, setMinWaveHeight] = useState<number | null>(null);
   const [minPeriod, setMinPeriod] = useState<number | null>(null);
-  const [idealWindOnly, setIdealWindOnly] = useState(false);
+  const [allowedDays, setAllowedDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]); // 0=Sun, 6=Sat
 
   // Crowd report state
   const [crowdSpotId, setCrowdSpotId] = useState<number | null>(null);
@@ -61,7 +61,7 @@ export default function Members() {
       setShowAdvancedFilters(false);
       setMinWaveHeight(null);
       setMinPeriod(null);
-      setIdealWindOnly(false);
+      setAllowedDays([0, 1, 2, 3, 4, 5, 6]);
     },
     onError: (error) => {
       toast.error(error.message || "Failed to create alert");
@@ -132,7 +132,7 @@ export default function Members() {
       minQualityScore,
       minWaveHeightFt: minWaveHeight ?? undefined,
       minPeriodSec: minPeriod ?? undefined,
-      idealWindOnly,
+      allowedDays,
       emailEnabled,
       smsEnabled: false, // SMS coming soon
       hoursAdvanceNotice: daysAdvanceNotice * 24,
@@ -458,31 +458,80 @@ export default function Members() {
                         </div>
                       </div>
 
-                      {/* Ideal Wind Only */}
+                      {/* Alert Days Filter */}
                       <div>
-                        <button
-                          type="button"
-                          onClick={() => setIdealWindOnly(!idealWindOnly)}
-                          className={`w-full p-3 text-left transition-all border-2 ${
-                            idealWindOnly
-                              ? "bg-black text-white border-black"
-                              : "bg-white text-black border-gray-300 hover:border-black"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="font-bold text-[10px] sm:text-xs uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                                Ideal Wind Only
-                              </div>
-                              <div className={`text-[9px] sm:text-[10px] mt-0.5 ${idealWindOnly ? "text-gray-300" : "text-gray-500"}`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                                Offshore or side-offshore winds
-                              </div>
-                            </div>
-                            <div className={`w-4 h-4 border-2 flex items-center justify-center ${idealWindOnly ? "bg-white border-white" : "border-gray-400"}`}>
-                              {idealWindOnly && <span className="text-black text-xs">✓</span>}
-                            </div>
-                          </div>
-                        </button>
+                        <div className="font-bold text-[10px] sm:text-xs uppercase tracking-wider mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                          Alert Days
+                        </div>
+                        <div className="text-[9px] sm:text-[10px] text-gray-500 mb-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                          Only get alerts for swells on these days
+                        </div>
+                        {/* Day buttons */}
+                        <div className="flex gap-1 sm:gap-2 mb-3">
+                          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
+                            <button
+                              key={index}
+                              type="button"
+                              onClick={() => {
+                                if (allowedDays.includes(index)) {
+                                  // Don't allow deselecting if it's the last day
+                                  if (allowedDays.length > 1) {
+                                    setAllowedDays(allowedDays.filter(d => d !== index));
+                                  }
+                                } else {
+                                  setAllowedDays([...allowedDays, index].sort((a, b) => a - b));
+                                }
+                              }}
+                              className={`w-8 h-8 sm:w-9 sm:h-9 text-xs sm:text-sm font-bold transition-all border-2 ${
+                                allowedDays.includes(index)
+                                  ? "bg-black text-white border-black"
+                                  : "bg-white text-black border-gray-300 hover:border-black"
+                              }`}
+                              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                            >
+                              {day}
+                            </button>
+                          ))}
+                        </div>
+                        {/* Quick presets */}
+                        <div className="flex gap-2 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => setAllowedDays([0, 6])}
+                            className={`px-2 py-1 text-[9px] sm:text-[10px] font-medium border transition-all ${
+                              allowedDays.length === 2 && allowedDays.includes(0) && allowedDays.includes(6)
+                                ? "bg-black text-white border-black"
+                                : "bg-white text-black border-gray-300 hover:border-black"
+                            }`}
+                            style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                          >
+                            Weekends
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setAllowedDays([1, 2, 3, 4, 5])}
+                            className={`px-2 py-1 text-[9px] sm:text-[10px] font-medium border transition-all ${
+                              allowedDays.length === 5 && [1,2,3,4,5].every(d => allowedDays.includes(d))
+                                ? "bg-black text-white border-black"
+                                : "bg-white text-black border-gray-300 hover:border-black"
+                            }`}
+                            style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                          >
+                            Weekdays
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setAllowedDays([0, 1, 2, 3, 4, 5, 6])}
+                            className={`px-2 py-1 text-[9px] sm:text-[10px] font-medium border transition-all ${
+                              allowedDays.length === 7
+                                ? "bg-black text-white border-black"
+                                : "bg-white text-black border-gray-300 hover:border-black"
+                            }`}
+                            style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                          >
+                            All Days
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}

@@ -2,6 +2,63 @@ import type { SwellAlert, SurfSpot } from "../../drizzle/schema";
 import type { DetectedSwell } from "./swellDetection";
 import { formatDaylightTimeWindow, getLastLightForDate } from "../utils/sunTimes";
 
+// Predefined wave height ranges based on surf reporting conventions
+// Format: [min, max] - ranges chosen to match how surfers describe conditions
+const WAVE_HEIGHT_RANGES: [number, number][] = [
+  [2, 3], [3, 4], [4, 5], [4, 6], [5, 6],
+  [5, 7], [6, 8], [6, 10], [8, 10], [6, 12]
+];
+
+/**
+ * Maps forecast wave heights to the best matching predefined range.
+ * Uses the min/max spread from the conditions to find the closest fit.
+ */
+function getWaveHeightRange(conditions: Array<{ waveHeight: number }>): string {
+  if (conditions.length === 0) return "2-3ft";
+
+  const heights = conditions.map(c => c.waveHeight);
+  const minHeight = Math.floor(Math.min(...heights));
+  const maxHeight = Math.ceil(Math.max(...heights));
+
+  // Find the range that best fits our forecast spread
+  // Score each range by how well it contains the forecast while being tight
+  let bestRange = WAVE_HEIGHT_RANGES[0];
+  let bestScore = Infinity;
+
+  for (const [rangeMin, rangeMax] of WAVE_HEIGHT_RANGES) {
+    // Check if range contains our forecast spread
+    const containsMin = rangeMin <= minHeight;
+    const containsMax = rangeMax >= maxHeight;
+
+    if (containsMin && containsMax) {
+      // Range contains our spread - prefer tighter ranges
+      const rangeSize = rangeMax - rangeMin;
+      const spreadSize = maxHeight - minHeight;
+      const slack = rangeSize - spreadSize;
+
+      if (slack < bestScore) {
+        bestScore = slack;
+        bestRange = [rangeMin, rangeMax];
+      }
+    } else if (bestScore === Infinity) {
+      // No perfect fit yet - find closest match
+      const distMin = Math.abs(rangeMin - minHeight);
+      const distMax = Math.abs(rangeMax - maxHeight);
+      const totalDist = distMin + distMax;
+
+      if (totalDist < bestScore) {
+        bestScore = totalDist;
+        bestRange = [rangeMin, rangeMax];
+      }
+    }
+  }
+
+  return `${bestRange[0]}-${bestRange[1]}ft`;
+}
+
+// Day names for formatting
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
 export interface FormattedNotification {
   subject: string;
   emailHtml: string;
@@ -41,9 +98,12 @@ export function formatSwellAlertNotification(
     return formatDaylightTimeWindow(swellStartTime, effectiveEndTime, lat, lng);
   };
 
-  // Format wave height range (e.g., "4-5ft")
-  const waveHeight = Math.round(peakWaveHeightFt);
-  const waveHeightRange = `${waveHeight}-${waveHeight + 1}ft`;
+  // Format day of week and date (e.g., "Saturday 1/31")
+  const dayOfWeek = DAY_NAMES[swellStartTime.getDay()];
+  const dateFormatted = `${swellStartTime.getMonth() + 1}/${swellStartTime.getDate()}`;
+
+  // Format wave height range using forecast spread
+  const waveHeightRange = getWaveHeightRange(conditions);
 
   // Quality label
   const getQualityLabel = (score: number): string => {
@@ -80,8 +140,8 @@ export function formatSwellAlertNotification(
   };
   const confidence = getConfidence(hoursUntil);
 
-  // Subject line - minimal
-  const subject = `${spot.name}: ${waveHeightRange} ${qualityLabel} - ${formatTimeWindow()}`;
+  // Subject line: Day Date - Break - Height (Quality)
+  const subject = `${dayOfWeek} ${dateFormatted} - ${spot.name} - ${waveHeightRange} (${qualityLabel})`;
 
   // Hours out text
   const hoursOutText = hoursUntil <= 1 ? "NOW" : `${hoursUntil}hrs out`;
@@ -97,11 +157,10 @@ export function formatSwellAlertNotification(
   const qualityColor = getQualityColor(peakQualityScore);
 
   // SMS text (160 chars max)
-  const smsText = `${spot.name.toUpperCase()}
-${formatTimeWindow()}: ${waveHeightRange} - ${qualityLabel}
+  const smsText = `${dayOfWeek} ${dateFormatted} - ${spot.name}
+${waveHeightRange} (${qualityLabel})
 ${peakWaveHeightFt.toFixed(0)}ft @ ${avgPeriodSec}s | ${windLabel}
-${confidence.percent}% confidence
-${confidence.message}`;
+${confidence.percent}% confidence`;
 
   // Email HTML - ruthlessly minimal
   const emailHtml = `
@@ -136,7 +195,7 @@ ${confidence.message}`;
         </div>
         <div class="content">
             <p class="main-line">
-                ${formatTimeWindow()}: ${waveHeightRange}<span class="badge">${qualityLabel}</span>
+                ${dayOfWeek} ${dateFormatted}: ${waveHeightRange}<span class="badge">${qualityLabel}</span>
             </p>
             <div class="details">
                 <div class="detail-row"><span class="label">Swell:</span> ${peakWaveHeightFt.toFixed(0)}ft @ ${avgPeriodSec}s</div>
@@ -160,7 +219,7 @@ ${confidence.message}`;
   const emailText = `
 ${spot.name.toUpperCase()}
 
-${formatTimeWindow()}: ${waveHeightRange} - ${qualityLabel}
+${dayOfWeek} ${dateFormatted}: ${waveHeightRange} (${qualityLabel})
 
 Swell: ${peakWaveHeightFt.toFixed(0)}ft @ ${avgPeriodSec}s
 Wind: ${windLabel}, ${hoursOutText}

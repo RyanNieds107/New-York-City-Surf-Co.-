@@ -248,6 +248,7 @@ export default function SpotDetail() {
   const [showCrowdReport, setShowCrowdReport] = useState(false);
   const [showScoreBreakdown, setShowScoreBreakdown] = useState(false);
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
+  const [extendedForecastTooltip, setExtendedForecastTooltip] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("ideal-conditions");
   const [forecastView, setForecastView] = useState<"timeline" | "chart">("timeline");
   const [selectedChartPoint, setSelectedChartPoint] = useState<{
@@ -269,6 +270,25 @@ export default function SpotDetail() {
       }, 100);
     }
   }, [spotId]); // Re-run when spotId changes (new spot page loaded)
+
+  // Close extended forecast tooltip when clicking outside
+  useEffect(() => {
+    if (!extendedForecastTooltip) return;
+
+    const handleClickOutside = () => {
+      setExtendedForecastTooltip(null);
+    };
+
+    // Add slight delay to prevent immediate close on the same tap
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('click', handleClickOutside);
+    }, 0);
+
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [extendedForecastTooltip]);
 
   // Auto-refresh interval: 30 minutes
   const refetchInterval = 30 * 60 * 1000;
@@ -2839,12 +2859,22 @@ export default function SpotDetail() {
                                   {/* Extended forecast warning for days 6-7 */}
                                   {dayIndex >= 5 && (
                                     <div className="relative group mb-1">
-                                      <span className="inline-flex items-center gap-1 text-[8px] md:text-[10px] font-medium tracking-wide text-orange-700 bg-orange-50 px-1.5 py-0.5 rounded border border-orange-200 cursor-help" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                      <span
+                                        className="inline-flex items-center gap-1 text-[8px] md:text-[10px] font-medium tracking-wide text-orange-700 bg-orange-50 px-1.5 py-0.5 rounded border border-orange-200 cursor-help"
+                                        style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setExtendedForecastTooltip(extendedForecastTooltip === dayKey ? null : dayKey);
+                                        }}
+                                      >
                                         <AlertTriangle className="h-2.5 w-2.5 md:h-3.5 md:w-3.5" />
                                         Extended forecast
                                       </span>
-                                      {/* Tooltip on hover */}
-                                      <div className="absolute left-0 bottom-full mb-1 hidden group-hover:block z-50 w-48 p-2 text-xs bg-gray-900 text-white rounded shadow-lg">
+                                      {/* Tooltip on hover (desktop) or tap (mobile) */}
+                                      <div className={cn(
+                                        "absolute left-0 bottom-full mb-1 z-50 w-48 p-2 text-xs bg-gray-900 text-white rounded shadow-lg",
+                                        extendedForecastTooltip === dayKey ? "block" : "hidden group-hover:block"
+                                      )}>
                                         East Coast forecasts are less accurate 6+ days out. Use as a swell indicator only—local winds are difficult to predict.
                                       </div>
                                     </div>

@@ -978,6 +978,7 @@ export async function createSwellAlert(alert: InsertSwellAlert): Promise<number>
   const minQualityScore = (alert.minQualityScore === undefined || alert.minQualityScore === '' || alert.minQualityScore === null) ? null : alert.minQualityScore;
   const minPeriodSec = (alert.minPeriodSec === undefined || alert.minPeriodSec === '' || alert.minPeriodSec === null) ? null : alert.minPeriodSec;
   const idealWindOnly = alert.idealWindOnly ?? 0;
+  const allowedDays = alert.allowedDays ?? "0,1,2,3,4,5,6"; // Default to all days
   const emailEnabled = alert.emailEnabled ?? 1;
   const smsEnabled = alert.smsEnabled ?? 0;
   const pushEnabled = alert.pushEnabled ?? 0;
@@ -997,6 +998,7 @@ export async function createSwellAlert(alert: InsertSwellAlert): Promise<number>
     minQualityScore,
     minPeriodSec,
     idealWindOnly,
+    allowedDays,
     emailEnabled,
     smsEnabled,
     pushEnabled,
@@ -1011,10 +1013,10 @@ export async function createSwellAlert(alert: InsertSwellAlert): Promise<number>
     const [result] = await _pool.execute(
       `INSERT INTO swell_alerts (
         userId, spotId, minWaveHeightFt, minQualityScore, minPeriodSec,
-        idealWindOnly, emailEnabled, smsEnabled, pushEnabled,
+        idealWindOnly, allowedDays, emailEnabled, smsEnabled, pushEnabled,
         hoursAdvanceNotice, daysAdvanceNotice, notificationFrequency,
         isActive
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       params
     );
 

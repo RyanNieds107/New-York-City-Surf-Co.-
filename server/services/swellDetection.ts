@@ -225,6 +225,15 @@ function pointMatchesCriteria(
     return false; // Skip nighttime hours
   }
 
+  // Check day of week filter
+  if (alert.allowedDays) {
+    const allowedDaysArray = alert.allowedDays.split(',').map(Number);
+    const dayOfWeek = pointTime.getDay(); // 0=Sunday, 6=Saturday
+    if (!allowedDaysArray.includes(dayOfWeek)) {
+      return false; // Skip days not in allowed list
+    }
+  }
+
   // Check wave height
   const breakingHeight = point.breakingWaveHeightFt ?? point.dominantSwellHeightFt ?? point.waveHeightFt ?? 0;
   if (alert.minWaveHeightFt !== null && breakingHeight < Number(alert.minWaveHeightFt)) {

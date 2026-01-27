@@ -1459,6 +1459,7 @@ export const appRouter = router({
           minQualityScore: z.number().min(0).max(100).optional(),
           minPeriodSec: z.number().optional(),
           idealWindOnly: z.boolean().optional(),
+          allowedDays: z.array(z.number().min(0).max(6)).optional(), // 0=Sun, 6=Sat
           hoursAdvanceNotice: z.number().min(1).max(168).default(24),
           emailEnabled: z.boolean().default(true),
           smsEnabled: z.boolean().default(false),
@@ -1498,6 +1499,7 @@ export const appRouter = router({
           minQualityScore: minQualityScoreValue,
           minPeriodSec: minPeriodSecValue,
           idealWindOnly: input.idealWindOnly ? 1 : 0,
+          allowedDays: input.allowedDays ? input.allowedDays.join(',') : "0,1,2,3,4,5,6",
           hoursAdvanceNotice: input.hoursAdvanceNotice,
           emailEnabled: input.emailEnabled ? 1 : 0,
           smsEnabled: input.smsEnabled ? 1 : 0,
@@ -1558,6 +1560,7 @@ export const appRouter = router({
           minQualityScore: z.number().min(0).max(100).optional(),
           minPeriodSec: z.number().optional(),
           idealWindOnly: z.boolean().optional(),
+          allowedDays: z.array(z.number().min(0).max(6)).optional(),
           hoursAdvanceNotice: z.number().min(1).max(168).optional(),
           emailEnabled: z.boolean().optional(),
         })
@@ -1579,6 +1582,7 @@ export const appRouter = router({
         if (updates.minQualityScore !== undefined) updateData.minQualityScore = updates.minQualityScore;
         if (updates.minPeriodSec !== undefined) updateData.minPeriodSec = updates.minPeriodSec;
         if (updates.idealWindOnly !== undefined) updateData.idealWindOnly = updates.idealWindOnly ? 1 : 0;
+        if (updates.allowedDays !== undefined) updateData.allowedDays = updates.allowedDays.join(',');
         if (updates.hoursAdvanceNotice !== undefined) updateData.hoursAdvanceNotice = updates.hoursAdvanceNotice;
         if (updates.emailEnabled !== undefined) updateData.emailEnabled = updates.emailEnabled ? 1 : 0;
         await updateSwellAlert(alertId, ctx.user.id, updateData);
