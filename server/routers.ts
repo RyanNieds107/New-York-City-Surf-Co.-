@@ -1757,7 +1757,7 @@ export const appRouter = router({
 
             // Open-Meteo wave height (use breaking height or dominant swell)
             const openMeteoHeight = point.breakingWaveHeightFt ?? point.dominantSwellHeightFt ?? null;
-            const stormglassHeight = sg?.waveHeightFt ?? null;
+            const stormglassHeight = sg?.swellHeightFt ?? null; // Use swellHeight (not waveHeight) for fair comparison - Open-Meteo shows swell, not combined
 
             // Calculate difference and confidence
             let difference: number | null = null;
@@ -1772,8 +1772,8 @@ export const appRouter = router({
             return {
               time: pointTime.toISOString(),
               openMeteoHeightFt: openMeteoHeight,
-              stormglassHeightFt: stormglassHeight,
-              stormglassSwellHeightFt: sg?.swellHeightFt ?? null,
+              stormglassHeightFt: stormglassHeight, // This is now swellHeightFt (swell-to-swell comparison)
+              stormglassCombinedHeightFt: sg?.waveHeightFt ?? null, // Combined wind+swell for reference
               differenceFt: difference,
               confidence,
               // Open-Meteo swell details

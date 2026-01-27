@@ -80,8 +80,8 @@ export async function addConfidenceToTimeline(
     const openMeteoHeight = point.breakingWaveHeightFt ?? point.dominantSwellHeightFt ?? null;
 
     // Get ECMWF wave height from verification data
-    const ecmwfHeight = verification?.waveHeightFt
-      ? parseFloat(verification.waveHeightFt)
+    const ecmwfHeight = verification?.swellHeightFt // Use swellHeight (not waveHeight) - Open-Meteo shows swell
+      ? parseFloat(verification.swellHeightFt)
       : null;
 
     // Calculate confidence
