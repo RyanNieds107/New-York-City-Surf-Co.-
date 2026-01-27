@@ -1254,16 +1254,15 @@ export async function upsertStormglassVerification(
     set: {
       waveHeightFt: data.waveHeightFt,
       swellHeightFt: data.swellHeightFt,
+      swellPeriodS: data.swellPeriodS,
+      swellDirectionDeg: data.swellDirectionDeg,
       source: data.source,
       fetchedAt: new Date(),
     },
   });
 }
-
-/**
- * Batch insert Stormglass verification data.
- */
 export async function insertStormglassVerificationBatch(
+  dataArray: InsertStormglassVerification[]
   dataArray: InsertStormglassVerification[]
 ): Promise<void> {
   const db = await getDb();
