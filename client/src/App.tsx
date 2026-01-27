@@ -16,6 +16,7 @@ import Welcome from "./pages/Welcome";
 import Mission from "./pages/Mission";
 import Members from "./pages/Members";
 import AdminAlerts from "./pages/AdminAlerts";
+import AdminForecastComparison from "./pages/AdminForecastComparison";
 import VerifyMagicLink from "./pages/VerifyMagicLink";
 import CheckEmail from "./pages/CheckEmail";
 
@@ -31,6 +32,7 @@ function Router() {
       <Route path="/members" component={Members} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/admin/alerts" component={AdminAlerts} />
+      <Route path="/admin/forecasts" component={AdminForecastComparison} />
       <Route path="/spot/:id" component={SpotDetail} />
       <Route path="/surf-analysis" component={SurfAnalysis} />
       <Route path="/terms" component={Terms} />

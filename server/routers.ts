@@ -35,6 +35,8 @@ import {
   getAllActiveSwellAlerts,
   getAllSwellAlertsWithUsers,
   getActiveAlertUserCount,
+  getStormglassVerification,
+  getLatestStormglassFetchTime,
 } from "./db";
 import { getCurrentTideInfo } from "./services/tides";
 import { getCurrentConditionsFromOpenMeteo } from "./services/openMeteo";
@@ -48,6 +50,7 @@ import { eq, desc, and, gt } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { getDb } from "./db";
 import { fetchBuoy44065Cached, clearBuoyCache } from "./services/buoy44065";
+import { addConfidenceToTimeline, getConfidenceSummary, getConfidenceBadgeText, type ConfidenceLevel } from "./utils/forecastConfidence";
 import { adminProcedure } from "./_core/trpc";
 import { sendBatchEmails, sendEmail } from "./services/email";
 import { sendSMS } from "./services/sms";
@@ -878,7 +881,24 @@ export const appRouter = router({
           });
         }
 
-        return { timeline, spot };
+        // Add ECMWF confidence data to timeline (compares Open-Meteo vs Stormglass)
+        const timelineWithConfidence = await addConfidenceToTimeline(spot.id, timeline);
+        const confidenceSummary = await getConfidenceSummary(spot.id, timeline);
+
+        return {
+          timeline: timelineWithConfidence,
+          spot,
+          confidence: {
+            overall: confidenceSummary.overallConfidence,
+            badge: getConfidenceBadgeText(confidenceSummary.overallConfidence),
+            stats: {
+              high: confidenceSummary.highCount,
+              med: confidenceSummary.medCount,
+              low: confidenceSummary.lowCount,
+              total: confidenceSummary.totalWithData,
+            },
+          },
+        };
       }),
 
     // Force cleanup of old forecast data for a spot
@@ -1633,6 +1653,85 @@ export const appRouter = router({
   }),
 
   admin: router({
+    forecasts: router({
+      // Get comparison data for Open-Meteo vs Stormglass (ECMWF)
+      getComparison: adminProcedure
+        .input(z.object({ spotId: z.number() }))
+        .query(async ({ input }) => {
+          const spot = await getSpotById(input.spotId);
+          if (!spot) {
+            throw new TRPCError({ code: "NOT_FOUND", message: "Spot not found" });
+          }
+
+          // Get Open-Meteo forecast timeline (next 24 hours)
+          const forecastPoints = await getForecastTimeline(input.spotId, 24);
+          const avgCrowdLevel = await getAverageCrowdLevel(input.spotId);
+
+          const { generateForecastTimeline } = await import("./services/forecast");
+          const timeline = await generateForecastTimeline({
+            forecastPoints,
+            spot,
+            tideStationId: spot.tideStationId,
+            avgCrowdLevel,
+          });
+
+          // Get Stormglass verification data (next 24 hours)
+          const now = new Date();
+          const endTime = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+          const stormglassData = await getStormglassVerification(input.spotId, now, endTime);
+
+          // Get last fetch time
+          const lastFetchTime = await getLatestStormglassFetchTime(input.spotId);
+
+          // Create a map of Stormglass data by hour for easy lookup
+          const stormglassMap = new Map<string, { waveHeightFt: number | null; swellHeightFt: number | null }>();
+          for (const sg of stormglassData) {
+            const key = sg.forecastTimestamp.toISOString().slice(0, 13); // YYYY-MM-DDTHH
+            stormglassMap.set(key, {
+              waveHeightFt: sg.waveHeightFt ? parseFloat(sg.waveHeightFt) : null,
+              swellHeightFt: sg.swellHeightFt ? parseFloat(sg.swellHeightFt) : null,
+            });
+          }
+
+          // Combine Open-Meteo and Stormglass data
+          const comparison = timeline.map((point) => {
+            const pointTime = new Date(point.forecastTimestamp);
+            const key = pointTime.toISOString().slice(0, 13);
+            const sg = stormglassMap.get(key);
+
+            // Open-Meteo wave height (use breaking height or dominant swell)
+            const openMeteoHeight = point.breakingWaveHeightFt ?? point.dominantSwellHeightFt ?? null;
+            const stormglassHeight = sg?.waveHeightFt ?? null;
+
+            // Calculate difference and confidence
+            let difference: number | null = null;
+            let confidence: ConfidenceLevel = null;
+            if (openMeteoHeight !== null && stormglassHeight !== null) {
+              difference = Math.abs(openMeteoHeight - stormglassHeight);
+              if (difference < 0.5) confidence = "HIGH";
+              else if (difference < 1.5) confidence = "MED";
+              else confidence = "LOW";
+            }
+
+            return {
+              time: pointTime.toISOString(),
+              openMeteoHeightFt: openMeteoHeight,
+              stormglassHeightFt: stormglassHeight,
+              differenceFt: difference,
+              confidence,
+            };
+          });
+
+          return {
+            spot,
+            comparison,
+            lastStormglassFetch: lastFetchTime,
+            stormglassPointCount: stormglassData.length,
+            openMeteoPointCount: timeline.length,
+          };
+        }),
+    }),
+
     alerts: router({
       getAll: adminProcedure.query(async () => {
         return getAllSwellAlertsWithUsers();

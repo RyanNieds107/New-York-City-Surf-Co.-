@@ -1,0 +1,168 @@
+/**
+ * Forecast Confidence Calculator
+ *
+ * Compares Open-Meteo forecasts against Stormglass ECMWF data
+ * to determine confidence levels.
+ *
+ * Confidence Thresholds:
+ * - HIGH: Models agree within 0.5ft
+ * - MED: Models agree within 1.5ft
+ * - LOW: Models disagree by more than 1.5ft
+ */
+
+import { getStormglassVerification } from "../db";
+import type { ForecastTimelineResult } from "../services/forecast";
+import type { StormglassVerification } from "../../drizzle/schema";
+
+export type ConfidenceLevel = "HIGH" | "MED" | "LOW" | null;
+
+/**
+ * Calculate confidence based on wave height difference between models.
+ */
+export function calculateConfidence(
+  openMeteoHeightFt: number | null,
+  ecmwfHeightFt: number | null
+): ConfidenceLevel {
+  // If either value is missing, we can't calculate confidence
+  if (openMeteoHeightFt === null || ecmwfHeightFt === null) {
+    return null;
+  }
+
+  const difference = Math.abs(openMeteoHeightFt - ecmwfHeightFt);
+
+  if (difference < 0.5) return "HIGH";  // Models agree within 0.5ft
+  if (difference < 1.5) return "MED";   // Models close
+  return "LOW";                         // Models disagree significantly
+}
+
+/**
+ * Result type for timeline with confidence
+ */
+export interface ForecastWithConfidence extends ForecastTimelineResult {
+  modelConfidence: ConfidenceLevel;
+  ecmwfWaveHeightFt: number | null;
+}
+
+/**
+ * Add confidence levels to a forecast timeline by comparing with Stormglass data.
+ * Only adds confidence for the next 24 hours (where we have ECMWF verification data).
+ */
+export async function addConfidenceToTimeline(
+  spotId: number,
+  timeline: ForecastTimelineResult[]
+): Promise<ForecastWithConfidence[]> {
+  if (timeline.length === 0) {
+    return [];
+  }
+
+  // Get the time range from the timeline
+  const now = new Date();
+  const endTime = new Date(now.getTime() + 24 * 60 * 60 * 1000); // Next 24 hours
+
+  // Fetch Stormglass verification data for this time range
+  const verificationData = await getStormglassVerification(spotId, now, endTime);
+
+  // Create a map of verification data by hour for O(1) lookup
+  const verificationMap = new Map<string, StormglassVerification>();
+  for (const v of verificationData) {
+    // Key by hour (YYYY-MM-DDTHH)
+    const key = v.forecastTimestamp.toISOString().slice(0, 13);
+    verificationMap.set(key, v);
+  }
+
+  // Add confidence to each timeline point
+  return timeline.map((point) => {
+    const pointTime = new Date(point.forecastTimestamp);
+    const key = pointTime.toISOString().slice(0, 13);
+    const verification = verificationMap.get(key);
+
+    // Get Open-Meteo wave height (use breaking height or dominant swell height)
+    const openMeteoHeight = point.breakingWaveHeightFt ?? point.dominantSwellHeightFt ?? null;
+
+    // Get ECMWF wave height from verification data
+    const ecmwfHeight = verification?.waveHeightFt
+      ? parseFloat(verification.waveHeightFt)
+      : null;
+
+    // Calculate confidence
+    const modelConfidence = calculateConfidence(openMeteoHeight, ecmwfHeight);
+
+    return {
+      ...point,
+      modelConfidence,
+      ecmwfWaveHeightFt: ecmwfHeight,
+    };
+  });
+}
+
+/**
+ * Get a simple confidence summary for a spot.
+ * Useful for dashboard cards to show overall confidence.
+ */
+export async function getConfidenceSummary(
+  spotId: number,
+  timeline: ForecastTimelineResult[]
+): Promise<{
+  overallConfidence: ConfidenceLevel;
+  highCount: number;
+  medCount: number;
+  lowCount: number;
+  totalWithData: number;
+}> {
+  const timelineWithConfidence = await addConfidenceToTimeline(spotId, timeline);
+
+  // Only look at points with confidence data (next 24 hours)
+  const pointsWithConfidence = timelineWithConfidence.filter(
+    (p) => p.modelConfidence !== null
+  );
+
+  if (pointsWithConfidence.length === 0) {
+    return {
+      overallConfidence: null,
+      highCount: 0,
+      medCount: 0,
+      lowCount: 0,
+      totalWithData: 0,
+    };
+  }
+
+  const highCount = pointsWithConfidence.filter((p) => p.modelConfidence === "HIGH").length;
+  const medCount = pointsWithConfidence.filter((p) => p.modelConfidence === "MED").length;
+  const lowCount = pointsWithConfidence.filter((p) => p.modelConfidence === "LOW").length;
+
+  // Determine overall confidence based on majority
+  let overallConfidence: ConfidenceLevel;
+  const total = pointsWithConfidence.length;
+
+  if (highCount / total >= 0.6) {
+    overallConfidence = "HIGH";
+  } else if (lowCount / total >= 0.4) {
+    overallConfidence = "LOW";
+  } else {
+    overallConfidence = "MED";
+  }
+
+  return {
+    overallConfidence,
+    highCount,
+    medCount,
+    lowCount,
+    totalWithData: total,
+  };
+}
+
+/**
+ * Get confidence badge text for display.
+ */
+export function getConfidenceBadgeText(confidence: ConfidenceLevel): string | null {
+  switch (confidence) {
+    case "HIGH":
+      return "High Confidence";
+    case "LOW":
+      return "Forecast Uncertain";
+    case "MED":
+    case null:
+    default:
+      return null; // No badge for MED or unknown
+  }
+}

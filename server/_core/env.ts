@@ -13,4 +13,6 @@ export const ENV = {
   // Google OAuth credentials
   googleClientId: process.env.GOOGLE_CLIENT_ID ?? "",
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+  // Stormglass API for ECMWF verification
+  stormglassApiKey: process.env.STORMGLASS_API_KEY ?? "",
 };  

@@ -39,6 +39,7 @@ import { AlertsPromo } from "@/components/AlertsPromo";
 import { getScoreBadgeColors } from "@/lib/ratingColors";
 import { isNighttime } from "@/lib/sunTimes";
 import { useCurrentConditions } from "@/hooks/useCurrentConditions";
+import { ModelConfidenceBadge } from "@/components/ModelConfidenceBadge";
 
 // Reusable component for spot info cards
 function SpotInfoCard({ title, children }: { title: string; children: React.ReactNode }) {
@@ -1275,16 +1276,21 @@ export default function SpotDetail() {
                   <h2 className="text-2xl sm:text-3xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                     Current Conditions
                   </h2>
-                  {conditionsAsOf && (
-                    <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-black uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                      </span>
-                      <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                      <span>As of {formatAbsoluteTime(conditionsAsOf)}</span>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                    {currentData.modelConfidence?.overall && (
+                      <ModelConfidenceBadge confidence={currentData.modelConfidence.overall} size="sm" />
+                    )}
+                    {conditionsAsOf && (
+                      <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-black uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                        <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                        <span>As of {formatAbsoluteTime(conditionsAsOf)}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="p-4 sm:p-6 md:p-8">

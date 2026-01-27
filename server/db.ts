@@ -11,6 +11,7 @@ import {
   crowdReports,
   swellAlerts,
   swellAlertLogs,
+  stormglassVerification,
   type SurfSpot,
   type InsertSurfSpot,
   type BuoyReading,
@@ -25,6 +26,8 @@ import {
   type InsertSwellAlert,
   type SwellAlertLog,
   type InsertSwellAlertLog,
+  type StormglassVerification,
+  type InsertStormglassVerification,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1190,13 +1193,92 @@ export async function updateSwellAlertLogSmsSent(
 export async function getLastAlertNotificationTime(alertId: number): Promise<Date | null> {
   const db = await getDb();
   if (!db) return null;
-  
+
   const result = await db
     .select({ createdAt: swellAlertLogs.createdAt })
     .from(swellAlertLogs)
     .where(eq(swellAlertLogs.alertId, alertId))
     .orderBy(desc(swellAlertLogs.createdAt))
     .limit(1);
-  
+
   return result.length > 0 ? result[0].createdAt : null;
+}
+
+// ==================== STORMGLASS VERIFICATION ====================
+
+/**
+ * Insert or update Stormglass verification data.
+ * Uses upsert logic based on unique (spotId, forecastTimestamp) constraint.
+ */
+export async function upsertStormglassVerification(
+  data: InsertStormglassVerification
+): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.insert(stormglassVerification).values(data).onDuplicateKeyUpdate({
+    set: {
+      waveHeightFt: data.waveHeightFt,
+      swellHeightFt: data.swellHeightFt,
+      source: data.source,
+      fetchedAt: new Date(),
+    },
+  });
+}
+
+/**
+ * Batch insert Stormglass verification data.
+ */
+export async function insertStormglassVerificationBatch(
+  dataArray: InsertStormglassVerification[]
+): Promise<void> {
+  const db = await getDb();
+  if (!db || dataArray.length === 0) return;
+
+  // Insert one at a time with upsert to handle duplicates gracefully
+  for (const data of dataArray) {
+    await upsertStormglassVerification(data);
+  }
+}
+
+/**
+ * Get Stormglass verification data for a spot within a time range.
+ */
+export async function getStormglassVerification(
+  spotId: number,
+  startTime: Date,
+  endTime: Date
+): Promise<StormglassVerification[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db
+    .select()
+    .from(stormglassVerification)
+    .where(
+      and(
+        eq(stormglassVerification.spotId, spotId),
+        gte(stormglassVerification.forecastTimestamp, startTime),
+        lte(stormglassVerification.forecastTimestamp, endTime)
+      )
+    )
+    .orderBy(stormglassVerification.forecastTimestamp);
+}
+
+/**
+ * Get the most recent Stormglass fetch time for a spot.
+ * Used to determine if we need to fetch new data.
+ */
+export async function getLatestStormglassFetchTime(spotId: number): Promise<Date | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db
+    .select({ fetchedAt: stormglassVerification.fetchedAt })
+    .from(stormglassVerification)
+    .where(eq(stormglassVerification.spotId, spotId))
+    .orderBy(desc(stormglassVerification.fetchedAt))
+    .limit(1);
+
+  return result.length > 0 ? result[0].fetchedAt : null;
 }

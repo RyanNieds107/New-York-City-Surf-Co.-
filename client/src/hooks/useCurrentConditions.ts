@@ -148,6 +148,10 @@ export function useCurrentConditions(spotId: number, options?: { refetchInterval
     // Timestamp for "as of"
     const timestamp = currentPoint?.forecastTimestamp ?? forecast?.createdAt ?? null;
 
+    // Model confidence (ECMWF vs Open-Meteo agreement)
+    // This comes from comparing Stormglass ECMWF data with Open-Meteo forecasts
+    const modelConfidence = timelineQuery.data?.confidence ?? null;
+
     return {
       currentPoint,
       score,
@@ -158,6 +162,8 @@ export function useCurrentConditions(spotId: number, options?: { refetchInterval
       temps,
       timestamp,
       spotName: spotName ?? null,
+      // Model confidence for forecast uncertainty display
+      modelConfidence,
       // Full point data for advanced usage
       buoyData: buoyQuery.data ?? null,
     };
@@ -167,6 +173,7 @@ export function useCurrentConditions(spotId: number, options?: { refetchInterval
     forecastQuery.data,
     buoyBreakingHeightsQuery.data,
     buoyQuery.data,
+    timelineQuery.data?.confidence,
   ]);
 
   return {

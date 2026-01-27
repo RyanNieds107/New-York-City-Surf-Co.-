@@ -296,6 +296,118 @@ function setupSwellAlertChecking(): void {
   });
 }
 
+/**
+ * Gets the current hour in Eastern Time (ET).
+ */
+function getEasternTimeHour(): number {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    hour: 'numeric',
+    hour12: false,
+  });
+  return parseInt(formatter.format(new Date()), 10);
+}
+
+/**
+ * Calculates milliseconds until the next target hour in Eastern Time.
+ * @param targetHour - Hour in 24h format (e.g., 7 for 7 AM, 19 for 7 PM)
+ */
+function msUntilNextETHour(targetHour: number): number {
+  const now = new Date();
+
+  // Get current time in ET
+  const etFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+
+  const etParts = etFormatter.formatToParts(now);
+  const getPart = (type: string) => etParts.find(p => p.type === type)?.value || '0';
+
+  const etHour = parseInt(getPart('hour'), 10);
+  const etMinute = parseInt(getPart('minute'), 10);
+  const etSecond = parseInt(getPart('second'), 10);
+
+  // Calculate hours until target
+  let hoursUntil = targetHour - etHour;
+  if (hoursUntil <= 0) {
+    hoursUntil += 24; // Next day
+  }
+
+  // Convert to milliseconds, accounting for current minutes/seconds
+  const msUntil = (hoursUntil * 60 * 60 * 1000)
+    - (etMinute * 60 * 1000)
+    - (etSecond * 1000);
+
+  return msUntil;
+}
+
+/**
+ * Sets up automatic Stormglass ECMWF verification data fetching.
+ * Runs twice daily at 7 AM and 7 PM ET to stay within free tier quota.
+ * Uses 6 API calls/day (3 spots × 2 syncs), leaving 4 spare.
+ */
+function setupStormglassVerification(): void {
+  const MORNING_HOUR = 7;  // 7 AM ET
+  const EVENING_HOUR = 19; // 7 PM ET
+
+  console.log(`[Stormglass Verification] Scheduled for 7 AM + 7 PM ET daily`);
+
+  // Import the fetch function dynamically
+  import("../jobs/fetchStormglassVerification").then(({ fetchStormglassVerification }) => {
+
+    // Schedule next morning sync
+    const scheduleMorningSync = () => {
+      const msUntilMorning = msUntilNextETHour(MORNING_HOUR);
+      console.log(`[Stormglass Verification] Next morning sync in ${(msUntilMorning / 1000 / 60 / 60).toFixed(1)} hours`);
+
+      setTimeout(() => {
+        console.log(`[Stormglass Verification] Running 7 AM ET sync...`);
+        fetchStormglassVerification().catch(console.error);
+        // Schedule next morning sync (24 hours later)
+        setTimeout(scheduleMorningSync, 1000); // Small delay before rescheduling
+      }, msUntilMorning);
+    };
+
+    // Schedule next evening sync
+    const scheduleEveningSync = () => {
+      const msUntilEvening = msUntilNextETHour(EVENING_HOUR);
+      console.log(`[Stormglass Verification] Next evening sync in ${(msUntilEvening / 1000 / 60 / 60).toFixed(1)} hours`);
+
+      setTimeout(() => {
+        console.log(`[Stormglass Verification] Running 7 PM ET sync...`);
+        fetchStormglassVerification().catch(console.error);
+        // Schedule next evening sync (24 hours later)
+        setTimeout(scheduleEveningSync, 1000); // Small delay before rescheduling
+      }, msUntilEvening);
+    };
+
+    // Start both schedules
+    scheduleMorningSync();
+    scheduleEveningSync();
+
+    // Also run once on startup after a short delay (catch up if server was down)
+    const etHour = getEasternTimeHour();
+    const shouldRunNow = (etHour >= 7 && etHour < 8) || (etHour >= 19 && etHour < 20);
+
+    if (shouldRunNow) {
+      console.log(`[Stormglass Verification] Within sync window - running now`);
+      setTimeout(() => {
+        fetchStormglassVerification().catch(console.error);
+      }, 2 * 60 * 1000); // 2 minute delay
+    }
+
+  }).catch((error) => {
+    console.error("[Stormglass Verification] Failed to load module:", error);
+  });
+}
+
 async function startServer() {
   const app = express();
   const server = createServer(app);
@@ -399,6 +511,9 @@ async function startServer() {
 
     // Set up automatic swell alert checking
     setupSwellAlertChecking();
+
+    // Set up Stormglass ECMWF verification fetching
+    setupStormglassVerification();
   });
 
   server.on("error", (error: any) => {
