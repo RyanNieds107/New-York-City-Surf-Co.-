@@ -1654,6 +1654,53 @@ export const appRouter = router({
 
   admin: router({
     forecasts: router({
+      // Manually trigger Stormglass fetch for a spot
+      triggerStormglassFetch: adminProcedure
+        .input(z.object({ spotId: z.number() }))
+        .mutation(async ({ input }) => {
+          const spot = await getSpotById(input.spotId);
+          if (!spot) {
+            throw new TRPCError({ code: "NOT_FOUND", message: "Spot not found" });
+          }
+
+          const { fetchStormglassForSpot } = await import("./services/stormglass");
+          const { insertStormglassVerificationBatch } = await import("./db");
+          const { InsertStormglassVerification } = await import("../drizzle/schema");
+
+          console.log(`[Admin] Manually triggering Stormglass fetch for ${spot.name}...`);
+
+          try {
+            // Fetch 7 days (168 hours) of ECMWF data to match Open-Meteo
+            const forecastPoints = await fetchStormglassForSpot(spot, { hoursAhead: 168 });
+
+            if (forecastPoints.length === 0) {
+              return { success: false, message: "No data received from Stormglass API", pointsStored: 0 };
+            }
+
+            // Convert to database format
+            const dbRecords = forecastPoints.map((point) => ({
+              spotId: spot.id,
+              forecastTimestamp: point.forecastTimestamp,
+              waveHeightFt: point.waveHeightFt !== null ? point.waveHeightFt.toFixed(1) : null,
+              swellHeightFt: point.swellHeightFt !== null ? point.swellHeightFt.toFixed(1) : null,
+              source: point.source,
+            }));
+
+            // Insert into database
+            await insertStormglassVerificationBatch(dbRecords);
+
+            console.log(`[Admin] Stored ${dbRecords.length} Stormglass points for ${spot.name}`);
+
+            return { success: true, message: `Fetched ${dbRecords.length} hours of data`, pointsStored: dbRecords.length };
+          } catch (error: any) {
+            console.error(`[Admin] Stormglass fetch error:`, error.message);
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: error.message || "Failed to fetch Stormglass data",
+            });
+          }
+        }),
+
       // Get comparison data for Open-Meteo vs Stormglass (ECMWF)
       getComparison: adminProcedure
         .input(z.object({ spotId: z.number() }))
@@ -1663,8 +1710,8 @@ export const appRouter = router({
             throw new TRPCError({ code: "NOT_FOUND", message: "Spot not found" });
           }
 
-          // Get Open-Meteo forecast timeline (next 24 hours)
-          const forecastPoints = await getForecastTimeline(input.spotId, 24);
+          // Get Open-Meteo forecast timeline (7 days = 168 hours)
+          const forecastPoints = await getForecastTimeline(input.spotId, 168);
           const avgCrowdLevel = await getAverageCrowdLevel(input.spotId);
 
           const { generateForecastTimeline } = await import("./services/forecast");
@@ -1675,9 +1722,9 @@ export const appRouter = router({
             avgCrowdLevel,
           });
 
-          // Get Stormglass verification data (next 24 hours)
+          // Get Stormglass verification data (7 days = 168 hours)
           const now = new Date();
-          const endTime = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+          const endTime = new Date(now.getTime() + 168 * 60 * 60 * 1000);
           const stormglassData = await getStormglassVerification(input.spotId, now, endTime);
 
           // Get last fetch time
@@ -1717,8 +1764,12 @@ export const appRouter = router({
               time: pointTime.toISOString(),
               openMeteoHeightFt: openMeteoHeight,
               stormglassHeightFt: stormglassHeight,
+              stormglassSwellHeightFt: sg?.swellHeightFt ?? null,
               differenceFt: difference,
               confidence,
+              // Open-Meteo swell details for context
+              swellPeriodS: point.dominantSwellPeriodS ?? point.wavePeriodSec ?? null,
+              swellDirectionDeg: point.dominantSwellDirectionDeg ?? point.waveDirectionDeg ?? null,
             };
           });
 

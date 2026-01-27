@@ -86,10 +86,10 @@ export function useCurrentConditions(spotId: number, options?: { refetchInterval
       }
 
       if (!currentPoint) {
-        // Fallback to forecast
+        // Fallback to forecast - note: forecast doesn't have period/direction, return null
         return {
-          period: forecast?.periodDs != null ? forecast.periodDs / 10 : null,
-          direction: forecast?.directionDeg ?? null,
+          period: null,
+          direction: null,
           type: 'forecast' as const,
         };
       }
@@ -139,10 +139,10 @@ export function useCurrentConditions(spotId: number, options?: { refetchInterval
       phase: currentPoint?.tidePhase ?? forecast?.tidePhase ?? null,
     };
 
-    // Temps: timeline → forecast
+    // Temps: timeline only (forecast doesn't have temp data)
     const temps = {
-      waterF: currentPoint?.waterTempF ?? forecast?.waterTempF ?? null,
-      airF: currentPoint?.airTempF ?? forecast?.airTempF ?? null,
+      waterF: currentPoint?.waterTempF ?? null,
+      airF: currentPoint?.airTempF ?? null,
     };
 
     // Timestamp for "as of"

@@ -19,9 +19,10 @@ const MIN_HOURS_BETWEEN_FETCHES = 10;
 
 /**
  * Hours of forecast data to fetch.
- * Focus on next 24 hours where accuracy matters most.
+ * Fetch 7 days (168 hours) to match Open-Meteo coverage.
+ * One API call returns all hours - no extra cost!
  */
-const HOURS_AHEAD = 24;
+const HOURS_AHEAD = 168;
 
 /**
  * Main job function - fetches Stormglass ECMWF data for all spots.
