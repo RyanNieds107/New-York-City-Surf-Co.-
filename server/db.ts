@@ -1261,8 +1261,11 @@ export async function upsertStormglassVerification(
     },
   });
 }
+
+/**
+ * Batch insert Stormglass verification data.
+ */
 export async function insertStormglassVerificationBatch(
-  dataArray: InsertStormglassVerification[]
   dataArray: InsertStormglassVerification[]
 ): Promise<void> {
   const db = await getDb();
