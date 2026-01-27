@@ -34,8 +34,12 @@ interface ComparisonRow {
   stormglassSwellHeightFt?: number | null;
   differenceFt: number | null;
   confidence: string | null;
+  // Open-Meteo swell details
   swellPeriodS: number | null;
   swellDirectionDeg: number | null;
+  // Stormglass swell details
+  stormglassPeriodS?: number | null;
+  stormglassDirectionDeg?: number | null;
 }
 
 interface DayGroup {
@@ -430,13 +434,15 @@ export default function AdminForecastComparison() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-[80px]">Time</TableHead>
-                        <TableHead className="text-right">Open-Meteo</TableHead>
-                        <TableHead className="text-right">Stormglass</TableHead>
+                        <TableHead className="w-[70px]">Time</TableHead>
+                        <TableHead className="text-right">OM Ht</TableHead>
+                        <TableHead className="text-right">SG Ht</TableHead>
                         <TableHead className="text-right">Diff</TableHead>
-                        <TableHead className="text-right">Period</TableHead>
-                        <TableHead className="text-right">Dir</TableHead>
-                        <TableHead className="text-center w-[60px]">Conf</TableHead>
+                        <TableHead className="text-right">OM Per</TableHead>
+                        <TableHead className="text-right">SG Per</TableHead>
+                        <TableHead className="text-right">OM Dir</TableHead>
+                        <TableHead className="text-right">SG Dir</TableHead>
+                        <TableHead className="text-center w-[50px]">Conf</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -445,24 +451,30 @@ export default function AdminForecastComparison() {
                           <TableCell className="font-medium">{formatTime(row.time)}</TableCell>
                           <TableCell className="text-right">
                             {row.openMeteoHeightFt !== null
-                              ? `${row.openMeteoHeightFt.toFixed(1)}ft`
+                              ? `${row.openMeteoHeightFt.toFixed(1)}`
                               : "—"}
                           </TableCell>
                           <TableCell className="text-right">
                             {row.stormglassHeightFt !== null
-                              ? `${row.stormglassHeightFt.toFixed(1)}ft`
+                              ? `${row.stormglassHeightFt.toFixed(1)}`
                               : "—"}
                           </TableCell>
                           <TableCell className={`text-right ${getDifferenceColor(row.differenceFt)}`}>
                             {row.differenceFt !== null
-                              ? `${row.differenceFt.toFixed(1)}ft`
+                              ? `${row.differenceFt.toFixed(1)}`
                               : "—"}
                           </TableCell>
                           <TableCell className="text-right">
                             {row.swellPeriodS !== null ? `${row.swellPeriodS}s` : "—"}
                           </TableCell>
                           <TableCell className="text-right">
+                            {row.stormglassPeriodS !== null ? `${row.stormglassPeriodS}s` : "—"}
+                          </TableCell>
+                          <TableCell className="text-right">
                             {row.swellDirectionDeg !== null ? `${row.swellDirectionDeg}°` : "—"}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {row.stormglassDirectionDeg !== null ? `${row.stormglassDirectionDeg}°` : "—"}
                           </TableCell>
                           <TableCell className="text-center">
                             {getConfidenceBadge(row.confidence, true)}

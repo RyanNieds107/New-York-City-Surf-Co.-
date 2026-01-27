@@ -250,6 +250,8 @@ export const stormglassVerification = mysqlTable(
     forecastTimestamp: timestamp("forecastTimestamp").notNull(), // UTC timestamp (hour-aligned)
     waveHeightFt: decimal("waveHeightFt", { precision: 4, scale: 1 }), // ECMWF wave height in feet
     swellHeightFt: decimal("swellHeightFt", { precision: 4, scale: 1 }), // Optional: primary swell height in feet
+    swellPeriodS: int("swellPeriodS"), // Swell period in seconds
+    swellDirectionDeg: int("swellDirectionDeg"), // Swell direction in degrees
     source: varchar("source", { length: 16 }).notNull().default("ecmwf"), // Data source (default: 'ecmwf')
     fetchedAt: timestamp("fetchedAt").defaultNow().notNull(), // When this verification data was fetched
   },

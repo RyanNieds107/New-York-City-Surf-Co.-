@@ -67,6 +67,8 @@ export async function fetchStormglassVerification(): Promise<void> {
         forecastTimestamp: point.forecastTimestamp,
         waveHeightFt: point.waveHeightFt !== null ? point.waveHeightFt.toFixed(1) : null,
         swellHeightFt: point.swellHeightFt !== null ? point.swellHeightFt.toFixed(1) : null,
+        swellPeriodS: point.swellPeriodS !== null ? Math.round(point.swellPeriodS) : null,
+        swellDirectionDeg: point.swellDirectionDeg !== null ? Math.round(point.swellDirectionDeg) : null,
         source: point.source,
       }));
 

@@ -135,9 +135,43 @@ export async function getDb() {
           ? 'External Railway Proxy'
           : 'Custom URL';
       console.log(`[Database] Connection pool created successfully (${urlType})`);
+
+      // Run auto-migrations for new columns
+      await runAutoMigrations(_pool);
     }, 5, 2000); // 5 retries, starting with 2 second delay
   }
   return _db;
+}
+
+/**
+ * Auto-migrations: Add new columns to existing tables if they don't exist.
+ * This allows schema changes without manual database intervention.
+ */
+async function runAutoMigrations(pool: mysql.Pool): Promise<void> {
+  try {
+    const connection = await pool.getConnection();
+
+    // Check if swellPeriodS column exists in stormglass_verification
+    const [columns] = await connection.query(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_NAME = 'stormglass_verification' AND COLUMN_NAME = 'swellPeriodS'`
+    ) as any[];
+
+    if (columns.length === 0) {
+      console.log("[Migration] Adding swellPeriodS and swellDirectionDeg columns to stormglass_verification...");
+      await connection.query(
+        `ALTER TABLE stormglass_verification
+         ADD COLUMN swellPeriodS INT NULL,
+         ADD COLUMN swellDirectionDeg INT NULL`
+      );
+      console.log("[Migration] Columns added successfully");
+    }
+
+    connection.release();
+  } catch (error: any) {
+    // Don't fail startup if migration fails - log and continue
+    console.warn("[Migration] Auto-migration warning:", error.message);
+  }
 }
 
 export async function upsertUser(user: InsertUser): Promise<void> {

@@ -1683,6 +1683,8 @@ export const appRouter = router({
               forecastTimestamp: point.forecastTimestamp,
               waveHeightFt: point.waveHeightFt !== null ? point.waveHeightFt.toFixed(1) : null,
               swellHeightFt: point.swellHeightFt !== null ? point.swellHeightFt.toFixed(1) : null,
+              swellPeriodS: point.swellPeriodS !== null ? Math.round(point.swellPeriodS) : null,
+              swellDirectionDeg: point.swellDirectionDeg !== null ? Math.round(point.swellDirectionDeg) : null,
               source: point.source,
             }));
 
@@ -1731,12 +1733,19 @@ export const appRouter = router({
           const lastFetchTime = await getLatestStormglassFetchTime(input.spotId);
 
           // Create a map of Stormglass data by hour for easy lookup
-          const stormglassMap = new Map<string, { waveHeightFt: number | null; swellHeightFt: number | null }>();
+          const stormglassMap = new Map<string, {
+            waveHeightFt: number | null;
+            swellHeightFt: number | null;
+            swellPeriodS: number | null;
+            swellDirectionDeg: number | null;
+          }>();
           for (const sg of stormglassData) {
             const key = sg.forecastTimestamp.toISOString().slice(0, 13); // YYYY-MM-DDTHH
             stormglassMap.set(key, {
               waveHeightFt: sg.waveHeightFt ? parseFloat(sg.waveHeightFt) : null,
               swellHeightFt: sg.swellHeightFt ? parseFloat(sg.swellHeightFt) : null,
+              swellPeriodS: sg.swellPeriodS ?? null,
+              swellDirectionDeg: sg.swellDirectionDeg ?? null,
             });
           }
 
@@ -1767,9 +1776,12 @@ export const appRouter = router({
               stormglassSwellHeightFt: sg?.swellHeightFt ?? null,
               differenceFt: difference,
               confidence,
-              // Open-Meteo swell details for context
+              // Open-Meteo swell details
               swellPeriodS: point.dominantSwellPeriodS ?? point.wavePeriodSec ?? null,
               swellDirectionDeg: point.dominantSwellDirectionDeg ?? point.waveDirectionDeg ?? null,
+              // Stormglass swell details
+              stormglassPeriodS: sg?.swellPeriodS ?? null,
+              stormglassDirectionDeg: sg?.swellDirectionDeg ?? null,
             };
           });
 
