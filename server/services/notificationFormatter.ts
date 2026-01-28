@@ -105,15 +105,16 @@ export function formatSwellAlertNotification(
   // Format wave height range using forecast spread
   const waveHeightRange = getWaveHeightRange(conditions);
 
-  // Quality label
-  const getQualityLabel = (score: number): string => {
-    if (score >= 80) return "FIRING";
+  // Quality label - FIRING requires both high score AND minimum 4ft waves
+  const getQualityLabel = (score: number, minWaveHeight: number): string => {
+    if (score >= 80 && minWaveHeight >= 4) return "FIRING";
     if (score >= 70) return "GREAT";
     if (score >= 60) return "GOOD";
     if (score >= 50) return "FAIR";
     return "POOR";
   };
-  const qualityLabel = getQualityLabel(peakQualityScore);
+  const minWaveHeight = Math.min(...conditions.map(c => c.waveHeight));
+  const qualityLabel = getQualityLabel(peakQualityScore, minWaveHeight);
 
   // Wind label (e.g., "NW Offshore")
   const getWindLabel = (type: string | null): string => {
@@ -134,14 +135,14 @@ export function formatSwellAlertNotification(
     if (hours <= 24) return { percent: 95, message: "Forecast is looking solid. Get prepared." };
     if (hours <= 48) return { percent: 90, message: "Looking promising. Keep an eye on it." };
     if (hours <= 72) return { percent: 80, message: "Tracking a swell. Check back tomorrow." };
-    if (hours <= 120) return { percent: 65, message: "Early signal. Still time for changes." };
+    if (hours <= 120) return { percent: 65, message: "Early signal. We are confident there will be swell in the water, but the wind factor remains unclear." };
     // Days 6-7 (>120 hours): Extended forecast - much less accurate
     return { percent: 25, message: "Extended forecast. Use as swell indicator only." };
   };
   const confidence = getConfidence(hoursUntil);
 
-  // Subject line: Day Date - Break - Height (Quality)
-  const subject = `${dayOfWeek} ${dateFormatted} - ${spot.name} - ${waveHeightRange} (${qualityLabel})`;
+  // Subject line: SPOT WILL BE QUALITY DAY DATE - Height Waves
+  const subject = `${spot.name.toUpperCase()} WILL BE ${qualityLabel} ${dayOfWeek.toUpperCase()} ${dateFormatted} - ${waveHeightRange} Waves`;
 
   // Hours out text
   const hoursOutText = hoursUntil <= 1 ? "NOW" : `${hoursUntil}hrs out`;
@@ -157,8 +158,8 @@ export function formatSwellAlertNotification(
   const qualityColor = getQualityColor(peakQualityScore);
 
   // SMS text (160 chars max)
-  const smsText = `${dayOfWeek} ${dateFormatted} - ${spot.name}
-${waveHeightRange} (${qualityLabel})
+  const smsText = `${spot.name.toUpperCase()} WILL BE ${qualityLabel}
+${dayOfWeek} ${dateFormatted} - ${waveHeightRange} Waves
 ${peakWaveHeightFt.toFixed(0)}ft @ ${avgPeriodSec}s | ${windLabel}
 ${confidence.percent}% confidence`;
 
@@ -195,7 +196,7 @@ ${confidence.percent}% confidence`;
         </div>
         <div class="content">
             <p class="main-line">
-                ${dayOfWeek} ${dateFormatted}: ${waveHeightRange}<span class="badge">${qualityLabel}</span>
+                ${dayOfWeek} ${dateFormatted}: ${waveHeightRange} Waves <span class="badge">${qualityLabel}</span>
             </p>
             <div class="details">
                 <div class="detail-row"><span class="label">Swell:</span> ${peakWaveHeightFt.toFixed(0)}ft @ ${avgPeriodSec}s</div>
@@ -219,7 +220,7 @@ ${confidence.percent}% confidence`;
   const emailText = `
 ${spot.name.toUpperCase()}
 
-${dayOfWeek} ${dateFormatted}: ${waveHeightRange} (${qualityLabel})
+${dayOfWeek} ${dateFormatted}: ${waveHeightRange} Waves (${qualityLabel})
 
 Swell: ${peakWaveHeightFt.toFixed(0)}ft @ ${avgPeriodSec}s
 Wind: ${windLabel}, ${hoursOutText}
