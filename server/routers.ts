@@ -1740,7 +1740,7 @@ export const appRouter = router({
             swellDirectionDeg: number | null;
           }>();
           for (const sg of stormglassData) {
-            const key = sg.forecastTimestamp.toISOString().slice(0, 13); // YYYY-MM-DDTHH
+            const key = new Date(sg.forecastTimestamp).toISOString().slice(0, 13); // YYYY-MM-DDTHH
             stormglassMap.set(key, {
               waveHeightFt: sg.waveHeightFt ? parseFloat(sg.waveHeightFt) : null,
               swellHeightFt: sg.swellHeightFt ? parseFloat(sg.swellHeightFt) : null,
