@@ -703,8 +703,79 @@ export function scoreWind(
 }
 
 /**
+ * Calculate wind gust penalty
+ *
+ * Gusts are penalized more than sustained wind because:
+ * 1. Gusts create unpredictable chop patterns
+ * 2. Onshore gusts are especially problematic (sudden blown-out sections)
+ *
+ * Penalty applies when:
+ * - Gusts exceed sustained wind by >5 kts AND
+ * - Gusts are >15 kts AND
+ * - Wind is onshore or cross-shore (offshore gusts can help clean up)
+ *
+ * @param windSpeedKts - Sustained wind speed in knots
+ * @param windGustsKts - Wind gust speed in knots
+ * @param windDirectionDeg - Wind direction in degrees
+ * @returns Penalty from 0 to -20
+ */
+export function scoreWindGusts(
+  windSpeedKts: number | null,
+  windGustsKts: number | null,
+  windDirectionDeg: number | null
+): number {
+  // No penalty if data is missing
+  if (windSpeedKts === null || windGustsKts === null || windDirectionDeg === null) {
+    return 0;
+  }
+
+  // Calculate gust differential
+  const gustDiff = windGustsKts - windSpeedKts;
+
+  // No penalty if gusts aren't significantly higher than sustained
+  if (gustDiff <= 5 || windGustsKts <= 15) {
+    return 0;
+  }
+
+  // Check if wind is offshore (315-45°) - offshore gusts can help clean up conditions
+  const normalized = ((windDirectionDeg % 360) + 360) % 360;
+  const isOffshore = normalized >= 315 || normalized <= 45;
+
+  // Offshore gusts are less problematic
+  if (isOffshore) {
+    return 0;
+  }
+
+  // Check if onshore (135-225°) vs cross-shore
+  const isOnshore = normalized >= 135 && normalized <= 225;
+
+  // Calculate penalty based on gust strength
+  // Onshore gusts get harsher penalties than cross-shore
+  let penalty = 0;
+
+  if (windGustsKts > 25) {
+    penalty = isOnshore ? -20 : -10;  // Very strong gusts
+  } else if (windGustsKts > 20) {
+    penalty = isOnshore ? -15 : -8;   // Strong gusts
+  } else if (windGustsKts > 15) {
+    penalty = isOnshore ? -10 : -5;   // Moderate gusts
+  }
+
+  console.log('💨 [Gust Penalty]', {
+    windSpeedKts: windSpeedKts.toFixed(1),
+    windGustsKts: windGustsKts.toFixed(1),
+    gustDiff: gustDiff.toFixed(1),
+    windDirectionDeg,
+    isOnshore,
+    penalty,
+  });
+
+  return penalty;
+}
+
+/**
  * Convert quality score to rating string
- * 
+ *
  * @param score - Quality score (0-100)
  * @returns Rating string
  */
@@ -861,10 +932,16 @@ export function calculateQualityScoreWithProfile(
     forecastPoint.windDirectionDeg ?? null,
     profile
   );
+  // Wind Gusts: 0 to -20 points (penalty only for strong onshore/cross-shore gusts)
+  const gustPenalty = scoreWindGusts(
+    forecastPoint.windSpeedKts ?? null,
+    forecastPoint.windGustsKts ?? null,
+    forecastPoint.windDirectionDeg ?? null
+  );
 
   // Calculate raw score (sum of components)
-  // FinalScore = SwellQuality (0-60) + DirectionScore (-20 to 0) + TideScore + WindScore
-  let rawScore = swellQuality + direction + tide + wind;
+  // FinalScore = SwellQuality (0-60) + DirectionScore (-20 to 0) + TideScore + WindScore + GustPenalty
+  let rawScore = swellQuality + direction + tide + wind + gustPenalty;
 
   // Add offshore small wave bonus for Lido Beach only
   let offshoreBonus = 0;
@@ -888,8 +965,10 @@ export function calculateQualityScoreWithProfile(
     direction,
     tide,
     wind,
+    gustPenalty,
     offshoreBonus,
     windSpeedKts: forecastPoint.windSpeedKts,
+    windGustsKts: forecastPoint.windGustsKts,
     windDirectionDeg: forecastPoint.windDirectionDeg,
     tideFt: tideFt.toFixed(2),
     tidePhase: tidePhase ?? null,

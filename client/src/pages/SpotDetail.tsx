@@ -258,7 +258,7 @@ export default function SpotDetail() {
     chartPoint: AreaChartDataPoint | null;
   } | null>(null);
 
-  // Handle hash navigation (e.g., /spot/3#guide)
+  // Handle hash navigation (e.g., /spot/3#guide) or scroll to top
   useEffect(() => {
     const hash = window.location.hash;
     if (hash) {
@@ -269,6 +269,9 @@ export default function SpotDetail() {
           element.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       }, 100);
+    } else {
+      // Scroll to top when no hash
+      window.scrollTo(0, 0);
     }
   }, [spotId]); // Re-run when spotId changes (new spot page loaded)
 
