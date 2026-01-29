@@ -392,16 +392,8 @@ function setupStormglassVerification(): void {
     scheduleMorningSync();
     scheduleEveningSync();
 
-    // Also run once on startup after a short delay (catch up if server was down)
-    const etHour = getEasternTimeHour();
-    const shouldRunNow = (etHour >= 7 && etHour < 8) || (etHour >= 19 && etHour < 20);
-
-    if (shouldRunNow) {
-      console.log(`[Stormglass Verification] Within sync window - running now`);
-      setTimeout(() => {
-        fetchStormglassVerification().catch(console.error);
-      }, 2 * 60 * 1000); // 2 minute delay
-    }
+    // Do NOT run on startup: with 10 calls/day quota, restarts/deploys during 7–8 or 19–20 ET
+    // would burn extra calls and cause "quota exceeded". Rely only on scheduled 7 AM / 7 PM runs.
 
   }).catch((error) => {
     console.error("[Stormglass Verification] Failed to load module:", error);

@@ -25,12 +25,19 @@ const MIN_HOURS_BETWEEN_FETCHES = 10;
 const HOURS_AHEAD = 168;
 
 /**
- * Main job function - fetches Stormglass ECMWF data for all spots.
+ * Spots excluded from Stormglass fetch (Coming Soon / no active forecasts).
+ * Must match admin comparison page so we stay within 10 calls/day (3 spots × 2 syncs = 6).
+ */
+const EXCLUDED_SPOT_NAMES = ["Belmar", "Gilgo Beach", "Montauk"];
+
+/**
+ * Main job function - fetches Stormglass ECMWF data for active spots only.
  */
 export async function fetchStormglassVerification(): Promise<void> {
   console.log("[Stormglass Verification] Starting daily fetch job...");
 
-  const spots = await getAllSpots();
+  const allSpots = await getAllSpots();
+  const spots = allSpots.filter((s) => !EXCLUDED_SPOT_NAMES.includes(s.name));
   const now = new Date();
 
   let fetchedCount = 0;
@@ -52,7 +59,7 @@ export async function fetchStormglassVerification(): Promise<void> {
         }
       }
 
-      // Fetch from Stormglass API (next 24 hours only)
+      // Fetch from Stormglass API (7 days = 168 hours)
       console.log(`[Stormglass Verification] Fetching for ${spot.name}...`);
       const forecastPoints = await fetchStormglassForSpot(spot, { hoursAhead: HOURS_AHEAD });
 
