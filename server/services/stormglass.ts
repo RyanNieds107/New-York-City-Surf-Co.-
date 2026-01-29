@@ -54,7 +54,7 @@ function metersToFeet(m: number | undefined): number | null {
 /**
  * Fetches ECMWF wave data from Stormglass API for a specific spot.
  *
- * IMPORTANT: Free tier is limited to 50 requests/day.
+ * IMPORTANT: Free tier is limited to 10 requests/day.
  * Call sparingly - typically once per day per spot.
  */
 export async function fetchStormglassForSpot(
