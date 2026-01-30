@@ -1732,14 +1732,39 @@ export const appRouter = router({
           // Get last fetch time
           const lastFetchTime = await getLatestStormglassFetchTime(input.spotId);
 
-          // Helper to get consistent UTC hour key (YYYY-MM-DDTHH format)
-          // This ensures both data sources match regardless of timezone storage differences
+          // Helper to get hour key for Open-Meteo data (YYYY-MM-DDTHH format)
+          // Open-Meteo timestamps are local Eastern time stored WITHOUT timezone info,
+          // so they're parsed as UTC on the server. getUTCHours() gives the local hour.
           const getHourKey = (timestamp: Date | string): string => {
             const d = new Date(timestamp);
             const year = d.getUTCFullYear();
             const month = String(d.getUTCMonth() + 1).padStart(2, '0');
             const day = String(d.getUTCDate()).padStart(2, '0');
             const hour = String(d.getUTCHours()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hour}`;
+          };
+
+          // Helper to get hour key for Stormglass data - converts UTC to Eastern time
+          // Stormglass timestamps are actual UTC, so we need to convert to Eastern
+          // to match Open-Meteo's (incorrectly stored) local time keys
+          const getStormglassHourKey = (timestamp: Date | string): string => {
+            const d = new Date(timestamp);
+            // Convert UTC to Eastern time using Intl.DateTimeFormat
+            const parts = new Intl.DateTimeFormat('en-US', {
+              timeZone: 'America/New_York',
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              hour12: false
+            }).formatToParts(d);
+
+            const year = parts.find(p => p.type === 'year')?.value;
+            const month = parts.find(p => p.type === 'month')?.value;
+            const day = parts.find(p => p.type === 'day')?.value;
+            let hour = parts.find(p => p.type === 'hour')?.value;
+            // Handle midnight (hour12:false can return '24' for midnight in some locales)
+            if (hour === '24') hour = '00';
             return `${year}-${month}-${day}T${hour}`;
           };
 
@@ -1751,7 +1776,7 @@ export const appRouter = router({
             swellDirectionDeg: number | null;
           }>();
           for (const sg of stormglassData) {
-            const key = getHourKey(sg.forecastTimestamp);
+            const key = getStormglassHourKey(sg.forecastTimestamp);  // Convert UTC → Eastern
             stormglassMap.set(key, {
               waveHeightFt: sg.waveHeightFt ? parseFloat(sg.waveHeightFt) : null,
               swellHeightFt: sg.swellHeightFt ? parseFloat(sg.swellHeightFt) : null,
@@ -1764,7 +1789,7 @@ export const appRouter = router({
           if (stormglassData.length > 0 && timeline.length > 0) {
             const sampleSgKeys = Array.from(stormglassMap.keys()).slice(0, 3);
             const sampleOmKey = getHourKey(timeline[0].forecastTimestamp);
-            console.log('[Comparison Debug] Sample Stormglass keys:', sampleSgKeys);
+            console.log('[Comparison Debug] Sample Stormglass keys (Eastern):', sampleSgKeys);
             console.log('[Comparison Debug] First Open-Meteo key:', sampleOmKey);
             console.log('[Comparison Debug] Key match?', stormglassMap.has(sampleOmKey));
           }
