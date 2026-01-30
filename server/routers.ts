@@ -1732,6 +1732,17 @@ export const appRouter = router({
           // Get last fetch time
           const lastFetchTime = await getLatestStormglassFetchTime(input.spotId);
 
+          // Helper to get consistent UTC hour key (YYYY-MM-DDTHH format)
+          // This ensures both data sources match regardless of timezone storage differences
+          const getHourKey = (timestamp: Date | string): string => {
+            const d = new Date(timestamp);
+            const year = d.getUTCFullYear();
+            const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+            const day = String(d.getUTCDate()).padStart(2, '0');
+            const hour = String(d.getUTCHours()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hour}`;
+          };
+
           // Create a map of Stormglass data by hour for easy lookup
           const stormglassMap = new Map<string, {
             waveHeightFt: number | null;
@@ -1740,7 +1751,7 @@ export const appRouter = router({
             swellDirectionDeg: number | null;
           }>();
           for (const sg of stormglassData) {
-            const key = new Date(sg.forecastTimestamp).toISOString().slice(0, 13); // YYYY-MM-DDTHH
+            const key = getHourKey(sg.forecastTimestamp);
             stormglassMap.set(key, {
               waveHeightFt: sg.waveHeightFt ? parseFloat(sg.waveHeightFt) : null,
               swellHeightFt: sg.swellHeightFt ? parseFloat(sg.swellHeightFt) : null,
@@ -1749,10 +1760,19 @@ export const appRouter = router({
             });
           }
 
+          // Debug: Log sample keys to verify matching
+          if (stormglassData.length > 0 && timeline.length > 0) {
+            const sampleSgKeys = Array.from(stormglassMap.keys()).slice(0, 3);
+            const sampleOmKey = getHourKey(timeline[0].forecastTimestamp);
+            console.log('[Comparison Debug] Sample Stormglass keys:', sampleSgKeys);
+            console.log('[Comparison Debug] First Open-Meteo key:', sampleOmKey);
+            console.log('[Comparison Debug] Key match?', stormglassMap.has(sampleOmKey));
+          }
+
           // Combine Open-Meteo and Stormglass data
           const comparison = timeline.map((point) => {
             const pointTime = new Date(point.forecastTimestamp);
-            const key = pointTime.toISOString().slice(0, 13);
+            const key = getHourKey(pointTime);
             const sg = stormglassMap.get(key);
 
             // Open-Meteo wave height (use breaking height or dominant swell)
