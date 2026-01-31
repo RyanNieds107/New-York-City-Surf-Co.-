@@ -163,7 +163,7 @@ async function runMigrations(): Promise<void> {
       // Fallback to drizzle migrate
       const db = await getDb();
       if (db) {
-        await migrate(db, { migrationsFolder: "./drizzle" });
+        await migrate(db, { migrationsFolder: join(process.cwd(), "drizzle") });
         console.log("[Migrations] Database migrations completed successfully (via drizzle)");
       }
     }
