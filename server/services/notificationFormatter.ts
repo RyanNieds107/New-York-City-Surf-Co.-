@@ -98,6 +98,32 @@ export function formatSwellAlertNotification(
     return formatDaylightTimeWindow(swellStartTime, effectiveEndTime, lat, lng);
   };
 
+  // Format time window for alerts - specific hours for short windows (<6 hours)
+  const formatAlertTimeWindow = (): string => {
+    const durationHours = (effectiveEndTime.getTime() - swellStartTime.getTime()) / (1000 * 60 * 60);
+
+    // For short windows (< 6 hours), show specific times like "2PM-5PM"
+    if (durationHours < 6) {
+      const formatHour = (d: Date): string => {
+        const parts = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'America/New_York',
+          hour: 'numeric',
+          hour12: true
+        }).formatToParts(d);
+        const hour = parts.find(p => p.type === 'hour')?.value || '12';
+        const dayPeriod = parts.find(p => p.type === 'dayPeriod')?.value || 'AM';
+        return `${hour}${dayPeriod}`;
+      };
+      return `${formatHour(swellStartTime)}-${formatHour(effectiveEndTime)}`;
+    }
+
+    // For longer windows, use daylight labels without day prefix (e.g., "Morning-Afternoon")
+    const fullWindow = formatTimeWindow();
+    // Remove day prefix (e.g., "Sat Morning-Afternoon" -> "Morning-Afternoon")
+    const parts = fullWindow.split(' ');
+    return parts.length > 1 ? parts.slice(1).join(' ') : fullWindow;
+  };
+
   // Format day of week and date (e.g., "Saturday 1/31")
   const dayOfWeek = DAY_NAMES[swellStartTime.getDay()];
   const dateFormatted = `${swellStartTime.getMonth() + 1}/${swellStartTime.getDate()}`;
@@ -106,10 +132,11 @@ export function formatSwellAlertNotification(
   const waveHeightRange = getWaveHeightRange(conditions);
 
   // Quality label - FIRING requires both high score AND minimum 4ft waves
+  // Thresholds raised to ensure "GOOD" means genuinely good conditions (not just barely surfable)
   const getQualityLabel = (score: number, minWaveHeight: number): string => {
     if (score >= 80 && minWaveHeight >= 4) return "FIRING";
-    if (score >= 70) return "GREAT";
-    if (score >= 60) return "GOOD";
+    if (score >= 75) return "GREAT";  // was 70
+    if (score >= 65) return "GOOD";   // was 60
     if (score >= 50) return "FAIR";
     return "POOR";
   };
@@ -141,8 +168,10 @@ export function formatSwellAlertNotification(
   };
   const confidence = getConfidence(hoursUntil);
 
-  // Subject line: SPOT WILL BE QUALITY DAY DATE - Height Waves
-  const subject = `${spot.name.toUpperCase()} WILL BE ${qualityLabel} ${dayOfWeek.toUpperCase()} ${dateFormatted} - ${waveHeightRange} Waves`;
+  // Subject line: SPOT - QUALITY TIME DAY DATE
+  // Example: "LIDO BEACH - GOOD 2PM-5PM SATURDAY 2/1"
+  const timeWindow = formatAlertTimeWindow();
+  const subject = `${spot.name.toUpperCase()} - ${qualityLabel} ${timeWindow.toUpperCase()} ${dayOfWeek.toUpperCase()} ${dateFormatted}`;
 
   // Hours out text
   const hoursOutText = hoursUntil <= 1 ? "NOW" : `${hoursUntil}hrs out`;

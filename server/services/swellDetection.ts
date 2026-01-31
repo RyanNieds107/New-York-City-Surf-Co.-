@@ -178,8 +178,8 @@ function findMatchingSwellWindows(
         if (hoursDiff <= 1) {
           currentWindow.push(point);
         } else {
-          // Save current window if it has at least 2 hours
-          if (currentWindow.length >= 2) {
+          // Save current window if it has at least 4 hours
+          if (currentWindow.length >= 4) {
             const window = createWindowFromPoints(currentWindow, spot);
             if (window) windows.push(window);
           }
@@ -189,8 +189,8 @@ function findMatchingSwellWindows(
         currentWindow = [point];
       }
     } else {
-      // Save current window if it has at least 2 hours
-      if (currentWindow.length >= 2) {
+      // Save current window if it has at least 4 hours
+      if (currentWindow.length >= 4) {
         const window = createWindowFromPoints(currentWindow, spot);
         if (window) windows.push(window);
       }
@@ -198,8 +198,8 @@ function findMatchingSwellWindows(
     }
   }
 
-  // Save final window if it has at least 2 hours
-  if (currentWindow.length >= 2) {
+  // Save final window if it has at least 4 hours
+  if (currentWindow.length >= 4) {
     const window = createWindowFromPoints(currentWindow, spot);
     if (window) windows.push(window);
   }
