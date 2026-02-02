@@ -63,10 +63,10 @@ export function useCurrentConditions(spotId: number, options?: { refetchInterval
         ? Number(forecast.qualityScore)
         : (forecast?.probabilityScore != null ? Number(forecast.probabilityScore) : 0));
 
-    // Wave height: timeline breaking → buoy → timeline swell → forecast
+    // Wave height: buoy → timeline breaking → timeline swell → forecast
     const buoyBasedHeight = spotName ? buoyBreakingHeightsQuery.data?.[spotName]?.height : null;
-    const waveHeight = currentPoint?.breakingWaveHeightFt ??
-      buoyBasedHeight ??
+    const waveHeight = buoyBasedHeight ??
+      currentPoint?.breakingWaveHeightFt ??
       currentPoint?.dominantSwellHeightFt ??
       currentPoint?.waveHeightFt ??
       (forecast?.waveHeightTenthsFt != null ? forecast.waveHeightTenthsFt / 10 : null);

@@ -43,7 +43,7 @@ import { getCurrentConditionsFromOpenMeteo } from "./services/openMeteo";
 import { generateForecast, generateForecastTimeline } from "./services/forecast";
 import { makeRequest, type DistanceMatrixResult, type TravelMode } from "./_core/map";
 import { getSpotProfile, getSpotKey, SPOT_PROFILES } from "./utils/spotProfiles";
-import { getDominantSwell, calculateBreakingWaveHeight, formatWaveHeight, calculateSwellEnergy } from "./utils/waveHeight";
+import { getDominantSwell, calculateBreakingWaveHeight, calculateBuoyBreakingWaveHeight, formatWaveHeight, calculateSwellEnergy } from "./utils/waveHeight";
 import { generateForecastOutput } from "./utils/forecastOutput";
 import { forecastPoints, conditionsLog, users, verificationTokens, type User } from "../drizzle/schema";
 import { eq, desc, and, gt } from "drizzle-orm";
@@ -633,10 +633,10 @@ export const appRouter = router({
                   qualityScore = qualityResult.score;
 
                   // Also recalculate breaking height using buoy data
-                  breakingWaveHeightFt = calculateBreakingWaveHeight(
+                  breakingWaveHeightFt = calculateBuoyBreakingWaveHeight(
                     buoyWaveHeightFt,
                     buoyPeriodS,
-                    profile,
+                    spot.name,
                     buoyWaveDirectionDeg,
                     tideFt,
                     currentPoint.tidePhase ?? null
@@ -659,10 +659,16 @@ export const appRouter = router({
                 probabilityScore: currentPoint.probabilityScore,
                 waveHeightTenthsFt: currentPoint.waveHeightFt !== null ? Math.round(currentPoint.waveHeightFt * 10) : 0,
                 breakingWaveHeightFt: breakingWaveHeightFt,
-                // Dominant swell (highest energy using H² × T formula)
-                dominantSwellHeightFt: currentPoint.dominantSwellHeightFt,
-                dominantSwellPeriodS: currentPoint.dominantSwellPeriodS,
-                dominantSwellDirectionDeg: currentPoint.dominantSwellDirectionDeg,
+                // Dominant swell - use buoy data when available, else Open-Meteo
+                dominantSwellHeightFt: buoyData && !buoyData.isStale && buoyData.waveHeight !== null
+                  ? buoyData.waveHeight
+                  : currentPoint.dominantSwellHeightFt,
+                dominantSwellPeriodS: buoyData && !buoyData.isStale && buoyData.dominantPeriod !== null
+                  ? buoyData.dominantPeriod
+                  : currentPoint.dominantSwellPeriodS,
+                dominantSwellDirectionDeg: buoyData && !buoyData.isStale && buoyData.waveDirection !== null
+                  ? buoyData.waveDirection
+                  : currentPoint.dominantSwellDirectionDeg,
                 dominantSwellType: currentPoint.dominantSwellType,
                 confidenceBand: currentPoint.confidenceBand,
                 usabilityIntermediate: currentPoint.usabilityIntermediate,
@@ -1278,10 +1284,10 @@ export const appRouter = router({
           continue;
         }
 
-        const breakingHeight = calculateBreakingWaveHeight(
+        const breakingHeight = calculateBuoyBreakingWaveHeight(
           waveHeight,
           dominantPeriod,
-          profile,
+          spotName,
           waveDirection,
           tideHeightFt,
           tidePhase

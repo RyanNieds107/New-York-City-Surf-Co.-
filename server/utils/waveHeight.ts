@@ -545,6 +545,60 @@ export function calculateBreakingWaveHeight(
 }
 
 /**
+ * Calculate breaking wave height from NOAA buoy data
+ *
+ * Uses a simpler shoaling-based formula for real buoy observations,
+ * NOT the model correction formula used for Open-Meteo forecasts.
+ *
+ * Formula: Breaking_Height = Buoy_Height × Ks × Groundswell_Factor × Direction × Tide
+ *
+ * @param buoyHeightFt - Buoy swell height in feet (from NOAA 44065)
+ * @param periodS - Swell period in seconds
+ * @param spotName - Spot name for tide adjustments
+ * @param swellDirectionDeg - Swell direction in degrees (0-360) or null
+ * @param tideHeightFt - Tide height in decimal feet or null
+ * @param tidePhase - Tide phase: 'rising', 'falling', etc. or null
+ * @returns Predicted breaking wave height in feet
+ */
+export function calculateBuoyBreakingWaveHeight(
+  buoyHeightFt: number,
+  periodS: number,
+  spotName?: string,
+  swellDirectionDeg?: number | null,
+  tideHeightFt?: number | null,
+  tidePhase?: string | null
+): number {
+  // STEP 1: Check directional kill switch (250-310° West)
+  if (isDirectionBlocked(swellDirectionDeg ?? null)) {
+    return 0;
+  }
+
+  // STEP 2: Shoaling coefficient for 44065 buoy (15 NM offshore)
+  // Accounts for energy loss over continental shelf (NY Bight effect)
+  const Ks = 0.75;
+
+  // STEP 3: Period-based groundswell factor
+  let groundswellFactor = 1.0;
+  if (periodS > 12) {
+    groundswellFactor = 1.0 + Math.min((periodS - 12) / 20, 0.15);
+  }
+
+  let breakingHeight = buoyHeightFt * Ks * groundswellFactor;
+
+  // STEP 4: Apply directional wrap penalty (<110° East)
+  const directionalPenalty = getDirectionalPenalty(swellDirectionDeg ?? null);
+  breakingHeight = breakingHeight * directionalPenalty;
+
+  // STEP 5: Apply tide multiplier for Lido and Long Beach ONLY
+  if (spotName === "Lido Beach" || spotName === "Long Beach") {
+    const tideMultiplier = getTideMultiplier(tideHeightFt ?? null, tidePhase, spotName);
+    breakingHeight = breakingHeight * tideMultiplier;
+  }
+
+  return Math.round(breakingHeight * 10) / 10;
+}
+
+/**
  * Format wave height as a range string
  *
  * Shows ±0.5ft range, rounds intelligently.
