@@ -716,10 +716,11 @@ export async function applyBuoyOverrideToCurrentPoint(
     // Extract buoy wave data
     const buoyWaveHeightFt = buoyData.waveHeight;
     const buoyPeriodS = buoyData.dominantPeriod;
-    const buoyWaveDirectionDeg = buoyData.waveDirection ?? currentPoint.waveDirectionDeg;
+    // Use dominant swell direction for consistency with dominant period/height
+    const buoyWaveDirectionDeg = buoyData.dominantDirectionDeg ?? buoyData.waveDirection ?? currentPoint.waveDirectionDeg;
     
-    // Calculate tide
-    const tideFt = currentPoint.tideHeightFt / 10; // Convert from tenths
+    // Calculate tide (from Open-Meteo via timeline)
+    const tideFt = currentPoint.tideHeightFt !== null ? currentPoint.tideHeightFt / 10 : 0; // Convert from tenths
     
     // Calculate buoy breaking height
     const buoyBreakingHeight = calculateBuoyBreakingWaveHeight(
@@ -731,14 +732,25 @@ export async function applyBuoyOverrideToCurrentPoint(
       currentPoint.tidePhase ?? null
     );
     
+    // Validate we have minimum required data for quality calculation
+    const windSpeedKts = buoyData.windSpeedKts ?? currentPoint.windSpeedKts ?? null;
+    const windDirectionDeg = buoyData.windDirectionDeg ?? currentPoint.windDirectionDeg ?? null;
+    
+    console.log('[Timeline Buoy Override] Input data for quality calculation:', {
+      spot: spot.name,
+      buoyWave: `${buoyWaveHeightFt.toFixed(1)}ft @ ${buoyPeriodS}s ${buoyWaveDirectionDeg}°`,
+      tide: currentPoint.tideHeightFt !== null ? `${tideFt.toFixed(1)}ft ${currentPoint.tidePhase}` : 'no tide data',
+      wind: windSpeedKts !== null ? `${windSpeedKts.toFixed(1)}kts ${windDirectionDeg}°` : 'no wind data',
+    });
+    
     // Create forecast point for quality calculation
     const forecastPointForQuality = {
       waveHeightFt: Math.round(buoyWaveHeightFt * 10), // Convert to tenths
       wavePeriodSec: buoyPeriodS,
       waveDirectionDeg: buoyWaveDirectionDeg,
-      windSpeedKts: buoyData.windSpeedKts ?? currentPoint.windSpeedKts,
-      windDirectionDeg: buoyData.windDirectionDeg ?? currentPoint.windDirectionDeg,
-      windGustsKts: buoyData.windGustsKts ?? null,
+      windSpeedKts,
+      windDirectionDeg,
+      windGustsKts: null, // Buoy doesn't provide wind gusts
       secondarySwellHeightFt: null,
       secondarySwellPeriodS: null,
       secondarySwellDirectionDeg: null,
@@ -754,12 +766,15 @@ export async function applyBuoyOverrideToCurrentPoint(
       buoyBreakingHeight // Pass buoy breaking height override
     );
     
-    // Log the override
-    console.log(`[Timeline Buoy Override] ${spot.name}: Recalculated current point with buoy data`, {
+    // Log the override success
+    console.log(`[Timeline Buoy Override] ✅ ${spot.name}: Successfully recalculated with buoy data`, {
       originalScore: currentPoint.quality_score,
       buoyScore: qualityResult.score,
+      improvement: qualityResult.score - (currentPoint.quality_score ?? 0),
       buoyWave: `${buoyWaveHeightFt.toFixed(1)}ft @ ${buoyPeriodS}s`,
       breakingHeight: `${buoyBreakingHeight.toFixed(1)}ft`,
+      scoreBreakdown: qualityResult.breakdown,
+      rating: qualityResult.rating,
     });
     
     // Clone timeline and update current point
@@ -774,7 +789,25 @@ export async function applyBuoyOverrideToCurrentPoint(
     return updatedTimeline;
     
   } catch (error) {
-    console.error(`[Timeline Buoy Override] Failed to recalculate for ${spot.name}:`, error);
+    console.error(`[Timeline Buoy Override] ❌ Failed to recalculate for ${spot.name}:`, {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      buoyData: {
+        waveHeight: buoyData.waveHeight,
+        dominantPeriod: buoyData.dominantPeriod,
+        dominantDirectionDeg: buoyData.dominantDirectionDeg,
+        waveDirection: buoyData.waveDirection,
+        windSpeedKts: buoyData.windSpeedKts,
+        windDirectionDeg: buoyData.windDirectionDeg,
+      },
+      currentPoint: {
+        tideHeightFt: currentPoint.tideHeightFt,
+        tidePhase: currentPoint.tidePhase,
+        windSpeedKts: currentPoint.windSpeedKts,
+        windDirectionDeg: currentPoint.windDirectionDeg,
+        waveDirectionDeg: currentPoint.waveDirectionDeg,
+      }
+    });
     return timeline; // Return original timeline on error
   }
 }
