@@ -666,14 +666,27 @@ export async function applyBuoyOverrideToCurrentPoint(
   timeline: ForecastTimelineResult[],
   spot: SurfSpot
 ): Promise<ForecastTimelineResult[]> {
-  if (timeline.length === 0) return timeline;
+  console.log(`[Timeline Buoy Override] 🚀 CALLED for ${spot.name}, timeline length: ${timeline.length}`);
+  
+  if (timeline.length === 0) {
+    console.log('[Timeline Buoy Override] Timeline is empty, returning');
+    return timeline;
+  }
   
   // Import dependencies
   const { fetchBuoy44065Cached } = await import("./buoy44065");
   const { calculateBuoyBreakingWaveHeight } = await import("../utils/waveHeight");
   
+  console.log(`[Timeline Buoy Override] Fetching buoy data...`);
   // Fetch buoy data
   const buoyData = await fetchBuoy44065Cached();
+  console.log(`[Timeline Buoy Override] Buoy data received:`, {
+    hasData: !!buoyData,
+    isStale: buoyData?.isStale,
+    waveHeight: buoyData?.waveHeight,
+    dominantPeriod: buoyData?.dominantPeriod,
+    dominantDirectionDeg: buoyData?.dominantDirectionDeg,
+  });
   
   // If no buoy data or stale, return timeline as-is
   if (!buoyData || buoyData.isStale) {
