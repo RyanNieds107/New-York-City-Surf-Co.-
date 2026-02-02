@@ -889,27 +889,27 @@ export function calculateQualityScoreWithProfile(
   spotId: string,
   tideFt: number,
   profile: SpotProfile,
-  tidePhase?: string | null
+  tidePhase?: string | null,
+  breakingHeightOverride?: number | null
 ): QualityScoreResult {
 
   // Convert waveHeightFt from integer*10 to decimal feet
-  const swellHeightFt = forecastPoint.waveHeightFt !== null 
-    ? forecastPoint.waveHeightFt / 10 
+  const swellHeightFt = forecastPoint.waveHeightFt !== null
+    ? forecastPoint.waveHeightFt / 10
     : 0;
   const periodS = forecastPoint.wavePeriodSec ?? 0;
 
-  // Calculate breaking wave height: H × (T/10) × spotMultiplier × tideMultiplier × directionalPenalty
-  // SELECTION uses H² × T energy, but DISPLAY uses period-based shoaling physics
-  // This ensures quality score clamping is based on actual predicted surf size
-  // Tide multiplier is now included in wave height calculation (high tide reduces, low tide boosts)
-  const breakingHeightFt = calculateBreakingWaveHeight(
-    swellHeightFt,
-    periodS,
-    profile,
-    forecastPoint.waveDirectionDeg,
-    tideFt,
-    tidePhase ?? null
-  );
+  // Use override if provided (e.g., from buoy data), else calculate using Open-Meteo formula
+  const breakingHeightFt = breakingHeightOverride != null
+    ? breakingHeightOverride
+    : calculateBreakingWaveHeight(
+        swellHeightFt,
+        periodS,
+        profile,
+        forecastPoint.waveDirectionDeg,
+        tideFt,
+        tidePhase ?? null
+      );
 
   console.log('🔍 [Quality Score Debug] Breaking Height Calculation:', {
     inputSwellHeightFt: swellHeightFt.toFixed(2),

@@ -623,17 +623,9 @@ export const appRouter = router({
                   } as any;
 
                   const tideFt = currentPoint.tideHeightFt / 10; // Convert from tenths
-                  const qualityResult = calculateQualityScoreWithProfile(
-                    forecastPointLike,
-                    spot.name,
-                    tideFt,
-                    profile,
-                    currentPoint.tidePhase ?? null
-                  );
-                  qualityScore = qualityResult.score;
 
-                  // Also recalculate breaking height using buoy data
-                  breakingWaveHeightFt = calculateBuoyBreakingWaveHeight(
+                  // Calculate buoy breaking height FIRST (using shoaling coefficient)
+                  const buoyBreakingHeight = calculateBuoyBreakingWaveHeight(
                     buoyWaveHeightFt,
                     buoyPeriodS,
                     spot.name,
@@ -641,6 +633,18 @@ export const appRouter = router({
                     tideFt,
                     currentPoint.tidePhase ?? null
                   );
+
+                  // Pass buoy breaking height to quality score so it uses the same value
+                  const qualityResult = calculateQualityScoreWithProfile(
+                    forecastPointLike,
+                    spot.name,
+                    tideFt,
+                    profile,
+                    currentPoint.tidePhase ?? null,
+                    buoyBreakingHeight
+                  );
+                  qualityScore = qualityResult.score;
+                  breakingWaveHeightFt = buoyBreakingHeight;
 
                   console.log(`[getCurrentConditionsForAll] ${spot.name}: Recalculated with buoy data (wave: ${buoyWaveHeightFt.toFixed(1)}ft @ ${buoyPeriodS}s, wind: ${buoyData.windDirectionDeg}° @ ${buoyData.windSpeedKts?.toFixed(1)}kts) → breaking: ${breakingWaveHeightFt.toFixed(1)}ft, score: ${qualityScore}`);
                 } catch (error) {
