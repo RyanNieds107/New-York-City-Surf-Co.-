@@ -653,6 +653,133 @@ export async function generateForecastTimeline(
 }
 
 /**
+ * Apply buoy quality score override to the current timeline point.
+ * 
+ * This ensures current conditions use real NOAA buoy measurements
+ * instead of Open-Meteo predictions.
+ * 
+ * @param timeline - Timeline with Open-Meteo quality scores
+ * @param spot - Spot info
+ * @returns Timeline with buoy-overridden quality score for current point
+ */
+export async function applyBuoyOverrideToCurrentPoint(
+  timeline: ForecastTimelineResult[],
+  spot: SurfSpot
+): Promise<ForecastTimelineResult[]> {
+  if (timeline.length === 0) return timeline;
+  
+  // Import dependencies
+  const { fetchBuoy44065Cached } = await import("./buoy44065");
+  const { calculateBuoyBreakingWaveHeight } = await import("../utils/waveHeight");
+  
+  // Fetch buoy data
+  const buoyData = await fetchBuoy44065Cached();
+  
+  // If no buoy data or stale, return timeline as-is
+  if (!buoyData || buoyData.isStale) {
+    console.log('[Timeline Buoy Override] Buoy data unavailable or stale, using Open-Meteo scores');
+    return timeline;
+  }
+  
+  // Select current point (same logic as frontend)
+  const now = Date.now();
+  const CURRENT_CONDITIONS_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
+  const cutoffTime = now - CURRENT_CONDITIONS_MAX_AGE_MS;
+  
+  const currentPointIndex = timeline.findIndex((point) => {
+    const pointTime = new Date(point.forecastTimestamp).getTime();
+    return pointTime >= cutoffTime && pointTime <= now;
+  });
+  
+  // No current point found
+  if (currentPointIndex === -1) {
+    console.log('[Timeline Buoy Override] No current point found in timeline');
+    return timeline;
+  }
+  
+  const currentPoint = timeline[currentPointIndex];
+  
+  // Verify buoy has wave data
+  if (buoyData.waveHeight === null || buoyData.dominantPeriod === null) {
+    console.log('[Timeline Buoy Override] Buoy missing wave data');
+    return timeline;
+  }
+  
+  // Get spot profile
+  const profile = getSpotProfile(spot.name);
+  if (!profile) {
+    console.log('[Timeline Buoy Override] No profile found for spot:', spot.name);
+    return timeline;
+  }
+  
+  try {
+    // Extract buoy wave data
+    const buoyWaveHeightFt = buoyData.waveHeight;
+    const buoyPeriodS = buoyData.dominantPeriod;
+    const buoyWaveDirectionDeg = buoyData.waveDirection ?? currentPoint.waveDirectionDeg;
+    
+    // Calculate tide
+    const tideFt = currentPoint.tideHeightFt / 10; // Convert from tenths
+    
+    // Calculate buoy breaking height
+    const buoyBreakingHeight = calculateBuoyBreakingWaveHeight(
+      buoyWaveHeightFt,
+      buoyPeriodS,
+      spot.name,
+      buoyWaveDirectionDeg,
+      tideFt,
+      currentPoint.tidePhase ?? null
+    );
+    
+    // Create forecast point for quality calculation
+    const forecastPointForQuality = {
+      waveHeightFt: Math.round(buoyWaveHeightFt * 10), // Convert to tenths
+      wavePeriodSec: buoyPeriodS,
+      waveDirectionDeg: buoyWaveDirectionDeg,
+      windSpeedKts: buoyData.windSpeedKts ?? currentPoint.windSpeedKts,
+      windDirectionDeg: buoyData.windDirectionDeg ?? currentPoint.windDirectionDeg,
+      windGustsKts: buoyData.windGustsKts ?? null,
+      secondarySwellHeightFt: null,
+      secondarySwellPeriodS: null,
+      secondarySwellDirectionDeg: null,
+    } as any;
+    
+    // Recalculate quality score with buoy data
+    const qualityResult = calculateQualityScoreWithProfile(
+      forecastPointForQuality,
+      spot.name,
+      tideFt,
+      profile,
+      currentPoint.tidePhase ?? null,
+      buoyBreakingHeight // Pass buoy breaking height override
+    );
+    
+    // Log the override
+    console.log(`[Timeline Buoy Override] ${spot.name}: Recalculated current point with buoy data`, {
+      originalScore: currentPoint.quality_score,
+      buoyScore: qualityResult.score,
+      buoyWave: `${buoyWaveHeightFt.toFixed(1)}ft @ ${buoyPeriodS}s`,
+      breakingHeight: `${buoyBreakingHeight.toFixed(1)}ft`,
+    });
+    
+    // Clone timeline and update current point
+    const updatedTimeline = [...timeline];
+    updatedTimeline[currentPointIndex] = {
+      ...currentPoint,
+      quality_score: qualityResult.score,
+      // Also update breaking height for consistency
+      breakingWaveHeightFt: buoyBreakingHeight,
+    };
+    
+    return updatedTimeline;
+    
+  } catch (error) {
+    console.error(`[Timeline Buoy Override] Failed to recalculate for ${spot.name}:`, error);
+    return timeline; // Return original timeline on error
+  }
+}
+
+/**
  * Calculates swell score from forecast point data.
  * Adapted from calculateSwellScore to work with ForecastPoint.
  */

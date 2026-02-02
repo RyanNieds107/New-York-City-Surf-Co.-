@@ -869,6 +869,7 @@ export const appRouter = router({
         const avgCrowdLevel = await getAverageCrowdLevel(spot.id);
 
         // Generate timeline with quality scores
+        const { generateForecastTimeline, applyBuoyOverrideToCurrentPoint } = await import("./services/forecast");
         const timeline = await generateForecastTimeline({
           forecastPoints,
           spot,
@@ -876,11 +877,14 @@ export const appRouter = router({
           avgCrowdLevel,
         });
 
+        // Apply buoy override for current point only
+        const timelineWithBuoyOverride = await applyBuoyOverrideToCurrentPoint(timeline, spot);
+
         // 📡 STEP 5: API Sending to Frontend
-        if (timeline.length > 0) {
-          const firstTimeline = timeline[0];
+        if (timelineWithBuoyOverride.length > 0) {
+          const firstTimeline = timelineWithBuoyOverride[0];
           console.log('📡 STEP 5: API Sending to Frontend');
-          console.log('Timeline length:', timeline.length);
+          console.log('Timeline length:', timelineWithBuoyOverride.length);
           console.log('Timeline sample:', {
             secondarySwellHeightFt: firstTimeline.secondarySwellHeightFt,
             secondarySwellPeriodS: firstTimeline.secondarySwellPeriodS,
@@ -892,8 +896,8 @@ export const appRouter = router({
         }
 
         // Add ECMWF confidence data to timeline (compares Open-Meteo vs Stormglass)
-        const timelineWithConfidence = await addConfidenceToTimeline(spot.id, timeline);
-        const confidenceSummary = await getConfidenceSummary(spot.id, timeline);
+        const timelineWithConfidence = await addConfidenceToTimeline(spot.id, timelineWithBuoyOverride);
+        const confidenceSummary = await getConfidenceSummary(spot.id, timelineWithBuoyOverride);
 
         return {
           timeline: timelineWithConfidence,
