@@ -608,7 +608,7 @@ export const appRouter = router({
                   // Use buoy wave data (more accurate for current conditions)
                   const buoyWaveHeightFt = buoyData.waveHeight;
                   const buoyPeriodS = buoyData.dominantPeriod;
-                  const buoyWaveDirectionDeg = buoyData.waveDirection ?? currentPoint.dominantSwellDirectionDeg;
+                  const buoyWaveDirectionDeg = buoyData.dominantDirectionDeg ?? buoyData.waveDirection ?? currentPoint.dominantSwellDirectionDeg;
 
                   // Create a forecast point structure for quality calculation using buoy data
                   const forecastPointLike = {
@@ -622,7 +622,7 @@ export const appRouter = router({
                     secondarySwellDirectionDeg: null,
                   } as any;
 
-                  const tideFt = currentPoint.tideHeightFt / 10; // Convert from tenths
+                  const tideFt = currentPoint.tideHeightFt !== null ? currentPoint.tideHeightFt / 10 : 0; // Convert from tenths
 
                   // Calculate buoy breaking height FIRST (using shoaling coefficient)
                   const buoyBreakingHeight = calculateBuoyBreakingWaveHeight(
@@ -670,8 +670,8 @@ export const appRouter = router({
                 dominantSwellPeriodS: buoyData && !buoyData.isStale && buoyData.dominantPeriod !== null
                   ? buoyData.dominantPeriod
                   : currentPoint.dominantSwellPeriodS,
-                dominantSwellDirectionDeg: buoyData && !buoyData.isStale && buoyData.waveDirection !== null
-                  ? buoyData.waveDirection
+                dominantSwellDirectionDeg: buoyData && !buoyData.isStale && buoyData.dominantDirectionDeg !== null
+                  ? buoyData.dominantDirectionDeg
                   : currentPoint.dominantSwellDirectionDeg,
                 dominantSwellType: currentPoint.dominantSwellType,
                 confidenceBand: currentPoint.confidenceBand,
@@ -878,7 +878,9 @@ export const appRouter = router({
         });
 
         // Apply buoy override for current point only
+        console.log(`[Forecasts Router] About to call applyBuoyOverrideToCurrentPoint for ${spot.name}...`);
         const timelineWithBuoyOverride = await applyBuoyOverrideToCurrentPoint(timeline, spot);
+        console.log(`[Forecasts Router] applyBuoyOverrideToCurrentPoint completed for ${spot.name}`);
 
         // 📡 STEP 5: API Sending to Frontend
         if (timelineWithBuoyOverride.length > 0) {

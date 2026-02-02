@@ -590,6 +590,7 @@ export function calculateBuoyBreakingWaveHeight(
   breakingHeight = breakingHeight * directionalPenalty;
 
   // STEP 5: Apply tide multiplier for Lido and Long Beach ONLY
+  // Rockaway excluded: its bathymetry handles high tide better (no penalty) and doesn't need low tide boost
   if (spotName === "Lido Beach" || spotName === "Long Beach") {
     const tideMultiplier = getTideMultiplier(tideHeightFt ?? null, tidePhase, spotName);
     breakingHeight = breakingHeight * tideMultiplier;

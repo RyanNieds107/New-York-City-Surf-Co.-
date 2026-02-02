@@ -521,10 +521,10 @@ function SpotForecastCard({ spot, isExpanded, onToggleExpand, onNavigate, travel
             <div>
               <div className="text-[10px] text-gray-600 uppercase tracking-wider mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>TIDE</div>
               <div className="text-2xl text-black font-bold" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                {forecast?.tideHeightFt ? `${(forecast.tideHeightFt / 10).toFixed(1)}ft` : 'N/A'}
+                {currentData.tide.heightFt !== null ? `${(currentData.tide.heightFt / 10).toFixed(1)}ft` : 'N/A'}
               </div>
               <div className="text-xs text-black uppercase mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                {forecast?.tidePhase || 'N/A'}
+                {currentData.tide.phase || 'N/A'}
               </div>
             </div>
 
