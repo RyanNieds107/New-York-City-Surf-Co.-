@@ -1553,13 +1553,13 @@ export default function LandingPage() {
                 Spot-tuned for NYC.
               </p>
               <div className="space-y-0.5 sm:space-y-2 flex-1">
-                <Link href="/spot/3" className="block p-1 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-gray-300 sm:border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                <Link href="/spot/3" className="block p-1 sm:p-3 md:p-4 bg-gray-100 text-gray-700 hover:bg-black hover:text-white border border-gray-300 sm:border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                   <span className="text-[8px] sm:text-sm md:text-base lg:text-lg font-medium sm:font-bold">Rockaway</span>
                 </Link>
-                <Link href="/spot/2" className="block p-1 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-gray-300 sm:border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                <Link href="/spot/2" className="block p-1 sm:p-3 md:p-4 bg-gray-100 text-gray-700 hover:bg-black hover:text-white border border-gray-300 sm:border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                   <span className="text-[8px] sm:text-sm md:text-base lg:text-lg font-medium sm:font-bold">Long Beach</span>
                 </Link>
-                <Link href="/spot/1" className="block p-1 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-gray-300 sm:border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                <Link href="/spot/1" className="block p-1 sm:p-3 md:p-4 bg-gray-100 text-gray-700 hover:bg-black hover:text-white border border-gray-300 sm:border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                   <span className="text-[8px] sm:text-sm md:text-base lg:text-lg font-medium sm:font-bold">Lido Beach</span>
                 </Link>
               </div>
@@ -1574,13 +1574,13 @@ export default function LandingPage() {
                 Local break insights.
               </p>
               <div className="space-y-0.5 sm:space-y-2 flex-1">
-                <Link href="/spot/3#guide" className="block p-1 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-gray-300 sm:border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                <Link href="/spot/3#guide" className="block p-1 sm:p-3 md:p-4 bg-gray-100 text-gray-700 hover:bg-black hover:text-white border border-gray-300 sm:border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                   <span className="text-[8px] sm:text-sm md:text-base lg:text-lg font-medium sm:font-bold">Rockaway</span>
                 </Link>
-                <Link href="/spot/2#guide" className="block p-1 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-gray-300 sm:border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                <Link href="/spot/2#guide" className="block p-1 sm:p-3 md:p-4 bg-gray-100 text-gray-700 hover:bg-black hover:text-white border border-gray-300 sm:border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                   <span className="text-[8px] sm:text-sm md:text-base lg:text-lg font-medium sm:font-bold">Long Beach</span>
                 </Link>
-                <Link href="/spot/1#guide" className="block p-1 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-gray-300 sm:border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                <Link href="/spot/1#guide" className="block p-1 sm:p-3 md:p-4 bg-gray-100 text-gray-700 hover:bg-black hover:text-white border border-gray-300 sm:border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                   <span className="text-[8px] sm:text-sm md:text-base lg:text-lg font-medium sm:font-bold">Lido Beach</span>
                 </Link>
               </div>
@@ -1595,13 +1595,13 @@ export default function LandingPage() {
                 Never miss a session.
               </p>
               <div className="space-y-0.5 sm:space-y-2 flex-1">
-                <Link href="/members" className="block p-1 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-gray-300 sm:border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                <Link href="/members" className="block p-1 sm:p-3 md:p-4 bg-gray-100 text-gray-700 hover:bg-black hover:text-white border border-gray-300 sm:border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                   <span className="text-[8px] sm:text-sm md:text-base lg:text-lg font-medium sm:font-bold">Alerts</span>
                 </Link>
-                <Link href="/members" className="block p-1 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-gray-300 sm:border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                <Link href="/members" className="block p-1 sm:p-3 md:p-4 bg-gray-100 text-gray-700 hover:bg-black hover:text-white border border-gray-300 sm:border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                   <span className="text-[8px] sm:text-sm md:text-base lg:text-lg font-medium sm:font-bold">Email</span>
                 </Link>
-                <Link href="/members" className="block p-1 sm:p-3 md:p-4 bg-gray-100 hover:bg-black hover:text-white border border-gray-300 sm:border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                <Link href="/members" className="block p-1 sm:p-3 md:p-4 bg-gray-100 text-gray-700 hover:bg-black hover:text-white border border-gray-300 sm:border-black sm:border-2 transition-all duration-200 group/link" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                   <span className="text-[8px] sm:text-sm md:text-base lg:text-lg font-medium sm:font-bold">Join 40+</span>
                 </Link>
               </div>
