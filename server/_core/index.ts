@@ -17,11 +17,13 @@ import { join, dirname, resolve } from "path";
 import { fileURLToPath } from "url";
 import mysql from "mysql2/promise";
 
-// Load .env file from project root (two levels up from this file)
+// Only load .env file in development - Railway injects env vars directly in production
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const projectRoot = resolve(__dirname, "../..");
-config({ path: resolve(projectRoot, ".env") });
+if (process.env.NODE_ENV !== "production") {
+  config({ path: resolve(projectRoot, ".env") });
+}
 
 /**
  * Tests database connection with retry logic
@@ -56,6 +58,14 @@ async function testDatabaseConnection(dbUrl: string, maxRetries: number = 5): Pr
 async function runMigrations(): Promise<void> {
   console.log("[Migrations] Starting database migrations...");
   console.log(`[Server] PORT env: ${process.env.PORT || '(not set, using 3000)'}`);
+
+  // DEBUG: Log what database variables we actually have (mask password)
+  const mysqlUrl = process.env.MYSQL_URL || '';
+  const dbUrlEnv = process.env.DATABASE_URL || '';
+  const maskPassword = (url: string) => url.replace(/(:)([^@]+)(@)/, '$1****$3');
+  console.log(`[DEBUG] MYSQL_URL: ${mysqlUrl ? maskPassword(mysqlUrl) : '(not set)'}`);
+  console.log(`[DEBUG] DATABASE_URL: ${dbUrlEnv ? maskPassword(dbUrlEnv) : '(not set)'}`);
+  console.log(`[DEBUG] NODE_ENV: ${process.env.NODE_ENV}`);
 
   try {
     // Prioritize internal Railway URL first for better reliability
