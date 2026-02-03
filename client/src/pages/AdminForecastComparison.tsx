@@ -56,6 +56,7 @@ export default function AdminForecastComparison() {
   const { user, loading: authLoading } = useAuth();
   const [selectedSpotId, setSelectedSpotId] = useState<number | null>(null);
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
+  const [hoursAhead, setHoursAhead] = useState<number>(168);
 
   // Fetch all spots for the dropdown
   const spotsQuery = trpc.spots.list.useQuery();
@@ -304,6 +305,24 @@ export default function AdminForecastComparison() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-700">Window:</span>
+                <Select
+                  value={hoursAhead.toString()}
+                  onValueChange={(value) => setHoursAhead(parseInt(value))}
+                >
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Hours ahead" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[48, 72, 96, 168].map((value) => (
+                      <SelectItem key={value} value={value.toString()}>
+                        {value} hours
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <Button
                 variant="outline"
                 size="sm"
@@ -318,7 +337,7 @@ export default function AdminForecastComparison() {
                 size="sm"
                 onClick={() => {
                   if (selectedSpotId) {
-                    triggerFetchMutation.mutate({ spotId: selectedSpotId });
+                    triggerFetchMutation.mutate({ spotId: selectedSpotId, hoursAhead });
                   }
                 }}
                 disabled={triggerFetchMutation.isPending || !selectedSpotId}
@@ -447,7 +466,7 @@ export default function AdminForecastComparison() {
                     </TableHeader>
                     <TableBody>
                       {dayGroup.rows.map((row, index) => (
-                        <TableRow key={index}>
+                      <TableRow key={index}>
                           <TableCell className="font-medium">{formatTime(row.time)}</TableCell>
                           <TableCell className="text-right">
                             {row.openMeteoHeightFt !== null
@@ -457,7 +476,9 @@ export default function AdminForecastComparison() {
                           <TableCell className="text-right">
                             {row.stormglassHeightFt !== null
                               ? `${row.stormglassHeightFt.toFixed(1)}`
-                              : "—"}
+                              : row.openMeteoHeightFt !== null
+                                ? <span className="text-xs text-amber-600">No SG match</span>
+                                : "—"}
                           </TableCell>
                           <TableCell className={`text-right ${getDifferenceColor(row.differenceFt)}`}>
                             {row.differenceFt !== null
@@ -468,13 +489,21 @@ export default function AdminForecastComparison() {
                             {row.swellPeriodS !== null ? `${row.swellPeriodS}s` : "—"}
                           </TableCell>
                           <TableCell className="text-right">
-                            {row.stormglassPeriodS !== null ? `${row.stormglassPeriodS}s` : "—"}
+                            {row.stormglassPeriodS !== null
+                              ? `${row.stormglassPeriodS}s`
+                              : row.openMeteoHeightFt !== null
+                                ? <span className="text-xs text-amber-600">No SG match</span>
+                                : "—"}
                           </TableCell>
                           <TableCell className="text-right">
                             {row.swellDirectionDeg !== null ? `${row.swellDirectionDeg}°` : "—"}
                           </TableCell>
                           <TableCell className="text-right">
-                            {row.stormglassDirectionDeg !== null ? `${row.stormglassDirectionDeg}°` : "—"}
+                            {row.stormglassDirectionDeg !== null
+                              ? `${row.stormglassDirectionDeg}°`
+                              : row.openMeteoHeightFt !== null
+                                ? <span className="text-xs text-amber-600">No SG match</span>
+                                : "—"}
                           </TableCell>
                           <TableCell className="text-center">
                             {getConfidenceBadge(row.confidence, true)}

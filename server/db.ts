@@ -1285,10 +1285,19 @@ export async function getStormglassVerification(
   startTime: Date,
   endTime: Date
 ): Promise<StormglassVerification[]> {
-  const db = await getDb();
-  if (!db) return [];
+  console.log('[SG Debug] getStormglassVerification window:', {
+    spotId,
+    startTime: startTime.toISOString(),
+    endTime: endTime.toISOString()
+  });
 
-  return db
+  const db = await getDb();
+  if (!db) {
+    console.log('[SG Debug] No database connection');
+    return [];
+  }
+
+  const result = await db
     .select()
     .from(stormglassVerification)
     .where(
@@ -1299,6 +1308,21 @@ export async function getStormglassVerification(
       )
     )
     .orderBy(stormglassVerification.forecastTimestamp);
+
+  const sample = result.slice(0, 3).map((row) => ({
+    timestamp: row.forecastTimestamp?.toISOString?.() ?? row.forecastTimestamp,
+    waveHeightFt: row.waveHeightFt,
+    swellHeightFt: row.swellHeightFt
+  }));
+
+  console.log('[SG Debug] Query result:', {
+    count: result.length,
+    firstTimestamp: result[0]?.forecastTimestamp,
+    lastTimestamp: result[result.length - 1]?.forecastTimestamp,
+    sample
+  });
+
+  return result;
 }
 
 /**

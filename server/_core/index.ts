@@ -1,4 +1,3 @@
-import { config } from "dotenv";
 import express from "express";
 import { createServer } from "http";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
@@ -13,17 +12,12 @@ import { getCurrentTideInfo } from "../services/tides";
 import { generateForecast } from "../services/forecast";
 import { getCurrentConditionsFromOpenMeteo } from "../services/openMeteo";
 import { readFileSync, readdirSync } from "fs";
-import { join, dirname, resolve } from "path";
+import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import mysql from "mysql2/promise";
 
-// Only load .env file in development - Railway injects env vars directly in production
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const projectRoot = resolve(__dirname, "../..");
-if (process.env.NODE_ENV !== "production") {
-  config({ path: resolve(projectRoot, ".env") });
-}
 
 /**
  * Tests database connection with retry logic
