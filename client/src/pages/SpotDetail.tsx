@@ -2950,11 +2950,21 @@ export default function SpotDetail() {
                                       {confidencePercentage}% confidence
                                     </span>
                                   </div>
+
+                                  {/* Model Split warning - Mobile only (stacked below stats) */}
+                                  {showModelSplit && (
+                                    <div className="mt-1 block md:hidden">
+                                      <span className="inline-flex items-center gap-1 text-[8px] font-bold tracking-wide text-amber-800 bg-amber-100 px-1.5 py-1 rounded border border-amber-300 whitespace-nowrap" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                        ⚠️ Model Split: GFS/Euro Divergence
+                                      </span>
+                                    </div>
+                                  )}
                                 </div>
 
                                 <div className="flex items-center gap-2 flex-shrink-0">
+                                  {/* Model Split warning - Desktop only (in header with chevron) */}
                                   {showModelSplit && (
-                                    <span className="inline-flex items-center gap-1 text-[8px] md:text-[10px] font-bold tracking-wide text-amber-800 bg-amber-100 px-1.5 py-1 rounded border border-amber-300 whitespace-nowrap" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                    <span className="hidden md:inline-flex items-center gap-1 text-[10px] font-bold tracking-wide text-amber-800 bg-amber-100 px-1.5 py-1 rounded border border-amber-300 whitespace-nowrap" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                                       ⚠️ Model Split: GFS/Euro Divergence
                                     </span>
                                   )}

@@ -760,11 +760,11 @@ export default function Members() {
               {/* Report Submission Card */}
               <div className="bg-white border-2 border-black">
                 <div className="p-5 sm:p-6 border-b-2 border-gray-200">
-                  <h3 className="text-2xl font-black uppercase mb-2"
+                  <h3 className="text-2xl font-black uppercase mb-2 text-black"
                       style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
                     + Submit Report
                   </h3>
-                  <p className="text-xs text-gray-500 uppercase tracking-widest"
+                  <p className="text-xs text-gray-800 uppercase tracking-widest"
                      style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                     Share how your session went
                   </p>
@@ -819,7 +819,7 @@ export default function Members() {
               <UserStatsWidget />
 
               <div>
-                <h2 className="text-2xl font-black uppercase mb-4" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+                <h2 className="text-2xl font-black uppercase mb-4 text-black" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
                   Recent Reports
                 </h2>
                 <ReportFeed limit={20} />

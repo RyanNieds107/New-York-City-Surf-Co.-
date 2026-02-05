@@ -27,10 +27,10 @@ export function UserStatsWidget() {
           <Trophy className="h-6 w-6 text-white" />
         </div>
         <div>
-          <h3 className="text-2xl font-black uppercase" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+          <h3 className="text-2xl font-black uppercase text-black" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
             {stats.rank}
           </h3>
-          <p className="text-xs text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+          <p className="text-xs text-gray-800" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
             Top {100 - stats.percentile}% Contributor
           </p>
         </div>
