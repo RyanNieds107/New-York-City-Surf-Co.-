@@ -4,6 +4,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
+import { storagePut } from "./storage";
 
 // SHA-256 hash using Web Crypto API (works in Node.js 16+ and all modern runtimes)
 async function sha256(message: string): Promise<string> {
@@ -37,6 +38,12 @@ import {
   getActiveAlertUserCount,
   getStormglassVerification,
   getLatestStormglassFetchTime,
+  trackForecastView,
+  insertSurfReport,
+  getReportsForSpot,
+  getReportsForUser,
+  getUserReportCount,
+  getRecentReports,
 } from "./db";
 import { getCurrentTideInfo } from "./services/tides";
 import { getCurrentConditionsFromOpenMeteo } from "./services/openMeteo";
@@ -1310,6 +1317,135 @@ export const appRouter = router({
       console.log('[Buoy Breaking Heights] Final results:', results);
       return results;
     }),
+  }),
+
+  // ==================== SURF REPORTS ROUTER ====================
+  reports: router({
+    // Track when user views forecast (fire-and-forget)
+    trackView: publicProcedure
+      .input(z.object({
+        spotId: z.number(),
+        forecastTime: z.string().datetime(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        // Only track if user is authenticated
+        if (!ctx.user) {
+          return { success: false, reason: "not_authenticated" };
+        }
+
+        try {
+          await trackForecastView({
+            userId: ctx.user.id,
+            spotId: input.spotId,
+            forecastTime: new Date(input.forecastTime),
+          });
+
+          return { success: true };
+        } catch (error) {
+          console.error('[Reports] Track view error:', error);
+          return { success: false, reason: "error" };
+        }
+      }),
+
+    // Submit surf report (requires auth)
+    submit: protectedProcedure
+      .input(z.object({
+        spotId: z.number(),
+        sessionDate: z.string().datetime(),
+        starRating: z.number().min(1).max(5),
+        crowdLevel: z.number().min(1).max(5).optional(),
+        photoBase64: z.string().optional(),
+        quickNote: z.string().max(128).optional(),
+        forecastViewId: z.number().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        let photoUrl: string | null = null;
+
+        // Handle photo upload if provided
+        if (input.photoBase64) {
+          try {
+            // Convert base64 to buffer
+            const base64Data = input.photoBase64.replace(/^data:image\/\w+;base64,/, '');
+            const buffer = Buffer.from(base64Data, 'base64');
+
+            // Upload to storage
+            const fileName = `surf-reports/${ctx.user.id}/${Date.now()}.jpg`;
+            const result = await storagePut(fileName, buffer, 'image/jpeg');
+            photoUrl = result.url;
+          } catch (error) {
+            console.error('[Reports] Photo upload failed:', error);
+            // Continue without photo rather than failing entire report
+          }
+        }
+
+        const reportId = await insertSurfReport({
+          userId: ctx.user.id,
+          spotId: input.spotId,
+          sessionDate: new Date(input.sessionDate),
+          starRating: input.starRating,
+          crowdLevel: input.crowdLevel || null,
+          photoUrl,
+          quickNote: input.quickNote || null,
+          forecastViewId: input.forecastViewId || null,
+          freeformNote: null,
+          waveHeightActual: null,
+        });
+
+        return { reportId, photoUrl };
+      }),
+
+    // Get reports for spot (public)
+    getForSpot: publicProcedure
+      .input(z.object({
+        spotId: z.number(),
+        limit: z.number().max(100).optional(),
+      }))
+      .query(async ({ input }) => {
+        return getReportsForSpot(input.spotId, input.limit);
+      }),
+
+    // Get user's reports (requires auth)
+    getUserReports: protectedProcedure
+      .query(async ({ ctx }) => {
+        return getReportsForUser(ctx.user.id);
+      }),
+
+    // Get user stats (requires auth)
+    getUserStats: protectedProcedure
+      .query(async ({ ctx }) => {
+        const reportCount = await getUserReportCount(ctx.user.id);
+
+        // Calculate rank tier
+        let rank: "Bronze" | "Silver" | "Gold" | "Diamond";
+        if (reportCount >= 51) rank = "Diamond";
+        else if (reportCount >= 26) rank = "Gold";
+        else if (reportCount >= 11) rank = "Silver";
+        else rank = "Bronze";
+
+        // Calculate percentile (simplified for Phase 1)
+        // Phase 2: Query all user counts to get true percentile
+        const percentile = Math.min(95, Math.floor(reportCount * 2));
+
+        return {
+          reportCount,
+          rank,
+          percentile,
+          impactStats: {
+            // Phase 2: Calculate actual impact metrics
+            viewsInfluenced: reportCount * 10, // Placeholder
+            helpedUsers: reportCount * 2, // Placeholder
+          },
+        };
+      }),
+
+    // Get recent community reports (public)
+    getRecentReports: publicProcedure
+      .input(z.object({
+        limit: z.number().max(100).optional(),
+      }))
+      .query(async ({ input }) => {
+        return getRecentReports(input.limit);
+      }),
   }),
 
   // ==================== CONDITIONS LOG ROUTER ====================

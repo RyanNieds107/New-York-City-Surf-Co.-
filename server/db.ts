@@ -12,6 +12,8 @@ import {
   swellAlerts,
   swellAlertLogs,
   stormglassVerification,
+  forecastViews,
+  surfReports,
   type SurfSpot,
   type InsertSurfSpot,
   type BuoyReading,
@@ -28,6 +30,10 @@ import {
   type InsertSwellAlertLog,
   type StormglassVerification,
   type InsertStormglassVerification,
+  type ForecastView,
+  type InsertForecastView,
+  type SurfReport,
+  type InsertSurfReport,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1341,4 +1347,232 @@ export async function getLatestStormglassFetchTime(spotId: number): Promise<Date
     .limit(1);
 
   return result.length > 0 ? result[0].fetchedAt : null;
+}
+
+// ==================== FORECAST VIEWS (Post-Surf Report Prompts) ====================
+
+/**
+ * Track when a user views a forecast for a specific spot/time.
+ * Used to trigger report prompts 24 hours later.
+ */
+export async function trackForecastView(data: {
+  userId: number;
+  spotId: number;
+  forecastTime: Date;
+}): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(forecastViews).values({
+    userId: data.userId,
+    spotId: data.spotId,
+    viewedAt: new Date(),
+    forecastTime: data.forecastTime,
+    promptSent: 0,
+  });
+
+  return result[0].insertId;
+}
+
+/**
+ * Get forecast views from 23-25 hours ago where prompt hasn't been sent yet.
+ * Used by the sendReportPrompts job.
+ */
+export async function getPendingReportPrompts(): Promise<ForecastView[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  // Get views from 23-25 hours ago (24h ± 1h window)
+  const now = new Date();
+  const startWindow = new Date(now.getTime() - 25 * 60 * 60 * 1000); // 25 hours ago
+  const endWindow = new Date(now.getTime() - 23 * 60 * 60 * 1000); // 23 hours ago
+
+  const views = await db
+    .select()
+    .from(forecastViews)
+    .where(
+      and(
+        eq(forecastViews.promptSent, 0),
+        gte(forecastViews.viewedAt, startWindow),
+        lte(forecastViews.viewedAt, endWindow)
+      )
+    );
+
+  return views;
+}
+
+/**
+ * Mark a forecast view as having had its prompt sent.
+ */
+export async function markPromptSent(viewId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db
+    .update(forecastViews)
+    .set({
+      promptSent: 1,
+      promptSentAt: new Date()
+    })
+    .where(eq(forecastViews.id, viewId));
+}
+
+// ==================== SURF REPORTS (User Session Reports) ====================
+
+/**
+ * Insert a new surf report submitted by a user.
+ */
+export async function insertSurfReport(data: InsertSurfReport): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(surfReports).values(data);
+  return result[0].insertId;
+}
+
+/**
+ * Get surf reports for a specific spot with user data.
+ * Returns most recent reports first.
+ */
+export async function getReportsForSpot(
+  spotId: number,
+  limit: number = 50
+): Promise<Array<SurfReport & { user: { name: string | null; email: string | null } }>> {
+  const db = await getDb();
+  if (!db) return [];
+
+  const reports = await db
+    .select({
+      id: surfReports.id,
+      userId: surfReports.userId,
+      spotId: surfReports.spotId,
+      sessionDate: surfReports.sessionDate,
+      starRating: surfReports.starRating,
+      crowdLevel: surfReports.crowdLevel,
+      photoUrl: surfReports.photoUrl,
+      quickNote: surfReports.quickNote,
+      freeformNote: surfReports.freeformNote,
+      waveHeightActual: surfReports.waveHeightActual,
+      forecastViewId: surfReports.forecastViewId,
+      createdAt: surfReports.createdAt,
+      updatedAt: surfReports.updatedAt,
+      userName: users.name,
+      userEmail: users.email,
+    })
+    .from(surfReports)
+    .leftJoin(users, eq(surfReports.userId, users.id))
+    .where(eq(surfReports.spotId, spotId))
+    .orderBy(desc(surfReports.sessionDate))
+    .limit(limit);
+
+  return reports.map(r => ({
+    id: r.id,
+    userId: r.userId,
+    spotId: r.spotId,
+    sessionDate: r.sessionDate,
+    starRating: r.starRating,
+    crowdLevel: r.crowdLevel,
+    photoUrl: r.photoUrl,
+    quickNote: r.quickNote,
+    freeformNote: r.freeformNote,
+    waveHeightActual: r.waveHeightActual,
+    forecastViewId: r.forecastViewId,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+    user: {
+      name: r.userName,
+      email: r.userEmail,
+    },
+  }));
+}
+
+/**
+ * Get all surf reports submitted by a specific user.
+ * Returns most recent reports first.
+ */
+export async function getReportsForUser(userId: number): Promise<SurfReport[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db
+    .select()
+    .from(surfReports)
+    .where(eq(surfReports.userId, userId))
+    .orderBy(desc(surfReports.createdAt));
+}
+
+/**
+ * Get total count of reports submitted by a user.
+ * Used for gamification (rank calculation).
+ */
+export async function getUserReportCount(userId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+
+  const result = await db
+    .select({ count: surfReports.id })
+    .from(surfReports)
+    .where(eq(surfReports.userId, userId));
+
+  return result.length;
+}
+
+/**
+ * Get recent surf reports across all spots with user and spot data.
+ * Used for community feed.
+ */
+export async function getRecentReports(limit: number = 50): Promise<
+  Array<SurfReport & {
+    user: { name: string | null };
+    spot: { name: string }
+  }>
+> {
+  const db = await getDb();
+  if (!db) return [];
+
+  const reports = await db
+    .select({
+      id: surfReports.id,
+      userId: surfReports.userId,
+      spotId: surfReports.spotId,
+      sessionDate: surfReports.sessionDate,
+      starRating: surfReports.starRating,
+      crowdLevel: surfReports.crowdLevel,
+      photoUrl: surfReports.photoUrl,
+      quickNote: surfReports.quickNote,
+      freeformNote: surfReports.freeformNote,
+      waveHeightActual: surfReports.waveHeightActual,
+      forecastViewId: surfReports.forecastViewId,
+      createdAt: surfReports.createdAt,
+      updatedAt: surfReports.updatedAt,
+      userName: users.name,
+      spotName: surfSpots.name,
+    })
+    .from(surfReports)
+    .leftJoin(users, eq(surfReports.userId, users.id))
+    .leftJoin(surfSpots, eq(surfReports.spotId, surfSpots.id))
+    .orderBy(desc(surfReports.createdAt))
+    .limit(limit);
+
+  return reports.map(r => ({
+    id: r.id,
+    userId: r.userId,
+    spotId: r.spotId,
+    sessionDate: r.sessionDate,
+    starRating: r.starRating,
+    crowdLevel: r.crowdLevel,
+    photoUrl: r.photoUrl,
+    quickNote: r.quickNote,
+    freeformNote: r.freeformNote,
+    waveHeightActual: r.waveHeightActual,
+    forecastViewId: r.forecastViewId,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+    user: {
+      name: r.userName,
+    },
+    spot: {
+      name: r.spotName || 'Unknown Spot',
+    },
+  }));
 }

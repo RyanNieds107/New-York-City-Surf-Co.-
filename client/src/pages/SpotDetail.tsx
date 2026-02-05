@@ -40,6 +40,7 @@ import { getScoreBadgeColors } from "@/lib/ratingColors";
 import { isNighttime } from "@/lib/sunTimes";
 import { useCurrentConditions } from "@/hooks/useCurrentConditions";
 import { ModelConfidenceBadge } from "@/components/ModelConfidenceBadge";
+import { ReportFeed } from "@/components/ReportFeed";
 
 // Reusable component for spot info cards
 function SpotInfoCard({ title, children }: { title: string; children: React.ReactNode }) {
@@ -415,6 +416,22 @@ export default function SpotDetail() {
       toast.error(`Failed to submit: ${error.message}`);
     },
   });
+
+  // Track forecast view for post-surf report prompts
+  const trackViewMutation = trpc.reports.trackView.useMutation();
+
+  // Track view when user lands on page (only once per session)
+  useEffect(() => {
+    if (!spotId || !user) return;
+
+    // Track view with current time as forecastTime
+    const forecastTime = new Date();
+
+    trackViewMutation.mutate({
+      spotId,
+      forecastTime: forecastTime.toISOString(),
+    });
+  }, [spotId]); // Only run once per spot
 
   const spot = spotQuery.data;
   const forecast = forecastQuery.data?.forecast;
@@ -4549,6 +4566,16 @@ export default function SpotDetail() {
               </Button>
             </CardContent>
           </Card>
+        )}
+
+        {/* Community Surf Reports */}
+        {spot && (
+          <div className="mt-8">
+            <h2 className="text-3xl font-black uppercase mb-4" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+              Recent Session Reports
+            </h2>
+            <ReportFeed spotId={spot.id} limit={10} />
+          </div>
         )}
       </main>
 

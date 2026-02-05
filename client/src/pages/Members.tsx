@@ -9,6 +9,8 @@ import { Footer } from "@/components/Footer";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDistanceToNow } from "date-fns";
+import { ReportFeed } from "@/components/ReportFeed";
+import { UserStatsWidget } from "@/components/UserStatsWidget";
 
 export default function Members() {
   const [, setLocation] = useLocation();
@@ -731,26 +733,20 @@ export default function Members() {
           <TabsContent value="community" className="mt-0">
             <div className="bg-white border-2 border-black border-t-0 p-5 sm:p-10">
               <h1 className="text-4xl sm:text-6xl font-black text-black uppercase tracking-tight leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                Community
+                Community Reports
               </h1>
               <p className="text-xs sm:text-sm text-gray-500 uppercase tracking-widest mt-2 sm:mt-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                Connect with local surfers
+                See what surfers are reporting from the water
               </p>
             </div>
-            <div className="bg-white border-2 border-black border-t-0 p-6 sm:p-10 text-center">
-              <div className="max-w-md mx-auto py-4 sm:py-8">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-black flex items-center justify-center mx-auto mb-4 sm:mb-6">
-                  <Users className="h-8 w-8 sm:h-10 sm:w-10 text-white" />
-                </div>
-                <p className="text-xs sm:text-sm text-gray-600 mb-4 sm:mb-6" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                  Share conditions, tips, and session reports with NYC surfers.
-                </p>
-                <span
-                  className="inline-block px-4 sm:px-6 py-2 sm:py-3 bg-black text-white text-[10px] sm:text-xs uppercase tracking-widest font-semibold"
-                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                >
-                  Coming Soon
-                </span>
+            <div className="bg-white border-2 border-black border-t-0 p-6 sm:p-10 space-y-8">
+              <UserStatsWidget />
+
+              <div>
+                <h2 className="text-2xl font-black uppercase mb-4" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+                  Recent Reports
+                </h2>
+                <ReportFeed limit={20} />
               </div>
             </div>
           </TabsContent>

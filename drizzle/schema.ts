@@ -262,3 +262,38 @@ export const stormglassVerification = mysqlTable(
 
 export type StormglassVerification = typeof stormglassVerification.$inferSelect;
 export type InsertStormglassVerification = typeof stormglassVerification.$inferInsert;
+
+// Forecast Views Table (track when users view forecasts for report prompts)
+export const forecastViews = mysqlTable("forecast_views", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  spotId: int("spotId").notNull(),
+  viewedAt: timestamp("viewedAt").notNull().defaultNow(),
+  forecastTime: timestamp("forecastTime").notNull(), // Time user was viewing forecast for
+  promptSent: int("promptSent").notNull().default(0), // 0 = not sent, 1 = sent
+  promptSentAt: timestamp("promptSentAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ForecastView = typeof forecastViews.$inferSelect;
+export type InsertForecastView = typeof forecastViews.$inferInsert;
+
+// Surf Reports Table (user-submitted session reports)
+export const surfReports = mysqlTable("surf_reports", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  spotId: int("spotId").notNull(),
+  sessionDate: timestamp("sessionDate").notNull(), // When they surfed
+  starRating: int("starRating").notNull(), // 1-5
+  crowdLevel: int("crowdLevel"), // 1-5 (nullable)
+  photoUrl: varchar("photoUrl", { length: 512 }),
+  quickNote: varchar("quickNote", { length: 128 }),
+  freeformNote: text("freeformNote"), // Phase 2
+  waveHeightActual: int("waveHeightActual"), // Phase 2 - tenths of feet
+  forecastViewId: int("forecastViewId"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type SurfReport = typeof surfReports.$inferSelect;
+export type InsertSurfReport = typeof surfReports.$inferInsert;

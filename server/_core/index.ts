@@ -300,6 +300,31 @@ function setupSwellAlertChecking(): void {
   });
 }
 
+// ==================== REPORT PROMPTS JOB ====================
+// Send "How was your session?" emails 24 hours after forecast views
+const reportPromptsEnabled = process.env.REPORT_PROMPTS_ENABLED !== "false"; // Default: enabled
+
+if (reportPromptsEnabled) {
+  console.log("[Report Prompts] Automatic checking enabled - will run every hour");
+
+  // Import the job function dynamically
+  import("../jobs/sendReportPrompts").then(({ sendReportPrompts }) => {
+    // Run immediately on startup (after a short delay)
+    setTimeout(() => {
+      sendReportPrompts().catch(console.error);
+    }, 2 * 60 * 1000); // Wait 2 minutes after startup
+
+    // Set up interval to run every hour
+    setInterval(() => {
+      sendReportPrompts().catch(console.error);
+    }, 60 * 60 * 1000); // Every hour
+  }).catch((error) => {
+    console.error("[Report Prompts] Failed to load report prompts module:", error);
+  });
+} else {
+  console.log("[Report Prompts] Automatic checking disabled (set REPORT_PROMPTS_ENABLED=true to enable)");
+}
+
 /**
  * Gets the current hour in Eastern Time (ET).
  */

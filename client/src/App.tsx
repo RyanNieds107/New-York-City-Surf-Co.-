@@ -13,6 +13,7 @@ import Privacy from "./pages/Privacy";
 import SignIn from "./pages/SignIn";
 import Login from "./pages/Login";
 import Welcome from "./pages/Welcome";
+import SubmitReport from "./pages/SubmitReport";
 import Mission from "./pages/Mission";
 import Members from "./pages/Members";
 import AdminAlerts from "./pages/AdminAlerts";
@@ -30,6 +31,7 @@ function Router() {
       <Route path="/check-email" component={CheckEmail} />
       <Route path="/welcome" component={Welcome} />
       <Route path="/members" component={Members} />
+      <Route path="/report/submit" component={SubmitReport} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/admin/alerts" component={AdminAlerts} />
       <Route path="/admin/forecasts" component={AdminForecastComparison} />

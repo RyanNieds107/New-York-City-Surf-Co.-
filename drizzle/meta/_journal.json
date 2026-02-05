@@ -113,6 +113,13 @@
       "when": 1769112607140,
       "tag": "0015_round_dagger",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "5",
+      "when": 1770303124204,
+      "tag": "0016_steady_thena",
+      "breakpoints": true
     }
   ]
 }
