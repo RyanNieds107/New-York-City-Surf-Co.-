@@ -57,7 +57,7 @@ import { eq, desc, and, gt } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { getDb } from "./db";
 import { fetchBuoy44065Cached, clearBuoyCache } from "./services/buoy44065";
-import { addConfidenceToTimeline, getConfidenceSummary, getConfidenceBadgeText, getWaveHeightDiscrepancy, type ConfidenceLevel } from "./utils/forecastConfidence";
+import { addConfidenceToTimeline, getConfidenceSummary, getConfidenceBadgeText, getWaveHeightDiscrepancy, getWaveHeightDiscrepancyByDay, type ConfidenceLevel } from "./utils/forecastConfidence";
 import { adminProcedure } from "./_core/trpc";
 import { sendBatchEmails, sendEmail } from "./services/email";
 import { sendSMS } from "./services/sms";
@@ -908,6 +908,7 @@ export const appRouter = router({
         const timelineWithConfidence = await addConfidenceToTimeline(spot.id, timelineWithBuoyOverride);
         const confidenceSummary = await getConfidenceSummary(spot.id, timelineWithBuoyOverride);
         const waveHeightDiscrepancy = await getWaveHeightDiscrepancy(spot.id, timelineWithBuoyOverride);
+        const waveHeightDiscrepancyByDay = await getWaveHeightDiscrepancyByDay(spot.id, timelineWithBuoyOverride);
 
         return {
           timeline: timelineWithConfidence,
@@ -926,6 +927,7 @@ export const appRouter = router({
             hasLargeDiscrepancy: waveHeightDiscrepancy.hasLargeDiscrepancy,
             maxDiffFt: waveHeightDiscrepancy.maxDiffFt,
           },
+          waveHeightDiscrepancyByDay,
         };
       }),
 

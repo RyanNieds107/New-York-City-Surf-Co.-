@@ -1280,19 +1280,6 @@ export default function SpotDetail() {
 
       {/* Main Content */}
       <main className="container max-w-5xl py-4 sm:py-6 md:py-8 px-3 sm:px-4">
-        {timelineQuery.data?.waveHeightDiscrepancy?.hasLargeDiscrepancy && (
-          <Alert variant="destructive" className="mb-4 rounded-none border-2 border-amber-600 bg-amber-50 text-amber-900 [&>svg]:text-amber-600">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Forecast warning</AlertTitle>
-            <AlertDescription>
-              Open-Meteo and Stormglass wave height differ by 1.0 ft or more for this spot
-              {timelineQuery.data.waveHeightDiscrepancy.maxDiffFt != null
-                ? ` (max difference: ${timelineQuery.data.waveHeightDiscrepancy.maxDiffFt.toFixed(1)} ft).`
-                : "."}
-              {" "}Use as a swell indicator only.
-            </AlertDescription>
-          </Alert>
-        )}
         {forecast ? (
           <div className="space-y-4 sm:space-y-6">
             {/* Spot Context Header */}
@@ -2919,6 +2906,26 @@ export default function SpotDetail() {
                                       </div>
                                     </div>
                                   )}
+
+                                  {/* Wave height discrepancy warning (Open-Meteo vs Stormglass) for this day */}
+                                  {(() => {
+                                    const byDay = timelineQuery.data?.waveHeightDiscrepancyByDay;
+                                    if (!byDay || points.length === 0) return null;
+                                    const firstPointDate = new Date(points[0].forecastTimestamp);
+                                    const easternParts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(firstPointDate);
+                                    const getPart = (t: string) => easternParts.find((p) => p.type === t)?.value ?? "";
+                                    const easternDayKey = `${getPart("year")}-${getPart("month")}-${getPart("day")}`;
+                                    const dayDiscrepancy = byDay[easternDayKey];
+                                    if (!dayDiscrepancy?.hasLargeDiscrepancy) return null;
+                                    return (
+                                      <div className="mb-1">
+                                        <span className="inline-flex items-center gap-1 text-[8px] md:text-[10px] font-medium tracking-wide text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                          <AlertTriangle className="h-2.5 w-2.5 md:h-3.5 md:w-3.5" />
+                                          Forecast warning: OM vs Stormglass differ {dayDiscrepancy.maxDiffFt != null ? `up to ${dayDiscrepancy.maxDiffFt.toFixed(1)} ft` : "1+ ft"} — use as swell indicator only
+                                        </span>
+                                      </div>
+                                    );
+                                  })()}
 
                                   {/* Stats line: Height + Wind */}
                                   <div className="flex items-center gap-2 text-[10px] md:text-xs" style={{ fontFamily: "'JetBrains Mono', monospace" }}>

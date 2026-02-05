@@ -458,9 +458,7 @@ export default function AdminForecastComparison() {
                         <TableHead className="text-right" title="Stormglass ECMWF wave height (ft)">SG Wave Ht</TableHead>
                         <TableHead className="text-right">Diff</TableHead>
                         <TableHead className="text-right">OM Per</TableHead>
-                        <TableHead className="text-right">SG Per</TableHead>
                         <TableHead className="text-right">OM Dir</TableHead>
-                        <TableHead className="text-right">SG Dir</TableHead>
                         <TableHead className="text-center w-[50px]">Conf</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -489,21 +487,7 @@ export default function AdminForecastComparison() {
                             {row.swellPeriodS !== null ? `${row.swellPeriodS}s` : "—"}
                           </TableCell>
                           <TableCell className="text-right">
-                            {row.stormglassPeriodS !== null
-                              ? `${row.stormglassPeriodS}s`
-                              : row.openMeteoHeightFt !== null
-                                ? <span className="text-xs text-amber-600">No SG match</span>
-                                : "—"}
-                          </TableCell>
-                          <TableCell className="text-right">
                             {row.swellDirectionDeg !== null ? `${row.swellDirectionDeg}°` : "—"}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {row.stormglassDirectionDeg !== null
-                              ? `${row.stormglassDirectionDeg}°`
-                              : row.openMeteoHeightFt !== null
-                                ? <span className="text-xs text-amber-600">No SG match</span>
-                                : "—"}
                           </TableCell>
                           <TableCell className="text-center">
                             {getConfidenceBadge(row.confidence, true)}

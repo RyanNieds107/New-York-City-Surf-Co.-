@@ -171,8 +171,34 @@ const WAVE_HEIGHT_DISCREPANCY_THRESHOLD_FT = 1.0;
 const WAVE_HEIGHT_DISCREPANCY_WINDOW_HOURS = 48;
 
 /**
+ * Build an hour key in Eastern (America/New_York) so Stormglass and Open-Meteo
+ * are compared for the same clock hour. Use this for both sources so timezone
+ * and storage format don't cause mismatches.
+ */
+function buildEasternHourKey(timestamp: Date | string): string {
+  const date = typeof timestamp === "string" ? new Date(timestamp) : timestamp;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const getPart = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? "00";
+  const year = getPart("year");
+  const month = getPart("month");
+  const day = getPart("day");
+  let hour = getPart("hour");
+  if (hour === "24") hour = "00";
+  return `${year}-${month}-${day}T${hour}`;
+}
+
+/**
  * Compare Open-Meteo wave height (from timeline) with Stormglass wave height.
  * Returns a summary suitable for a user-facing forecast warning when models disagree by >= 1.0 ft.
+ * Both timestamps are normalized to Eastern hour for matching.
  */
 export async function getWaveHeightDiscrepancy(
   spotId: number,
@@ -188,9 +214,7 @@ export async function getWaveHeightDiscrepancy(
 
   const verificationMap = new Map<string, StormglassVerification>();
   for (const v of verificationData) {
-    const key = v.forecastTimestamp instanceof Date
-      ? v.forecastTimestamp.toISOString().slice(0, 13)
-      : new Date(v.forecastTimestamp).toISOString().slice(0, 13);
+    const key = buildEasternHourKey(v.forecastTimestamp);
     verificationMap.set(key, v);
   }
 
@@ -201,7 +225,7 @@ export async function getWaveHeightDiscrepancy(
     if (pointTime.getTime() < now.getTime()) continue;
     if (pointTime.getTime() > endTime.getTime()) break;
 
-    const key = pointTime.toISOString().slice(0, 13);
+    const key = buildEasternHourKey(pointTime);
     const verification = verificationMap.get(key);
     const stormglassFt =
       verification?.waveHeightFt != null
@@ -223,4 +247,66 @@ export async function getWaveHeightDiscrepancy(
     hasLargeDiscrepancy: maxDiffFt !== null,
     maxDiffFt,
   };
+}
+
+/** Eastern timezone for day-key alignment with frontend (NY surf app). */
+function toEasternDayKey(date: Date): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? "00";
+  return `${get("year")}-${get("month")}-${get("day")}`; // month/day are 2-digit
+}
+
+/**
+ * Same as getWaveHeightDiscrepancy but keyed by calendar day (Eastern).
+ * Use this to show a warning on specific forecast day cards.
+ */
+export async function getWaveHeightDiscrepancyByDay(
+  spotId: number,
+  timeline: ForecastTimelineResult[]
+): Promise<Record<string, { hasLargeDiscrepancy: boolean; maxDiffFt: number | null }>> {
+  const byDay: Record<string, { hasLargeDiscrepancy: boolean; maxDiffFt: number | null }> = {};
+  if (timeline.length === 0) return byDay;
+
+  const now = new Date();
+  const endTime = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
+  const verificationData = await getStormglassVerification(spotId, now, endTime);
+
+  const verificationMap = new Map<string, StormglassVerification>();
+  for (const v of verificationData) {
+    const key = buildEasternHourKey(v.forecastTimestamp);
+    verificationMap.set(key, v);
+  }
+
+  for (const point of timeline) {
+    const pointTime = new Date(point.forecastTimestamp);
+    if (pointTime.getTime() < now.getTime()) continue;
+
+    const dayKey = toEasternDayKey(pointTime);
+    if (!byDay[dayKey]) {
+      byDay[dayKey] = { hasLargeDiscrepancy: false, maxDiffFt: null };
+    }
+
+    const key = buildEasternHourKey(pointTime);
+    const verification = verificationMap.get(key);
+    const stormglassFt =
+      verification?.waveHeightFt != null ? parseFloat(String(verification.waveHeightFt)) : null;
+    const openMeteoFt = point.waveHeightFt != null ? point.waveHeightFt : null;
+
+    if (openMeteoFt === null || stormglassFt === null) continue;
+
+    const diffFt = Math.abs(openMeteoFt - stormglassFt);
+    if (diffFt >= WAVE_HEIGHT_DISCREPANCY_THRESHOLD_FT) {
+      byDay[dayKey].hasLargeDiscrepancy = true;
+      if (byDay[dayKey].maxDiffFt === null || diffFt > byDay[dayKey].maxDiffFt!) {
+        byDay[dayKey].maxDiffFt = diffFt;
+      }
+    }
+  }
+
+  return byDay;
 }
