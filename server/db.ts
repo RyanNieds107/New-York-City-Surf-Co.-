@@ -1387,6 +1387,7 @@ export async function getPendingReportPrompts(): Promise<ForecastView[]> {
   const startWindow = new Date(now.getTime() - 25 * 60 * 60 * 1000); // 25 hours ago
   const endWindow = new Date(now.getTime() - 23 * 60 * 60 * 1000); // 23 hours ago
 
+  // Get all pending views
   const views = await db
     .select()
     .from(forecastViews)
@@ -1396,9 +1397,25 @@ export async function getPendingReportPrompts(): Promise<ForecastView[]> {
         gte(forecastViews.viewedAt, startWindow),
         lte(forecastViews.viewedAt, endWindow)
       )
-    );
+    )
+    .orderBy(forecastViews.viewedAt);
 
-  return views;
+  // Deduplicate in memory: keep only first view per user/spot/day
+  // This prevents sending multiple emails if a user viewed the same spot multiple times
+  const seen = new Set<string>();
+  const deduplicated: ForecastView[] = [];
+
+  for (const view of views) {
+    const date = new Date(view.viewedAt).toISOString().split('T')[0]; // YYYY-MM-DD
+    const key = `${view.userId}-${view.spotId}-${date}`;
+
+    if (!seen.has(key)) {
+      seen.add(key);
+      deduplicated.push(view);
+    }
+  }
+
+  return deduplicated;
 }
 
 /**
@@ -1415,6 +1432,38 @@ export async function markPromptSent(viewId: number): Promise<void> {
       promptSentAt: new Date()
     })
     .where(eq(forecastViews.id, viewId));
+}
+
+/**
+ * Mark ALL forecast views for a user/spot/day as having had prompts sent.
+ * This prevents duplicate emails when a user viewed the same spot multiple times.
+ */
+export async function markAllRelatedViewsAsSent(
+  userId: number,
+  spotId: number,
+  viewedAt: Date
+): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const viewDate = new Date(viewedAt).toISOString().split('T')[0]; // YYYY-MM-DD
+  const startOfDay = new Date(viewDate + 'T00:00:00Z');
+  const endOfDay = new Date(viewDate + 'T23:59:59Z');
+
+  await db
+    .update(forecastViews)
+    .set({
+      promptSent: 1,
+      promptSentAt: new Date()
+    })
+    .where(
+      and(
+        eq(forecastViews.userId, userId),
+        eq(forecastViews.spotId, spotId),
+        gte(forecastViews.viewedAt, startOfDay),
+        lte(forecastViews.viewedAt, endOfDay)
+      )
+    );
 }
 
 // ==================== SURF REPORTS (User Session Reports) ====================

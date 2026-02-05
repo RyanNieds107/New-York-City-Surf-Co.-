@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDistanceToNow } from "date-fns";
 import { ReportFeed } from "@/components/ReportFeed";
 import { UserStatsWidget } from "@/components/UserStatsWidget";
+import { ReportDatePicker } from "@/components/ReportDatePicker";
 
 export default function Members() {
   const [, setLocation] = useLocation();
@@ -46,6 +47,10 @@ export default function Members() {
   // Crowd report state
   const [crowdSpotId, setCrowdSpotId] = useState<number | null>(null);
   const [crowdLevel, setCrowdLevel] = useState<number>(3);
+
+  // Report submission state
+  const [reportSpotId, setReportSpotId] = useState<number | null>(null);
+  const [reportDate, setReportDate] = useState<Date>(new Date());
 
   const createAlertMutation = trpc.alerts.create.useMutation({
     onSuccess: async () => {
@@ -152,6 +157,18 @@ export default function Members() {
       spotId: crowdSpotId,
       crowdLevel,
     });
+  };
+
+  const handleNavigateToReport = () => {
+    if (!reportSpotId) {
+      toast.error("Please select a spot");
+      return;
+    }
+
+    const sessionDate = new Date(reportDate);
+    sessionDate.setHours(12, 0, 0, 0);
+
+    setLocation(`/report/submit?spotId=${reportSpotId}&sessionDate=${sessionDate.toISOString()}`);
   };
 
   const selectStyles = "w-full bg-white border border-gray-300 px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all";
@@ -740,6 +757,65 @@ export default function Members() {
               </p>
             </div>
             <div className="bg-white border-2 border-black border-t-0 p-6 sm:p-10 space-y-8">
+              {/* Report Submission Card */}
+              <div className="bg-white border-2 border-black">
+                <div className="p-5 sm:p-6 border-b-2 border-gray-200">
+                  <h3 className="text-2xl font-black uppercase mb-2"
+                      style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+                    + Submit Report
+                  </h3>
+                  <p className="text-xs text-gray-500 uppercase tracking-widest"
+                     style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    Share how your session went
+                  </p>
+                </div>
+
+                <div className="p-5 sm:p-6 space-y-4">
+                  {/* Spot Selector */}
+                  <div>
+                    <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-700 mb-2"
+                           style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      Which Spot?
+                    </label>
+                    <select
+                      value={reportSpotId ?? ""}
+                      onChange={(e) => setReportSpotId(e.target.value ? parseInt(e.target.value) : null)}
+                      className="w-full bg-white border-2 border-black px-4 py-3 text-sm font-bold uppercase"
+                      style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                    >
+                      <option value="">Select a spot...</option>
+                      {spots?.filter(s => !["Belmar", "Gilgo Beach", "Montauk"].includes(s.name)).map(spot => (
+                        <option key={spot.id} value={spot.id}>
+                          {spot.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Date Picker */}
+                  <div>
+                    <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-700 mb-2"
+                           style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      Session Date
+                    </label>
+                    <ReportDatePicker
+                      selectedDate={reportDate}
+                      onDateChange={setReportDate}
+                    />
+                  </div>
+
+                  {/* Submit Button */}
+                  <Button
+                    onClick={handleNavigateToReport}
+                    disabled={!reportSpotId}
+                    className="w-full bg-black text-white hover:bg-gray-800 border-2 border-black py-6 text-base font-black uppercase"
+                    style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                  >
+                    Continue to Report Form →
+                  </Button>
+                </div>
+              </div>
+
               <UserStatsWidget />
 
               <div>
