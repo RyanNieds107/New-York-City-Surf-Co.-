@@ -41,6 +41,7 @@ import { isNighttime } from "@/lib/sunTimes";
 import { useCurrentConditions } from "@/hooks/useCurrentConditions";
 import { ModelConfidenceBadge } from "@/components/ModelConfidenceBadge";
 import { ReportFeed } from "@/components/ReportFeed";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 // Reusable component for spot info cards
 function SpotInfoCard({ title, children }: { title: string; children: React.ReactNode }) {
@@ -1279,6 +1280,19 @@ export default function SpotDetail() {
 
       {/* Main Content */}
       <main className="container max-w-5xl py-4 sm:py-6 md:py-8 px-3 sm:px-4">
+        {timelineQuery.data?.waveHeightDiscrepancy?.hasLargeDiscrepancy && (
+          <Alert variant="destructive" className="mb-4 rounded-none border-2 border-amber-600 bg-amber-50 text-amber-900 [&>svg]:text-amber-600">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Forecast warning</AlertTitle>
+            <AlertDescription>
+              Open-Meteo and Stormglass wave height differ by 1.0 ft or more for this spot
+              {timelineQuery.data.waveHeightDiscrepancy.maxDiffFt != null
+                ? ` (max difference: ${timelineQuery.data.waveHeightDiscrepancy.maxDiffFt.toFixed(1)} ft).`
+                : "."}
+              {" "}Use as a swell indicator only.
+            </AlertDescription>
+          </Alert>
+        )}
         {forecast ? (
           <div className="space-y-4 sm:space-y-6">
             {/* Spot Context Header */}

@@ -57,7 +57,7 @@ import { eq, desc, and, gt } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { getDb } from "./db";
 import { fetchBuoy44065Cached, clearBuoyCache } from "./services/buoy44065";
-import { addConfidenceToTimeline, getConfidenceSummary, getConfidenceBadgeText, type ConfidenceLevel } from "./utils/forecastConfidence";
+import { addConfidenceToTimeline, getConfidenceSummary, getConfidenceBadgeText, getWaveHeightDiscrepancy, type ConfidenceLevel } from "./utils/forecastConfidence";
 import { adminProcedure } from "./_core/trpc";
 import { sendBatchEmails, sendEmail } from "./services/email";
 import { sendSMS } from "./services/sms";
@@ -907,6 +907,7 @@ export const appRouter = router({
         // Add ECMWF confidence data to timeline (compares Open-Meteo vs Stormglass)
         const timelineWithConfidence = await addConfidenceToTimeline(spot.id, timelineWithBuoyOverride);
         const confidenceSummary = await getConfidenceSummary(spot.id, timelineWithBuoyOverride);
+        const waveHeightDiscrepancy = await getWaveHeightDiscrepancy(spot.id, timelineWithBuoyOverride);
 
         return {
           timeline: timelineWithConfidence,
@@ -920,6 +921,10 @@ export const appRouter = router({
               low: confidenceSummary.lowCount,
               total: confidenceSummary.totalWithData,
             },
+          },
+          waveHeightDiscrepancy: {
+            hasLargeDiscrepancy: waveHeightDiscrepancy.hasLargeDiscrepancy,
+            maxDiffFt: waveHeightDiscrepancy.maxDiffFt,
           },
         };
       }),
@@ -1969,9 +1974,9 @@ export const appRouter = router({
               keyLogCount++;
             }
 
-            // Open-Meteo wave height (use breaking height or dominant swell)
-            const openMeteoHeight = point.breakingWaveHeightFt ?? point.dominantSwellHeightFt ?? null;
-            const stormglassHeight = sg?.swellHeightFt ?? null; // Use swellHeight (not waveHeight) for fair comparison - Open-Meteo shows swell, not combined
+            // Compare wave height to wave height (same metric used for user-facing discrepancy warning)
+            const openMeteoHeight = point.waveHeightFt ?? null;
+            const stormglassHeight = sg?.waveHeightFt ?? null;
 
             // Calculate difference and confidence
             let difference: number | null = null;
@@ -1986,8 +1991,8 @@ export const appRouter = router({
             return {
               time: pointTime.toISOString(),
               openMeteoHeightFt: openMeteoHeight,
-              stormglassHeightFt: stormglassHeight, // This is now swellHeightFt (swell-to-swell comparison)
-              stormglassCombinedHeightFt: sg?.waveHeightFt ?? null, // Combined wind+swell for reference
+              stormglassHeightFt: stormglassHeight,
+              stormglassSwellHeightFt: sg?.swellHeightFt ?? null,
               differenceFt: difference,
               confidence,
               // Open-Meteo swell details

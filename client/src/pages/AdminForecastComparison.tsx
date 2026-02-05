@@ -280,7 +280,7 @@ export default function AdminForecastComparison() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Forecast Comparison</h1>
-          <p className="text-gray-600">Compare Open-Meteo vs Stormglass (ECMWF) forecasts - 7 Day View</p>
+          <p className="text-gray-600">Compare Open-Meteo wave height vs Stormglass (ECMWF) wave height — 7 day view. Large differences (≥1 ft) trigger the forecast warning on the spot page.</p>
         </div>
 
         {/* Controls */}
@@ -454,8 +454,8 @@ export default function AdminForecastComparison() {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-[70px]">Time</TableHead>
-                        <TableHead className="text-right">OM Ht</TableHead>
-                        <TableHead className="text-right">SG Ht</TableHead>
+                        <TableHead className="text-right" title="Open-Meteo wave height (ft)">OM Wave Ht</TableHead>
+                        <TableHead className="text-right" title="Stormglass ECMWF wave height (ft)">SG Wave Ht</TableHead>
                         <TableHead className="text-right">Diff</TableHead>
                         <TableHead className="text-right">OM Per</TableHead>
                         <TableHead className="text-right">SG Per</TableHead>
@@ -521,19 +521,20 @@ export default function AdminForecastComparison() {
         {/* Legend */}
         <Card className="mt-6">
           <CardContent className="pt-6">
-            <h3 className="font-medium mb-3">Confidence Legend</h3>
+            <h3 className="font-medium mb-3">Wave height comparison</h3>
+            <p className="text-sm text-gray-600 mb-3">OM = Open-Meteo (our forecast). SG = Stormglass (ECMWF). Diff = absolute difference in feet. Confidence is based on wave height agreement.</p>
             <div className="flex flex-wrap gap-4 text-sm">
               <div className="flex items-center gap-2">
                 <CheckCircle className="h-4 w-4 text-green-600" />
-                <span className="text-gray-600">HIGH - Models agree within 0.5ft</span>
+                <span className="text-gray-600">HIGH — agree within 0.5 ft</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-gray-500 text-lg">•</span>
-                <span className="text-gray-600">MED - Models agree within 1.5ft</span>
+                <span className="text-gray-600">MED — within 1.5 ft</span>
               </div>
               <div className="flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                <span className="text-gray-600">LOW - Models disagree by more than 1.5ft</span>
+                <span className="text-gray-600">LOW — disagree by more than 1.5 ft (warning shown on spot page if ≥1 ft)</span>
               </div>
             </div>
           </CardContent>

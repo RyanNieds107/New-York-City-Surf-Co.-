@@ -166,3 +166,61 @@ export function getConfidenceBadgeText(confidence: ConfidenceLevel): string | nu
       return null; // No badge for MED or unknown
   }
 }
+
+const WAVE_HEIGHT_DISCREPANCY_THRESHOLD_FT = 1.0;
+const WAVE_HEIGHT_DISCREPANCY_WINDOW_HOURS = 48;
+
+/**
+ * Compare Open-Meteo wave height (from timeline) with Stormglass wave height.
+ * Returns a summary suitable for a user-facing forecast warning when models disagree by >= 1.0 ft.
+ */
+export async function getWaveHeightDiscrepancy(
+  spotId: number,
+  timeline: ForecastTimelineResult[]
+): Promise<{ hasLargeDiscrepancy: boolean; maxDiffFt: number | null }> {
+  if (timeline.length === 0) {
+    return { hasLargeDiscrepancy: false, maxDiffFt: null };
+  }
+
+  const now = new Date();
+  const endTime = new Date(now.getTime() + WAVE_HEIGHT_DISCREPANCY_WINDOW_HOURS * 60 * 60 * 1000);
+  const verificationData = await getStormglassVerification(spotId, now, endTime);
+
+  const verificationMap = new Map<string, StormglassVerification>();
+  for (const v of verificationData) {
+    const key = v.forecastTimestamp instanceof Date
+      ? v.forecastTimestamp.toISOString().slice(0, 13)
+      : new Date(v.forecastTimestamp).toISOString().slice(0, 13);
+    verificationMap.set(key, v);
+  }
+
+  let maxDiffFt: number | null = null;
+
+  for (const point of timeline) {
+    const pointTime = new Date(point.forecastTimestamp);
+    if (pointTime.getTime() < now.getTime()) continue;
+    if (pointTime.getTime() > endTime.getTime()) break;
+
+    const key = pointTime.toISOString().slice(0, 13);
+    const verification = verificationMap.get(key);
+    const stormglassFt =
+      verification?.waveHeightFt != null
+        ? parseFloat(String(verification.waveHeightFt))
+        : null;
+    const openMeteoFt = point.waveHeightFt != null ? point.waveHeightFt : null;
+
+    if (openMeteoFt === null || stormglassFt === null) continue;
+
+    const diffFt = Math.abs(openMeteoFt - stormglassFt);
+    if (diffFt >= WAVE_HEIGHT_DISCREPANCY_THRESHOLD_FT) {
+      if (maxDiffFt === null || diffFt > maxDiffFt) {
+        maxDiffFt = diffFt;
+      }
+    }
+  }
+
+  return {
+    hasLargeDiscrepancy: maxDiffFt !== null,
+    maxDiffFt,
+  };
+}
