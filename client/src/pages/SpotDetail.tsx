@@ -2843,6 +2843,20 @@ export default function SpotDetail() {
                           return 'border-l-red-400';
                         };
 
+                        // Model discrepancy for this day (GFS/Open-Meteo vs Euro/Stormglass) — only show when diff > 1.0 ft
+                        const byDay = timelineQuery.data?.waveHeightDiscrepancyByDay;
+                        const firstPointDateForKey = points.length > 0 ? new Date(points[0].forecastTimestamp) : null;
+                        const easternDayKey = firstPointDateForKey
+                          ? (() => {
+                              const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(firstPointDateForKey);
+                              const getPart = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+                              return `${getPart("year")}-${getPart("month")}-${getPart("day")}`;
+                            })()
+                          : "";
+                        const dayDiscrepancy = byDay?.[easternDayKey];
+                        const showModelSplit = Boolean(dayDiscrepancy?.hasLargeDiscrepancy);
+                        const maxDiffFt: number | null = dayDiscrepancy?.maxDiffFt ?? null;
+
                         return (
                           <div
                             key={dayKey}
@@ -2907,26 +2921,6 @@ export default function SpotDetail() {
                                     </div>
                                   )}
 
-                                  {/* Wave height discrepancy warning (Open-Meteo vs Stormglass) for this day */}
-                                  {(() => {
-                                    const byDay = timelineQuery.data?.waveHeightDiscrepancyByDay;
-                                    if (!byDay || points.length === 0) return null;
-                                    const firstPointDate = new Date(points[0].forecastTimestamp);
-                                    const easternParts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(firstPointDate);
-                                    const getPart = (t: string) => easternParts.find((p) => p.type === t)?.value ?? "";
-                                    const easternDayKey = `${getPart("year")}-${getPart("month")}-${getPart("day")}`;
-                                    const dayDiscrepancy = byDay[easternDayKey];
-                                    if (!dayDiscrepancy?.hasLargeDiscrepancy) return null;
-                                    return (
-                                      <div className="mb-1">
-                                        <span className="inline-flex items-center gap-1 text-[8px] md:text-[10px] font-medium tracking-wide text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                                          <AlertTriangle className="h-2.5 w-2.5 md:h-3.5 md:w-3.5" />
-                                          Forecast warning: OM vs Stormglass differ {dayDiscrepancy.maxDiffFt != null ? `up to ${dayDiscrepancy.maxDiffFt.toFixed(1)} ft` : "1+ ft"} — use as swell indicator only
-                                        </span>
-                                      </div>
-                                    );
-                                  })()}
-
                                   {/* Stats line: Height + Wind */}
                                   <div className="flex items-center gap-2 text-[10px] md:text-xs" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                                     <span className="font-black text-black text-sm md:text-base" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
@@ -2945,8 +2939,14 @@ export default function SpotDetail() {
                                   </div>
                                 </div>
 
-                                {/* Expand/Collapse Chevron */}
-                                <ChevronDown className={`h-5 w-5 md:h-6 md:w-6 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  {showModelSplit && (
+                                    <span className="inline-flex items-center gap-1 text-[8px] md:text-[10px] font-bold tracking-wide text-amber-800 bg-amber-100 px-1.5 py-1 rounded border border-amber-300 whitespace-nowrap" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                      ⚠️ Model Split: GFS/Euro Divergence
+                                    </span>
+                                  )}
+                                  <ChevronDown className={`h-5 w-5 md:h-6 md:w-6 text-gray-400 transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
+                                </div>
                               </div>
                             </button>
 
@@ -2957,6 +2957,13 @@ export default function SpotDetail() {
                               }`}
                             >
                               <div className="px-3 pb-3 md:px-4 md:pb-4">
+                                {showModelSplit && (
+                                  <div className="mb-3 md:mb-3 bg-blue-50 border-l-4 border-blue-400 p-2.5 md:p-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                    <p className="text-xs md:text-sm text-blue-900 leading-snug">
+                                      Model variance: GFS and Euro models currently show a discrepancy of up to {maxDiffFt != null ? `${maxDiffFt.toFixed(1)}` : "1.0"}ft. Use as a general trend indicator rather than a precise height.
+                                    </p>
+                                  </div>
+                                )}
                                 {/* Two Row Layout - CONDITIONS & BEST WINDOWS on top, TIDE FORECAST below */}
                                 {/* Row 1: CONDITIONS and BEST WINDOWS */}
                                 <div className="grid md:grid-cols-2 gap-2 md:gap-2 mb-2 md:mb-2">
