@@ -1776,13 +1776,10 @@ export default function SpotDetail() {
                       {/* Content */}
                       <div className="relative z-10 flex items-center justify-between">
                         <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-yellow-400 text-3xl">🏄</span>
-                            <h3 className="text-2xl sm:text-3xl font-black text-yellow-400 uppercase tracking-tight"
-                                style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
-                              NYC Surf Co.
-                            </h3>
-                          </div>
+                          <h3 className="text-2xl sm:text-3xl font-black text-yellow-400 uppercase tracking-tight mb-1"
+                              style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+                            NYC Surf Co.
+                          </h3>
                           <p className="text-sm sm:text-base text-gray-300 font-semibold uppercase tracking-wide"
                              style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                             Just got out? Drop your report
