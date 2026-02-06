@@ -28,7 +28,7 @@ import {
 import { Link, useParams } from "wouter";
 import { toast } from "sonner";
 import { useState, useMemo, useEffect } from "react";
-import { ChevronDown, ChevronUp, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { getLoginUrl } from "@/const";
 import { cn } from "@/lib/utils";
 import { Footer } from "@/components/Footer";
@@ -40,7 +40,6 @@ import { getScoreBadgeColors } from "@/lib/ratingColors";
 import { isNighttime } from "@/lib/sunTimes";
 import { useCurrentConditions } from "@/hooks/useCurrentConditions";
 import { ModelConfidenceBadge } from "@/components/ModelConfidenceBadge";
-import { ReportFeed } from "@/components/ReportFeed";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ReportDatePicker } from "@/components/ReportDatePicker";
 import { useLocation } from "wouter";
@@ -1758,43 +1757,6 @@ export default function SpotDetail() {
                         )}
                       </div>
                     </div>
-
-                    {/* NYC Surf Co. CTA - submit report */}
-                    <Link
-                      href={(() => {
-                        const d = new Date();
-                        d.setHours(12, 0, 0, 0);
-                        return `/report/submit?spotId=${spotId}&sessionDate=${d.toISOString()}`;
-                      })()}
-                      className="relative overflow-hidden p-6 sm:p-7 bg-black border-t-4 border-yellow-400 group cursor-pointer hover:border-yellow-300 transition-all"
-                    >
-                      {/* Background Pattern */}
-                      <div className="absolute inset-0 opacity-10">
-                        <div className="absolute inset-0 bg-gradient-to-br from-yellow-400 via-transparent to-blue-400"></div>
-                      </div>
-
-                      {/* Content */}
-                      <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        <div className="flex-1">
-                          <h3 className="text-2xl sm:text-3xl font-black text-yellow-400 uppercase tracking-tight mb-1"
-                              style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
-                            NYC Surf Co.
-                          </h3>
-                          <p className="text-sm sm:text-base text-gray-300 font-semibold uppercase tracking-wide"
-                             style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                            Just got out? Drop your report
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-3 sm:flex-shrink-0">
-                          <span className="hidden sm:block text-white text-sm font-bold uppercase tracking-wider px-4 py-2 bg-yellow-400 text-black rounded-sm group-hover:bg-yellow-300 transition-colors"
-                                style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
-                            Submit Now
-                          </span>
-                          <ChevronRight className="h-6 w-6 sm:h-7 sm:w-7 text-yellow-400 group-hover:translate-x-1 transition-transform" />
-                        </div>
-                      </div>
-                    </Link>
                   </>
                 ) : (
                   <div className="text-center py-12">
@@ -4653,32 +4615,45 @@ export default function SpotDetail() {
           </div>
         )}
 
-        {/* Community Surf Reports - Members Only */}
-        {spot && isAuthenticated && (
-          <div className="mt-8">
-            <h2 className="text-3xl font-black uppercase mb-4" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
-              Recent Session Reports
-            </h2>
-            <ReportFeed spotId={spot.id} limit={10} />
-          </div>
-        )}
+        {/* Members-Only Feature Callout */}
+        {spot && (
+          <div className="mt-8 bg-white border-2 border-black p-8">
+            <div className="text-center max-w-2xl mx-auto">
+              <h3 className="text-3xl font-black uppercase mb-3 text-black"
+                  style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+                Local Surf Logs & Reports
+              </h3>
+              <p className="text-base text-gray-700 mb-6"
+                 style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                See what the crew is saying about conditions and share your own sessions.
+                View local surf logs, submit post-surf reports with photos, and connect with the community.
+              </p>
 
-        {/* Sign-in Prompt for Non-Members */}
-        {spot && !isAuthenticated && (
-          <div className="mt-8 bg-gray-50 border-2 border-gray-300 p-8 text-center">
-            <h3 className="text-xl font-black uppercase mb-2" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
-              Community Reports
-            </h3>
-            <p className="text-sm text-gray-600 mb-4" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-              Sign in to view recent session reports from the crew
-            </p>
-            <Button
-              onClick={() => setLocation("/login")}
-              className="bg-black text-white hover:bg-gray-800 border-2 border-black px-6 py-3 font-black uppercase"
-              style={{ fontFamily: "'Bebas Neue', sans-serif" }}
-            >
-              Sign In
-            </Button>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+                {isAuthenticated ? (
+                  <Button
+                    onClick={() => setLocation("/members")}
+                    className="bg-black text-white hover:bg-gray-800 border-2 border-black px-8 py-4 font-black uppercase text-lg"
+                    style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                  >
+                    View Members Page
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      onClick={() => setLocation("/login?redirect=/members")}
+                      className="bg-black text-white hover:bg-gray-800 border-2 border-black px-8 py-4 font-black uppercase text-lg"
+                      style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                    >
+                      Sign In
+                    </Button>
+                    <span className="text-sm text-gray-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      Don't have an account? Sign up to access
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </main>
