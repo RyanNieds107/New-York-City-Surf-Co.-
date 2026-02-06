@@ -1774,8 +1774,8 @@ export default function SpotDetail() {
                       </div>
 
                       {/* Content */}
-                      <div className="relative z-10 flex items-center justify-between">
-                        <div>
+                      <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div className="flex-1">
                           <h3 className="text-2xl sm:text-3xl font-black text-yellow-400 uppercase tracking-tight mb-1"
                               style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
                             NYC Surf Co.
@@ -1786,7 +1786,7 @@ export default function SpotDetail() {
                           </p>
                         </div>
 
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 sm:flex-shrink-0">
                           <span className="hidden sm:block text-white text-sm font-bold uppercase tracking-wider px-4 py-2 bg-yellow-400 text-black rounded-sm group-hover:bg-yellow-300 transition-colors"
                                 style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
                             Submit Now
