@@ -1758,45 +1758,20 @@ export default function SpotDetail() {
                       </div>
                     </div>
 
-                    {/* Crowd from surf reports (how crowded it was in recent sessions) */}
-                    <div className="flex items-center justify-between p-3 sm:p-4 bg-gray-50">
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4 text-gray-400" />
-                        <span className="text-[9px] sm:text-[10px] font-semibold text-gray-500 uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                          Crowd
-                        </span>
-                        {crowdFromSurfReportsQuery.data ? (
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm sm:text-base font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                              {getCrowdLabel(crowdFromSurfReportsQuery.data.averageLevel)}
-                            </span>
-                            <div className={`w-2 h-2 rounded-full ${getCrowdColor(crowdFromSurfReportsQuery.data.averageLevel)}`} />
-                            <span className="text-[9px] text-gray-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                              (from {crowdFromSurfReportsQuery.data.reportCount} surf report{crowdFromSurfReportsQuery.data.reportCount !== 1 ? "s" : ""})
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-gray-400 uppercase" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                            No reports yet
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Surf report CTA - submit report (includes crowd) */}
+                    {/* Surf report CTA - submit report */}
                     <Link
                       href={(() => {
                         const d = new Date();
                         d.setHours(12, 0, 0, 0);
                         return `/report/submit?spotId=${spotId}&sessionDate=${d.toISOString()}`;
                       })()}
-                      className="flex items-center justify-between p-3 sm:p-4 bg-gray-50 hover:bg-gray-100 transition-colors border-t border-gray-200"
+                      className="flex items-center justify-between p-5 sm:p-6 bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 transition-all border-t-2 border-gray-200 group"
                     >
-                      <span className="text-[10px] sm:text-xs font-semibold text-black uppercase tracking-wider" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                      <span className="text-lg sm:text-xl font-black text-black uppercase tracking-tight group-hover:tracking-wide transition-all" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                         Got a surf report?
                       </span>
-                      <span className="text-[10px] sm:text-xs font-semibold text-blue-600 uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                        Submit
+                      <span className="text-sm sm:text-base font-black text-blue-600 uppercase tracking-wider group-hover:translate-x-1 transition-transform" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+                        Submit →
                       </span>
                     </Link>
                   </>
