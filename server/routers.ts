@@ -45,6 +45,8 @@ import {
   getUserReportCount,
   getRecentReports,
   getAverageCrowdFromSurfReports,
+  findConditionsForSession,
+  createSurfReportValidation,
 } from "./db";
 import { getCurrentTideInfo } from "./services/tides";
 import { getCurrentConditionsFromOpenMeteo } from "./services/openMeteo";
@@ -1365,6 +1367,7 @@ export const appRouter = router({
         photoBase64: z.string().optional(),
         quickNote: z.string().max(128).optional(),
         forecastViewId: z.number().optional(),
+        waveHeightActual: z.number().optional(), // tenths of feet
       }))
       .mutation(async ({ ctx, input }) => {
         let photoUrl: string | null = null;
@@ -1396,8 +1399,30 @@ export const appRouter = router({
           quickNote: input.quickNote || null,
           forecastViewId: input.forecastViewId || null,
           freeformNote: null,
-          waveHeightActual: null,
+          waveHeightActual: input.waveHeightActual || null,
         });
+
+        // Create validation record comparing user report to actual conditions
+        try {
+          const conditions = await findConditionsForSession(
+            input.spotId,
+            new Date(input.sessionDate)
+          );
+
+          await createSurfReportValidation({
+            reportId,
+            userId: ctx.user.id,
+            spotId: input.spotId,
+            sessionDate: new Date(input.sessionDate),
+            reportedWaveHeight: input.waveHeightActual || null,
+            reportedStarRating: input.starRating,
+            reportedCrowdLevel: input.crowdLevel || null,
+            conditions,
+          });
+        } catch (error) {
+          console.error(`[Validation] Failed to create validation record:`, error);
+          // Don't fail report submission if validation fails
+        }
 
         return { reportId, photoUrl };
       }),

@@ -1,4 +1,4 @@
-import { decimal, int, mysqlEnum, mysqlTable, text, timestamp, unique, varchar } from "drizzle-orm/mysql-core";
+import { decimal, index, int, mysqlEnum, mysqlTable, text, timestamp, unique, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -297,3 +297,53 @@ export const surfReports = mysqlTable("surf_reports", {
 
 export type SurfReport = typeof surfReports.$inferSelect;
 export type InsertSurfReport = typeof surfReports.$inferInsert;
+
+// Surf Report Validation Table - compares user reports vs actual conditions
+export const surfReportValidation = mysqlTable("surf_report_validation", {
+  id: int("id").autoincrement().primaryKey(),
+
+  // Links to source data
+  reportId: int("reportId").notNull(), // FK to surf_reports
+  conditionsLogId: int("conditionsLogId"), // FK to conditions_log (nullable if no match found)
+
+  // Identifiers
+  userId: int("userId").notNull(),
+  spotId: int("spotId").notNull(),
+  sessionDate: timestamp("sessionDate").notNull(),
+
+  // User-reported data (from surf_reports)
+  reportedWaveHeightTenths: int("reportedWaveHeightTenths"), // User said X feet
+  reportedStarRating: int("reportedStarRating").notNull(), // 1-5 satisfaction
+  reportedCrowdLevel: int("reportedCrowdLevel"), // 1-5
+
+  // System-observed data (from conditions_log at same time)
+  observedWaveHeightTenths: int("observedWaveHeightTenths"), // System measured Y feet
+  observedQualityScore: int("observedQualityScore"), // 0-100
+  observedWindSpeedMph: int("observedWindSpeedMph"),
+  observedWindType: varchar("observedWindType", { length: 16 }), // offshore, onshore, cross
+  observedIsSurfable: int("observedIsSurfable"), // 0/1
+
+  // Validation metrics (calculated)
+  waveHeightDeltaTenths: int("waveHeightDeltaTenths"), // reported - observed (signed)
+  absoluteWaveHeightErrorTenths: int("absoluteWaveHeightErrorTenths"), // abs(delta)
+  waveHeightErrorPct: int("waveHeightErrorPct"), // percentage error
+
+  // Correlation insights
+  starRatingVsQuality: int("starRatingVsQuality"), // (starRating*20) - qualityScore
+  satisfactionMatchesConditions: int("satisfactionMatchesConditions"), // 0=mismatch, 1=match
+
+  // Metadata
+  validationTimestamp: timestamp("validationTimestamp").defaultNow().notNull(),
+  matchWindowMinutes: int("matchWindowMinutes"), // How far apart timestamp vs sessionDate were
+
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  idx_report: index("idx_report").on(table.reportId),
+  idx_user: index("idx_user").on(table.userId),
+  idx_spot_session: index("idx_spot_session").on(table.spotId, table.sessionDate),
+  idx_error_analysis: index("idx_error_analysis").on(table.spotId, table.absoluteWaveHeightErrorTenths),
+  idx_satisfaction: index("idx_satisfaction").on(table.reportedStarRating, table.observedQualityScore),
+}));
+
+export type SurfReportValidation = typeof surfReportValidation.$inferSelect;
+export type InsertSurfReportValidation = typeof surfReportValidation.$inferInsert;

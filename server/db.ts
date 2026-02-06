@@ -1,4 +1,4 @@
-import { eq, desc, and, gte, lte, lt, isNull, or } from "drizzle-orm";
+import { eq, desc, and, gte, lte, lt, isNull, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 import {
@@ -34,6 +34,10 @@ import {
   type InsertForecastView,
   type SurfReport,
   type InsertSurfReport,
+  conditionsLog,
+  type ConditionsLog,
+  surfReportValidation,
+  type InsertSurfReportValidation,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1476,6 +1480,118 @@ export async function insertSurfReport(data: InsertSurfReport): Promise<number> 
   if (!db) throw new Error("Database not available");
 
   const result = await db.insert(surfReports).values(data);
+  return result[0].insertId;
+}
+
+/**
+ * Find conditions_log entry closest to surf report session time
+ * Searches within ±3 hour window
+ */
+export async function findConditionsForSession(
+  spotId: number,
+  sessionDate: Date
+): Promise<ConditionsLog | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const windowStart = new Date(sessionDate.getTime() - 3 * 60 * 60 * 1000);
+  const windowEnd = new Date(sessionDate.getTime() + 3 * 60 * 60 * 1000);
+
+  const candidates = await db
+    .select()
+    .from(conditionsLog)
+    .where(
+      and(
+        eq(conditionsLog.spotId, spotId),
+        gte(conditionsLog.timestamp, windowStart),
+        lte(conditionsLog.timestamp, windowEnd)
+      )
+    )
+    .orderBy(
+      sql`ABS(TIMESTAMPDIFF(SECOND, ${conditionsLog.timestamp}, ${sessionDate})) ASC`
+    )
+    .limit(1);
+
+  return candidates[0] || null;
+}
+
+/**
+ * Create validation record comparing surf report to actual conditions
+ */
+export async function createSurfReportValidation(params: {
+  reportId: number;
+  userId: number;
+  spotId: number;
+  sessionDate: Date;
+  reportedWaveHeight: number | null; // tenths of feet
+  reportedStarRating: number;
+  reportedCrowdLevel: number | null;
+  conditions: ConditionsLog | null;
+}): Promise<number | null> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const { conditions, reportedWaveHeight, reportedStarRating } = params;
+
+  if (!conditions) {
+    console.warn(`[Validation] No conditions_log found for report ${params.reportId}`);
+    return null;
+  }
+
+  const matchWindowMs = Math.abs(conditions.timestamp.getTime() - params.sessionDate.getTime());
+  const matchWindowMinutes = Math.round(matchWindowMs / 60000);
+
+  const observedWaveHeightFt = conditions.waveHeightFt
+    ? parseFloat(conditions.waveHeightFt)
+    : null;
+  const observedWaveHeightTenths = observedWaveHeightFt
+    ? Math.round(observedWaveHeightFt * 10)
+    : null;
+
+  let waveHeightDeltaTenths = null;
+  let absoluteWaveHeightErrorTenths = null;
+  let waveHeightErrorPct = null;
+
+  if (reportedWaveHeight && observedWaveHeightTenths) {
+    waveHeightDeltaTenths = reportedWaveHeight - observedWaveHeightTenths;
+    absoluteWaveHeightErrorTenths = Math.abs(waveHeightDeltaTenths);
+    waveHeightErrorPct = observedWaveHeightTenths > 0
+      ? Math.round((waveHeightDeltaTenths / observedWaveHeightTenths) * 100)
+      : null;
+  }
+
+  const starRatingScaled = reportedStarRating * 20;
+  const starRatingVsQuality = conditions.qualityScore
+    ? starRatingScaled - conditions.qualityScore
+    : null;
+
+  const satisfactionMatchesConditions =
+    starRatingVsQuality !== null && Math.abs(starRatingVsQuality) <= 20 ? 1 : 0;
+
+  const result = await db.insert(surfReportValidation).values({
+    reportId: params.reportId,
+    conditionsLogId: conditions.id,
+    userId: params.userId,
+    spotId: params.spotId,
+    sessionDate: params.sessionDate,
+    reportedWaveHeightTenths: reportedWaveHeight,
+    reportedStarRating: reportedStarRating,
+    reportedCrowdLevel: params.reportedCrowdLevel,
+    observedWaveHeightTenths,
+    observedQualityScore: conditions.qualityScore,
+    observedWindSpeedMph: conditions.windSpeedMph,
+    observedWindType: conditions.windType,
+    observedIsSurfable: conditions.isSurfable,
+    waveHeightDeltaTenths,
+    absoluteWaveHeightErrorTenths,
+    waveHeightErrorPct,
+    starRatingVsQuality,
+    satisfactionMatchesConditions,
+    matchWindowMinutes,
+  });
+
+  console.log(`[Validation] Created for report ${params.reportId}: reported=${reportedWaveHeight ? reportedWaveHeight/10 : 'N/A'}ft observed=${observedWaveHeightTenths ? observedWaveHeightTenths/10 : 'N/A'}ft delta=${waveHeightDeltaTenths ? waveHeightDeltaTenths/10 : 'N/A'}ft`);
+
   return result[0].insertId;
 }
 

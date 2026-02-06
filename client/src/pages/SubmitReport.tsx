@@ -69,6 +69,7 @@ export default function SubmitReport() {
   const [starRating, setStarRating] = useState<number>(3);
   const [crowdLevel, setCrowdLevel] = useState<number>(3);
   const [skipCrowd, setSkipCrowd] = useState(false);
+  const [waveHeightActual, setWaveHeightActual] = useState<string>("");
   const [selectedNote, setSelectedNote] = useState<string | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoBase64, setPhotoBase64] = useState<string | null>(null);
@@ -122,6 +123,10 @@ export default function SubmitReport() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    const waveHeightTenths = waveHeightActual && parseFloat(waveHeightActual) > 0
+      ? Math.round(parseFloat(waveHeightActual) * 10)
+      : undefined;
+
     submitMutation.mutate({
       spotId,
       sessionDate,
@@ -130,6 +135,7 @@ export default function SubmitReport() {
       photoBase64: photoBase64 || undefined,
       quickNote: selectedNote || undefined,
       forecastViewId: viewId,
+      waveHeightActual: waveHeightTenths,
     });
   };
 
@@ -228,6 +234,30 @@ export default function SubmitReport() {
                   </p>
                 </div>
               )}
+            </div>
+
+            {/* Wave Height */}
+            <div className="p-6 border-b-2 border-gray-200">
+              <h3 className="text-xl font-black uppercase mb-2 text-black" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+                Wave Height (Optional)
+              </h3>
+              <p className="text-sm text-gray-700 mb-4" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                What were the actual wave heights? This helps validate conditions data.
+              </p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  max="25"
+                  step="0.5"
+                  value={waveHeightActual}
+                  onChange={(e) => setWaveHeightActual(e.target.value)}
+                  placeholder="e.g., 3.5"
+                  className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-black focus:outline-none transition-colors"
+                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                />
+                <span className="text-sm text-gray-600 font-medium" style={{ fontFamily: "'JetBrains Mono', monospace" }}>feet</span>
+              </div>
             </div>
 
             {/* Photo Upload */}
