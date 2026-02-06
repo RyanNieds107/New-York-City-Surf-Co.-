@@ -15,9 +15,9 @@ export function AlertsPromo({ className, spotName }: AlertsPromoProps) {
 
   const handleSetUpAlerts = () => {
     if (isAuthenticated) {
-      setLocation("/members");
+      setLocation("/members?tab=alerts");
     } else {
-      setLocation("/login?redirect=/members");
+      setLocation("/login?redirect=/members?tab=alerts");
     }
   };
 

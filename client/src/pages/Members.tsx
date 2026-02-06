@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -17,12 +17,18 @@ import { AnnouncementsFeed } from "@/components/AnnouncementsFeed";
 
 export default function Members() {
   const [, setLocation] = useLocation();
+  const search = useSearch();
   // Use auth hook with redirect - if not authenticated, redirect to login
-  const { user, loading, logout } = useAuth({ 
+  const { user, loading, logout } = useAuth({
     redirectOnUnauthenticated: true,
     redirectPath: "/login"
   });
   const utils = trpc.useUtils();
+
+  // Tab navigation from URL
+  const urlParams = new URLSearchParams(search);
+  const tabFromUrl = urlParams.get('tab') || 'home';
+  const [activeTab, setActiveTab] = useState(tabFromUrl);
 
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   // Query hooks
@@ -223,7 +229,10 @@ export default function Members() {
       {/* Main Content */}
       <main className="flex-1 max-w-4xl mx-auto px-3 sm:px-6 py-6 sm:py-10 w-full">
         {/* Tabbed Interface */}
-        <Tabs defaultValue="home" className="w-full">
+        <Tabs value={activeTab} onValueChange={(value) => {
+          setActiveTab(value);
+          setLocation(`/members?tab=${value}`);
+        }} className="w-full">
           {/* Tab Navigation */}
           <div className="border-b-2 border-black mb-0">
             <TabsList className="bg-transparent p-0 h-auto flex gap-0 min-w-max">

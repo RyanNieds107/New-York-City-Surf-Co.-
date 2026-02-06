@@ -28,7 +28,7 @@ import {
 import { Link, useParams } from "wouter";
 import { toast } from "sonner";
 import { useState, useMemo, useEffect } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, ChevronRight } from "lucide-react";
 import { getLoginUrl } from "@/const";
 import { cn } from "@/lib/utils";
 import { Footer } from "@/components/Footer";
@@ -1759,21 +1759,44 @@ export default function SpotDetail() {
                       </div>
                     </div>
 
-                    {/* Surf report CTA - submit report */}
+                    {/* NYC Surf Co. CTA - submit report */}
                     <Link
                       href={(() => {
                         const d = new Date();
                         d.setHours(12, 0, 0, 0);
                         return `/report/submit?spotId=${spotId}&sessionDate=${d.toISOString()}`;
                       })()}
-                      className="flex items-center justify-between p-5 sm:p-6 bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 transition-all border-t-2 border-gray-200 group"
+                      className="relative overflow-hidden p-6 sm:p-7 bg-black border-t-4 border-yellow-400 group cursor-pointer hover:border-yellow-300 transition-all"
                     >
-                      <span className="text-lg sm:text-xl font-black text-black uppercase tracking-tight group-hover:tracking-wide transition-all" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                        Got a surf report?
-                      </span>
-                      <span className="text-sm sm:text-base font-black text-blue-600 uppercase tracking-wider group-hover:translate-x-1 transition-transform" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
-                        Submit →
-                      </span>
+                      {/* Background Pattern */}
+                      <div className="absolute inset-0 opacity-10">
+                        <div className="absolute inset-0 bg-gradient-to-br from-yellow-400 via-transparent to-blue-400"></div>
+                      </div>
+
+                      {/* Content */}
+                      <div className="relative z-10 flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-yellow-400 text-3xl">🏄</span>
+                            <h3 className="text-2xl sm:text-3xl font-black text-yellow-400 uppercase tracking-tight"
+                                style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+                              NYC Surf Co.
+                            </h3>
+                          </div>
+                          <p className="text-sm sm:text-base text-gray-300 font-semibold uppercase tracking-wide"
+                             style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                            Just got out? Drop your report
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <span className="hidden sm:block text-white text-sm font-bold uppercase tracking-wider px-4 py-2 bg-yellow-400 text-black rounded-sm group-hover:bg-yellow-300 transition-colors"
+                                style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+                            Submit Now
+                          </span>
+                          <ChevronRight className="h-6 w-6 sm:h-7 sm:w-7 text-yellow-400 group-hover:translate-x-1 transition-transform" />
+                        </div>
+                      </div>
                     </Link>
                   </>
                 ) : (
@@ -4633,13 +4656,32 @@ export default function SpotDetail() {
           </div>
         )}
 
-        {/* Community Surf Reports */}
-        {spot && (
+        {/* Community Surf Reports - Members Only */}
+        {spot && isAuthenticated && (
           <div className="mt-8">
             <h2 className="text-3xl font-black uppercase mb-4" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
               Recent Session Reports
             </h2>
             <ReportFeed spotId={spot.id} limit={10} />
+          </div>
+        )}
+
+        {/* Sign-in Prompt for Non-Members */}
+        {spot && !isAuthenticated && (
+          <div className="mt-8 bg-gray-50 border-2 border-gray-300 p-8 text-center">
+            <h3 className="text-xl font-black uppercase mb-2" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+              Community Reports
+            </h3>
+            <p className="text-sm text-gray-600 mb-4" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              Sign in to view recent session reports from the crew
+            </p>
+            <Button
+              onClick={() => setLocation("/login")}
+              className="bg-black text-white hover:bg-gray-800 border-2 border-black px-6 py-3 font-black uppercase"
+              style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+            >
+              Sign In
+            </Button>
           </div>
         )}
       </main>
