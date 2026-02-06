@@ -313,9 +313,9 @@ export default function SpotDetail() {
   const buoyQuery = currentData.queries.buoy;
   const buoyBreakingHeightsQuery = currentData.queries.buoyBreakingHeights;
 
-  // Crowd query (not part of current conditions hook)
-  const crowdQuery = trpc.crowd.getForSpot.useQuery(
-    { spotId },
+  // Crowd from surf reports (post-session reports that included crowd level)
+  const crowdFromSurfReportsQuery = trpc.reports.getCrowdFromSurfReports.useQuery(
+    { spotId, daysBack: 30 },
     { refetchInterval }
   );
 
@@ -415,7 +415,7 @@ export default function SpotDetail() {
   const submitCrowdMutation = trpc.crowd.submit.useMutation({
     onSuccess: () => {
       toast.success("Crowd report submitted!");
-      crowdQuery.refetch();
+      crowdFromSurfReportsQuery.refetch();
     },
     onError: (error) => {
       toast.error(`Failed to submit: ${error.message}`);
@@ -1758,86 +1758,47 @@ export default function SpotDetail() {
                       </div>
                     </div>
 
-                    {/* Crowd Level - Full width row */}
+                    {/* Crowd from surf reports (how crowded it was in recent sessions) */}
                     <div className="flex items-center justify-between p-3 sm:p-4 bg-gray-50">
                       <div className="flex items-center gap-2">
                         <Users className="h-4 w-4 text-gray-400" />
                         <span className="text-[9px] sm:text-[10px] font-semibold text-gray-500 uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                           Crowd
                         </span>
-                        {crowdQuery.data?.averageLevel ? (
+                        {crowdFromSurfReportsQuery.data ? (
                           <div className="flex items-center gap-2">
                             <span className="text-sm sm:text-base font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                              {getCrowdLabel(crowdQuery.data.averageLevel)}
+                              {getCrowdLabel(crowdFromSurfReportsQuery.data.averageLevel)}
                             </span>
-                            <div className={`w-2 h-2 rounded-full ${getCrowdColor(crowdQuery.data.averageLevel)}`} />
+                            <div className={`w-2 h-2 rounded-full ${getCrowdColor(crowdFromSurfReportsQuery.data.averageLevel)}`} />
                             <span className="text-[9px] text-gray-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                              ({crowdQuery.data.reports.length})
+                              (from {crowdFromSurfReportsQuery.data.reportCount} surf report{crowdFromSurfReportsQuery.data.reportCount !== 1 ? "s" : ""})
                             </span>
                           </div>
                         ) : (
                           <span className="text-xs text-gray-400 uppercase" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                            No reports
+                            No reports yet
                           </span>
                         )}
                       </div>
-                      <button
-                        onClick={() => isAuthenticated && setShowCrowdReport(!showCrowdReport)}
-                        disabled={!isAuthenticated}
-                        className="text-[10px] sm:text-xs font-semibold text-blue-600 uppercase tracking-wider hover:underline disabled:text-gray-400 disabled:no-underline"
-                        style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
-                      >
-                        {!isAuthenticated ? 'Sign in' : showCrowdReport ? 'Hide' : 'Report'}
-                      </button>
                     </div>
 
-                    {/* Expandable Crowd Report Section */}
-                    {showCrowdReport && (
-                      <div className="mt-6 pt-6 border-t-2 border-black">
-                        {isAuthenticated ? (
-                          <div className="space-y-4">
-                            <div>
-                              <div className="flex justify-between mb-3">
-                                <span className="text-sm font-bold text-black uppercase tracking-wide" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>How crowded is it?</span>
-                                <span className="text-sm font-bold text-black uppercase" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>{getCrowdLabel(crowdLevel).toUpperCase()}</span>
-                              </div>
-                              <Slider
-                                value={[crowdLevel]}
-                                onValueChange={(v) => setCrowdLevel(v[0])}
-                                min={1}
-                                max={5}
-                                step={1}
-                                className="w-full"
-                              />
-                              <div className="flex justify-between mt-2 text-xs font-semibold text-black uppercase tracking-wide" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                                <span>Empty</span>
-                                <span>Packed</span>
-                              </div>
-                            </div>
-                            <Button
-                              onClick={() => {
-                                submitCrowdMutation.mutate({ spotId, crowdLevel });
-                                setShowCrowdReport(false);
-                              }}
-                              disabled={submitCrowdMutation.isPending}
-                              className="w-full bg-black hover:bg-gray-900 text-white border-2 border-black font-bold uppercase tracking-wide py-3"
-                              style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                            >
-                              {submitCrowdMutation.isPending ? "Submitting..." : "Submit Report"}
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="text-center py-4">
-                            <p className="text-black mb-4 font-semibold uppercase tracking-wide" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>Sign in to submit crowd reports</p>
-                            <a href={getLoginUrl()}>
-                              <Button variant="outline" className="border-2 border-black text-black hover:bg-gray-100 font-bold uppercase tracking-wide" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                                Sign In
-                              </Button>
-                            </a>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                    {/* Surf report CTA - submit report (includes crowd) */}
+                    <Link
+                      href={(() => {
+                        const d = new Date();
+                        d.setHours(12, 0, 0, 0);
+                        return `/report/submit?spotId=${spotId}&sessionDate=${d.toISOString()}`;
+                      })()}
+                      className="flex items-center justify-between p-3 sm:p-4 bg-gray-50 hover:bg-gray-100 transition-colors border-t border-gray-200"
+                    >
+                      <span className="text-[10px] sm:text-xs font-semibold text-black uppercase tracking-wider" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                        Got a surf report?
+                      </span>
+                      <span className="text-[10px] sm:text-xs font-semibold text-blue-600 uppercase tracking-wider" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                        Submit
+                      </span>
+                    </Link>
                   </>
                 ) : (
                   <div className="text-center py-12">

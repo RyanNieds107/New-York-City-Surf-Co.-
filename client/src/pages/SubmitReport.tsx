@@ -193,11 +193,11 @@ export default function SubmitReport() {
               </div>
             </div>
 
-            {/* Crowd Level */}
+            {/* Crowd - how was the crowd during your session */}
             <div className="p-6 border-b-2 border-gray-200">
-              <div className="flex justify-between items-center mb-4">
+              <div className="flex justify-between items-center mb-2">
                 <h3 className="text-xl font-black uppercase" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
-                  Crowd Level
+                  How was the crowd?
                 </h3>
                 <label className="flex items-center gap-2 text-sm">
                   <input
@@ -209,6 +209,9 @@ export default function SubmitReport() {
                   Skip
                 </label>
               </div>
+              <p className="text-sm text-gray-500 mb-4" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                Report how crowded it was during your session.
+              </p>
 
               {!skipCrowd && (
                 <div className="space-y-2">

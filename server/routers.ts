@@ -44,6 +44,7 @@ import {
   getReportsForUser,
   getUserReportCount,
   getRecentReports,
+  getAverageCrowdFromSurfReports,
 } from "./db";
 import { getCurrentTideInfo } from "./services/tides";
 import { getCurrentConditionsFromOpenMeteo } from "./services/openMeteo";
@@ -1409,6 +1410,13 @@ export const appRouter = router({
       }))
       .query(async ({ input }) => {
         return getReportsForSpot(input.spotId, input.limit);
+      }),
+
+    // Get average crowd level from surf reports for a spot (for spot detail display)
+    getCrowdFromSurfReports: publicProcedure
+      .input(z.object({ spotId: z.number(), daysBack: z.number().max(90).optional() }))
+      .query(async ({ input }) => {
+        return getAverageCrowdFromSurfReports(input.spotId, input.daysBack ?? 30);
       }),
 
     // Get user's reports (requires auth)

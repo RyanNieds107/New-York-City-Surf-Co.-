@@ -1536,6 +1536,34 @@ export async function getReportsForSpot(
 }
 
 /**
+ * Get average crowd level from surf reports for a spot (reports that included crowd).
+ * Used to display "Crowd" on spot detail from post-session surf reports.
+ */
+export async function getAverageCrowdFromSurfReports(
+  spotId: number,
+  daysBack: number = 30
+): Promise<{ averageLevel: number; reportCount: number } | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const cutoff = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
+
+  const rows = await db
+    .select({ crowdLevel: surfReports.crowdLevel })
+    .from(surfReports)
+    .where(
+      and(
+        eq(surfReports.spotId, spotId),
+        gte(surfReports.sessionDate, cutoff)
+      )
+    );
+
+  const levels = rows.map((r) => r.crowdLevel).filter((n): n is number => n != null);
+  if (levels.length === 0) return null;
+  const sum = levels.reduce((a, b) => a + b, 0);
+  return { averageLevel: Math.round(sum / levels.length), reportCount: levels.length };
+}
+
+/**
  * Get all surf reports submitted by a specific user.
  * Returns most recent reports first.
  */
