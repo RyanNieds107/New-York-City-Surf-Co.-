@@ -256,6 +256,7 @@ export default function SpotDetail() {
   const [showScoreBreakdown, setShowScoreBreakdown] = useState(false);
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   const [extendedForecastTooltip, setExtendedForecastTooltip] = useState<string | null>(null);
+  const [modelSplitTooltip, setModelSplitTooltip] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("ideal-conditions");
   const [forecastView, setForecastView] = useState<"timeline" | "chart">("timeline");
   const [selectedChartPoint, setSelectedChartPoint] = useState<{
@@ -2889,10 +2890,24 @@ export default function SpotDetail() {
 
                                   {/* Model Split warning - Mobile only (stacked below stats) */}
                                   {showModelSplit && (
-                                    <div className="mt-1 block md:hidden">
-                                      <span className="inline-flex items-center gap-1 text-[8px] font-bold tracking-wide text-amber-800 bg-amber-100 px-1.5 py-1 rounded border border-amber-300 whitespace-nowrap" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                    <div className="mt-1 block md:hidden relative group">
+                                      <span
+                                        className="inline-flex items-center gap-1 text-[8px] font-bold tracking-wide text-blue-800 bg-blue-100 px-1.5 py-1 rounded border border-blue-300 whitespace-nowrap cursor-help"
+                                        style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setModelSplitTooltip(modelSplitTooltip === dayKey ? null : dayKey);
+                                        }}
+                                      >
                                         ⚠️ Model Split: GFS/Euro Divergence
                                       </span>
+                                      {/* Tooltip on hover (desktop) or tap (mobile) */}
+                                      <div className={cn(
+                                        "absolute left-0 bottom-full mb-1 z-50 w-64 p-2.5 text-xs bg-gray-900 text-white rounded shadow-lg leading-snug",
+                                        modelSplitTooltip === dayKey ? "block" : "hidden group-hover:block"
+                                      )}>
+                                        Model variance: GFS and Euro models currently show a discrepancy of up to {maxDiffFt != null ? `${maxDiffFt.toFixed(1)}` : "1.0"}ft. Use as a general trend indicator rather than a precise height.
+                                      </div>
                                     </div>
                                   )}
                                 </div>
@@ -2900,9 +2915,25 @@ export default function SpotDetail() {
                                 <div className="flex items-center gap-2 flex-shrink-0">
                                   {/* Model Split warning - Desktop only (in header with chevron) */}
                                   {showModelSplit && (
-                                    <span className="hidden md:inline-flex items-center gap-1 text-[10px] font-bold tracking-wide text-amber-800 bg-amber-100 px-1.5 py-1 rounded border border-amber-300 whitespace-nowrap" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                                      ⚠️ Model Split: GFS/Euro Divergence
-                                    </span>
+                                    <div className="hidden md:block relative group">
+                                      <span
+                                        className="inline-flex items-center gap-1 text-[10px] font-bold tracking-wide text-blue-800 bg-blue-100 px-1.5 py-1 rounded border border-blue-300 whitespace-nowrap cursor-help"
+                                        style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setModelSplitTooltip(modelSplitTooltip === dayKey ? null : dayKey);
+                                        }}
+                                      >
+                                        ⚠️ Model Split: GFS/Euro Divergence
+                                      </span>
+                                      {/* Tooltip on hover (desktop) or tap (mobile) */}
+                                      <div className={cn(
+                                        "absolute right-0 bottom-full mb-1 z-50 w-64 p-2.5 text-xs bg-gray-900 text-white rounded shadow-lg leading-snug",
+                                        modelSplitTooltip === dayKey ? "block" : "hidden group-hover:block"
+                                      )}>
+                                        Model variance: GFS and Euro models currently show a discrepancy of up to {maxDiffFt != null ? `${maxDiffFt.toFixed(1)}` : "1.0"}ft. Use as a general trend indicator rather than a precise height.
+                                      </div>
+                                    </div>
                                   )}
                                   <ChevronDown className={`h-5 w-5 md:h-6 md:w-6 text-gray-400 transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
                                 </div>
@@ -2916,13 +2947,6 @@ export default function SpotDetail() {
                               }`}
                             >
                               <div className="px-3 pb-3 md:px-4 md:pb-4">
-                                {showModelSplit && (
-                                  <div className="mb-3 md:mb-3 bg-blue-50 border-l-4 border-blue-400 p-2.5 md:p-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                                    <p className="text-xs md:text-sm text-blue-900 leading-snug">
-                                      Model variance: GFS and Euro models currently show a discrepancy of up to {maxDiffFt != null ? `${maxDiffFt.toFixed(1)}` : "1.0"}ft. Use as a general trend indicator rather than a precise height.
-                                    </p>
-                                  </div>
-                                )}
                                 {/* Two Row Layout - CONDITIONS & BEST WINDOWS on top, TIDE FORECAST below */}
                                 {/* Row 1: CONDITIONS and BEST WINDOWS */}
                                 <div className="grid md:grid-cols-2 gap-2 md:gap-2 mb-2 md:mb-2">
