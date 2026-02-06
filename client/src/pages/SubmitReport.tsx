@@ -159,10 +159,10 @@ export default function SubmitReport() {
         <div className="bg-white border-2 border-black">
           {/* Title */}
           <div className="border-b-2 border-black p-6">
-            <h1 className="text-4xl font-black uppercase" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+            <h1 className="text-4xl font-black uppercase text-black" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
               How was {spot?.name}?
             </h1>
-            <p className="text-sm text-gray-500 mt-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+            <p className="text-sm text-gray-700 mt-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
               {new Date(sessionDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
             </p>
           </div>
@@ -170,22 +170,22 @@ export default function SubmitReport() {
           <form onSubmit={handleSubmit}>
             {/* Star Rating */}
             <div className="p-6 border-b-2 border-gray-200">
-              <h3 className="text-xl font-black uppercase mb-4" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+              <h3 className="text-xl font-black uppercase mb-4 text-black" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
                 Overall Rating
               </h3>
-              <div className="flex gap-2">
+              <div className="flex gap-2 justify-center sm:justify-start">
                 {[1, 2, 3, 4, 5].map((rating) => (
                   <button
                     key={rating}
                     type="button"
                     onClick={() => setStarRating(rating)}
-                    className="transition-transform hover:scale-110"
+                    className="transition-transform hover:scale-110 active:scale-95"
                   >
                     <Star
-                      className={`h-12 w-12 ${
+                      className={`h-10 w-10 sm:h-11 sm:w-11 ${
                         rating <= starRating
-                          ? "fill-yellow-400 stroke-yellow-400"
-                          : "stroke-gray-300"
+                          ? "fill-yellow-400 stroke-yellow-500"
+                          : "stroke-gray-400 fill-transparent"
                       }`}
                     />
                   </button>
@@ -196,10 +196,10 @@ export default function SubmitReport() {
             {/* Crowd - how was the crowd during your session */}
             <div className="p-6 border-b-2 border-gray-200">
               <div className="flex justify-between items-center mb-2">
-                <h3 className="text-xl font-black uppercase" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+                <h3 className="text-xl font-black uppercase text-black" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
                   How was the crowd?
                 </h3>
-                <label className="flex items-center gap-2 text-sm">
+                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={skipCrowd}
@@ -209,21 +209,21 @@ export default function SubmitReport() {
                   Skip
                 </label>
               </div>
-              <p className="text-sm text-gray-500 mb-4" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+              <p className="text-sm text-gray-700 mb-4" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                 Report how crowded it was during your session.
               </p>
 
               {!skipCrowd && (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <input
                     type="range"
                     min="1"
                     max="5"
                     value={crowdLevel}
                     onChange={(e) => setCrowdLevel(parseInt(e.target.value))}
-                    className="w-full"
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-black"
                   />
-                  <p className="text-center font-bold" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  <p className="text-center font-bold text-gray-800" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                     {CROWD_LABELS[crowdLevel - 1]}
                   </p>
                 </div>
@@ -232,7 +232,7 @@ export default function SubmitReport() {
 
             {/* Photo Upload */}
             <div className="p-6 border-b-2 border-gray-200">
-              <h3 className="text-xl font-black uppercase mb-4" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+              <h3 className="text-xl font-black uppercase mb-4 text-black" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
                 Add Photo (Optional)
               </h3>
 
@@ -245,23 +245,24 @@ export default function SubmitReport() {
                       setPhotoPreview(null);
                       setPhotoBase64(null);
                     }}
-                    className="absolute top-2 right-2 bg-black text-white px-3 py-1 text-sm"
+                    className="absolute top-2 right-2 bg-black text-white px-3 py-1 text-sm font-semibold uppercase hover:bg-gray-800 transition-colors"
+                    style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
                     Remove
                   </button>
                 </div>
               ) : (
-                <label className="border-2 border-dashed border-gray-300 rounded p-8 flex flex-col items-center cursor-pointer hover:border-black transition-colors">
+                <label className="border-2 border-dashed border-gray-400 rounded-lg p-10 flex flex-col items-center cursor-pointer hover:border-black hover:bg-gray-50 transition-all">
                   {isCompressing ? (
                     <>
-                      <Loader2 className="h-12 w-12 text-gray-400 mb-2 animate-spin" />
-                      <span className="text-sm text-gray-500">Compressing photo...</span>
+                      <Loader2 className="h-12 w-12 text-gray-500 mb-3 animate-spin" />
+                      <span className="text-sm text-gray-700 font-medium">Compressing photo...</span>
                     </>
                   ) : (
                     <>
-                      <Camera className="h-12 w-12 text-gray-400 mb-2" />
-                      <span className="text-sm text-gray-500">Click to upload photo</span>
-                      <span className="text-xs text-gray-400 mt-1">Max 5MB · Will be compressed for fast upload</span>
+                      <Camera className="h-12 w-12 text-gray-500 mb-3" />
+                      <span className="text-sm text-gray-700 font-medium mb-1">Click to upload photo</span>
+                      <span className="text-xs text-gray-600">Max 5MB · Will be compressed for fast upload</span>
                     </>
                   )}
                   <input
@@ -277,7 +278,7 @@ export default function SubmitReport() {
 
             {/* Quick Notes */}
             <div className="p-6 border-b-2 border-gray-200">
-              <h3 className="text-xl font-black uppercase mb-4" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+              <h3 className="text-xl font-black uppercase mb-4 text-black" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
                 Quick Note (Optional)
               </h3>
               <div className="flex flex-wrap gap-2">
@@ -286,10 +287,10 @@ export default function SubmitReport() {
                     key={note}
                     type="button"
                     onClick={() => setSelectedNote(selectedNote === note ? null : note)}
-                    className={`px-4 py-2 text-sm border-2 transition-all ${
+                    className={`px-4 py-2 text-xs font-semibold border-2 transition-all rounded-sm ${
                       selectedNote === note
-                        ? "bg-black text-white border-black"
-                        : "bg-white text-black border-gray-300 hover:border-black"
+                        ? "bg-black text-white border-black shadow-md"
+                        : "bg-white text-gray-800 border-gray-400 hover:border-black hover:shadow-sm"
                     }`}
                     style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >

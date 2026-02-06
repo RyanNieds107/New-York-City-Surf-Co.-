@@ -4,7 +4,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
-import { Loader2, Bell, Users, Briefcase, X, ChevronRight, Phone, Store, GraduationCap, Wrench, LogOut } from "lucide-react";
+import { Loader2, Bell, Users, ShoppingBag, Home, X, ChevronRight, Phone, Store, GraduationCap, Wrench, LogOut } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,6 +12,8 @@ import { formatDistanceToNow } from "date-fns";
 import { ReportFeed } from "@/components/ReportFeed";
 import { UserStatsWidget } from "@/components/UserStatsWidget";
 import { ReportDatePicker } from "@/components/ReportDatePicker";
+import { LatestPhotos } from "@/components/LatestPhotos";
+import { AnnouncementsFeed } from "@/components/AnnouncementsFeed";
 
 export default function Members() {
   const [, setLocation] = useLocation();
@@ -221,13 +223,21 @@ export default function Members() {
       {/* Main Content */}
       <main className="flex-1 max-w-4xl mx-auto px-3 sm:px-6 py-6 sm:py-10 w-full">
         {/* Tabbed Interface */}
-        <Tabs defaultValue="alerts" className="w-full">
+        <Tabs defaultValue="home" className="w-full">
           {/* Tab Navigation */}
           <div className="border-b-2 border-black mb-0">
             <TabsList className="bg-transparent p-0 h-auto flex gap-0 min-w-max">
               <TabsTrigger
+                value="home"
+                className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-white data-[state=inactive]:text-black border-2 border-black border-b-0 first:rounded-tl-lg rounded-none px-3 sm:px-6 py-2.5 sm:py-3 text-[10px] sm:text-xs uppercase tracking-widest font-semibold transition-all -mb-[2px] data-[state=active]:z-10"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                <Home className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
+                Home
+              </TabsTrigger>
+              <TabsTrigger
                 value="alerts"
-                className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-white data-[state=inactive]:text-black border-2 border-black border-b-0 rounded-none px-3 sm:px-6 py-2.5 sm:py-3 text-[10px] sm:text-xs uppercase tracking-widest font-semibold transition-all -mb-[2px] data-[state=active]:z-10"
+                className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-white data-[state=inactive]:text-black border-2 border-black border-b-0 border-l-0 rounded-none px-3 sm:px-6 py-2.5 sm:py-3 text-[10px] sm:text-xs uppercase tracking-widest font-semibold transition-all -mb-[2px] data-[state=active]:z-10"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
                 <Bell className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
@@ -246,11 +256,70 @@ export default function Members() {
                 className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-white data-[state=inactive]:text-black border-2 border-black border-b-0 border-l-0 rounded-none px-3 sm:px-6 py-2.5 sm:py-3 text-[10px] sm:text-xs uppercase tracking-widest font-semibold transition-all -mb-[2px] data-[state=active]:z-10"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
-                <Briefcase className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
-                Services
+                <ShoppingBag className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
+                Marketplace
               </TabsTrigger>
             </TabsList>
           </div>
+
+          {/* Home Tab */}
+          <TabsContent value="home" className="mt-0">
+            {/* Header Section */}
+            <div className="bg-white border-2 border-black border-t-0 p-5 sm:p-10">
+              <h1 className="text-4xl sm:text-6xl font-black text-black uppercase tracking-tight leading-none"
+                  style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                Long Island Surf
+              </h1>
+              <p className="text-xs sm:text-sm text-gray-800 uppercase tracking-widest mt-2 sm:mt-3"
+                 style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                Your local surf community hub
+              </p>
+            </div>
+
+            {/* Content Grid */}
+            <div className="bg-white border-2 border-black border-t-0 p-5 sm:p-10 space-y-8">
+
+              {/* Section 1: Local Photos */}
+              <section>
+                <h2 className="text-2xl font-black uppercase mb-4 text-black"
+                    style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+                  Latest from the Water
+                </h2>
+                <p className="text-xs text-gray-800 uppercase tracking-widest mb-4"
+                   style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  Recent photos from the local crew
+                </p>
+                <LatestPhotos />
+              </section>
+
+              {/* Section 2: Announcements/News */}
+              <section>
+                <h2 className="text-2xl font-black uppercase mb-4 text-black"
+                    style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+                  News & Announcements
+                </h2>
+                <AnnouncementsFeed />
+              </section>
+
+              {/* Section 3: Community Chat (Coming Soon) */}
+              <section>
+                <h2 className="text-2xl font-black uppercase mb-4 text-black"
+                    style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+                  Community Chat
+                </h2>
+                <div className="bg-gray-50 border-2 border-gray-300 p-8 text-center">
+                  <p className="text-sm text-gray-600 uppercase tracking-wide"
+                     style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    Coming Soon
+                  </p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Real-time chat with the local surf community
+                  </p>
+                </div>
+              </section>
+
+            </div>
+          </TabsContent>
 
           {/* Alerts Tab */}
           <TabsContent value="alerts" className="mt-0">
@@ -827,14 +896,14 @@ export default function Members() {
             </div>
           </TabsContent>
 
-          {/* Services Tab */}
+          {/* Marketplace Tab */}
           <TabsContent value="services" className="mt-0">
             <div className="bg-white border-2 border-black border-t-0 p-5 sm:p-10">
               <h1 className="text-4xl sm:text-6xl font-black text-black uppercase tracking-tight leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                Services
+                Marketplace
               </h1>
-              <p className="text-xs sm:text-sm text-gray-500 uppercase tracking-widest mt-2 sm:mt-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                Local expertise & business directory
+              <p className="text-xs sm:text-sm text-gray-800 uppercase tracking-widest mt-2 sm:mt-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                Local shops, services & surf gear
               </p>
             </div>
             <div className="bg-white border-2 border-black border-t-0">
