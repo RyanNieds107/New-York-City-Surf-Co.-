@@ -1336,6 +1336,7 @@ export const appRouter = router({
       .input(z.object({
         spotId: z.number(),
         forecastTime: z.string().datetime(),
+        sessionDuration: z.number().int().min(0).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         // Only track if user is authenticated
@@ -1348,10 +1349,17 @@ export const appRouter = router({
             userId: ctx.user.id,
             spotId: input.spotId,
             forecastTime: new Date(input.forecastTime),
+            sessionDuration: input.sessionDuration,
           });
 
           return { success: true };
-        } catch (error) {
+        } catch (error: any) {
+          // Handle unique constraint violation gracefully
+          if (error?.code === 'ER_DUP_ENTRY' || error?.errno === 1062) {
+            console.log(`[Reports] Duplicate view ignored for user ${ctx.user.id}, spot ${input.spotId}`);
+            return { success: true, reason: "already_tracked" };
+          }
+
           console.error('[Reports] Track view error:', error);
           return { success: false, reason: "error" };
         }

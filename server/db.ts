@@ -1363,24 +1363,80 @@ export async function trackForecastView(data: {
   userId: number;
   spotId: number;
   forecastTime: Date;
-}): Promise<number> {
+  sessionDuration?: number;
+}): Promise<number | null> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  const result = await db.insert(forecastViews).values({
-    userId: data.userId,
-    spotId: data.spotId,
-    viewedAt: new Date(),
-    forecastTime: data.forecastTime,
-    promptSent: 0,
-  });
+  // Check if user already has a view for this spot today
+  const today = new Date();
+  const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const endOfDay = new Date(startOfDay);
+  endOfDay.setDate(endOfDay.getDate() + 1);
 
-  return result[0].insertId;
+  const existingView = await db
+    .select()
+    .from(forecastViews)
+    .where(
+      and(
+        eq(forecastViews.userId, data.userId),
+        eq(forecastViews.spotId, data.spotId),
+        gte(forecastViews.viewedAt, startOfDay),
+        lt(forecastViews.viewedAt, endOfDay)
+      )
+    )
+    .limit(1);
+
+  if (existingView.length > 0) {
+    // Update sessionDuration if longer
+    if (data.sessionDuration &&
+        (!existingView[0].sessionDuration || data.sessionDuration > existingView[0].sessionDuration)) {
+      await db
+        .update(forecastViews)
+        .set({ sessionDuration: data.sessionDuration })
+        .where(eq(forecastViews.id, existingView[0].id));
+    }
+    return existingView[0].id;
+  }
+
+  // Insert new view
+  try {
+    const result = await db.insert(forecastViews).values({
+      userId: data.userId,
+      spotId: data.spotId,
+      viewedAt: new Date(),
+      forecastTime: data.forecastTime,
+      promptSent: 0,
+      sessionDuration: data.sessionDuration,
+    });
+
+    return result[0].insertId;
+  } catch (error: any) {
+    // Race condition - unique constraint caught duplicate
+    if (error?.code === 'ER_DUP_ENTRY' || error?.errno === 1062) {
+      const raceView = await db
+        .select()
+        .from(forecastViews)
+        .where(
+          and(
+            eq(forecastViews.userId, data.userId),
+            eq(forecastViews.spotId, data.spotId),
+            gte(forecastViews.viewedAt, startOfDay),
+            lt(forecastViews.viewedAt, endOfDay)
+          )
+        )
+        .limit(1);
+
+      return raceView[0]?.id || null;
+    }
+    throw error;
+  }
 }
 
 /**
  * Get forecast views from 23-25 hours ago where prompt hasn't been sent yet.
  * Used by the sendReportPrompts job.
+ * Filters to only include views with meaningful engagement (10+ seconds).
  */
 export async function getPendingReportPrompts(): Promise<ForecastView[]> {
   const db = await getDb();
@@ -1391,7 +1447,7 @@ export async function getPendingReportPrompts(): Promise<ForecastView[]> {
   const startWindow = new Date(now.getTime() - 25 * 60 * 60 * 1000); // 25 hours ago
   const endWindow = new Date(now.getTime() - 23 * 60 * 60 * 1000); // 23 hours ago
 
-  // Get all pending views
+  // Get pending views with meaningful engagement
   const views = await db
     .select()
     .from(forecastViews)
@@ -1399,27 +1455,14 @@ export async function getPendingReportPrompts(): Promise<ForecastView[]> {
       and(
         eq(forecastViews.promptSent, 0),
         gte(forecastViews.viewedAt, startWindow),
-        lte(forecastViews.viewedAt, endWindow)
+        lte(forecastViews.viewedAt, endWindow),
+        gte(forecastViews.sessionDuration, 10) // Only meaningful engagement
       )
     )
     .orderBy(forecastViews.viewedAt);
 
-  // Deduplicate in memory: keep only first view per user/spot/day
-  // This prevents sending multiple emails if a user viewed the same spot multiple times
-  const seen = new Set<string>();
-  const deduplicated: ForecastView[] = [];
-
-  for (const view of views) {
-    const date = new Date(view.viewedAt).toISOString().split('T')[0]; // YYYY-MM-DD
-    const key = `${view.userId}-${view.spotId}-${date}`;
-
-    if (!seen.has(key)) {
-      seen.add(key);
-      deduplicated.push(view);
-    }
-  }
-
-  return deduplicated;
+  // No deduplication needed - unique constraint ensures one view per user/spot/day
+  return views;
 }
 
 /**
@@ -1438,37 +1481,6 @@ export async function markPromptSent(viewId: number): Promise<void> {
     .where(eq(forecastViews.id, viewId));
 }
 
-/**
- * Mark ALL forecast views for a user/spot/day as having had prompts sent.
- * This prevents duplicate emails when a user viewed the same spot multiple times.
- */
-export async function markAllRelatedViewsAsSent(
-  userId: number,
-  spotId: number,
-  viewedAt: Date
-): Promise<void> {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  const viewDate = new Date(viewedAt).toISOString().split('T')[0]; // YYYY-MM-DD
-  const startOfDay = new Date(viewDate + 'T00:00:00Z');
-  const endOfDay = new Date(viewDate + 'T23:59:59Z');
-
-  await db
-    .update(forecastViews)
-    .set({
-      promptSent: 1,
-      promptSentAt: new Date()
-    })
-    .where(
-      and(
-        eq(forecastViews.userId, userId),
-        eq(forecastViews.spotId, spotId),
-        gte(forecastViews.viewedAt, startOfDay),
-        lte(forecastViews.viewedAt, endOfDay)
-      )
-    );
-}
 
 // ==================== SURF REPORTS (User Session Reports) ====================
 

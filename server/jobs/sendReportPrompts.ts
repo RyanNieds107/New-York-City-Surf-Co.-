@@ -1,4 +1,4 @@
-import { getPendingReportPrompts, markPromptSent, markAllRelatedViewsAsSent, getUserById, getSpotById } from "../db";
+import { getPendingReportPrompts, markPromptSent, getUserById, getSpotById } from "../db";
 import { sendEmail } from "../services/email";
 
 /**
@@ -126,9 +126,8 @@ NYC Surf Co - Long Island Surf Forecasts
         });
 
         if (emailSent) {
-          // Mark all related views for this user/spot/day as sent
-          // This prevents duplicate emails if they viewed the same spot multiple times
-          await markAllRelatedViewsAsSent(view.userId, view.spotId, view.viewedAt);
+          // Mark this single view as sent (unique constraint ensures no duplicates)
+          await markPromptSent(view.id);
           sent++;
           console.log(`[Report Prompts] ✓ Sent prompt to ${user.email} for ${spot.name}`);
         } else {

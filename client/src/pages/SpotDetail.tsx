@@ -434,18 +434,48 @@ export default function SpotDetail() {
   // Track forecast view for post-surf report prompts
   const trackViewMutation = trpc.reports.trackView.useMutation();
 
-  // Track view when user lands on page (only once per session)
+  // Track view only after 10+ seconds of engagement
   useEffect(() => {
     if (!spotId || !user) return;
 
-    // Track view with current time as forecastTime
+    const arrivalTime = Date.now();
     const forecastTime = new Date();
+    let tracked = false;
 
-    trackViewMutation.mutate({
-      spotId,
-      forecastTime: forecastTime.toISOString(),
-    });
-  }, [spotId]); // Only run once per spot
+    // Track after 10 seconds of engagement
+    const engagementTimer = setTimeout(() => {
+      tracked = true;
+      const duration = Math.floor((Date.now() - arrivalTime) / 1000);
+
+      trackViewMutation.mutate({
+        spotId,
+        forecastTime: forecastTime.toISOString(),
+        sessionDuration: duration,
+      });
+    }, 10000); // 10 seconds
+
+    // Also track if user switches away after 10s
+    const handleVisibilityChange = () => {
+      if (document.hidden && !tracked) {
+        const duration = Math.floor((Date.now() - arrivalTime) / 1000);
+        if (duration >= 10) {
+          tracked = true;
+          trackViewMutation.mutate({
+            spotId,
+            forecastTime: forecastTime.toISOString(),
+            sessionDuration: duration,
+          });
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearTimeout(engagementTimer);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [spotId, user]); // Only run once per spot
 
   const spot = spotQuery.data;
   const forecast = forecastQuery.data?.forecast;

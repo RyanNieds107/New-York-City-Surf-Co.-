@@ -264,16 +264,32 @@ export type StormglassVerification = typeof stormglassVerification.$inferSelect;
 export type InsertStormglassVerification = typeof stormglassVerification.$inferInsert;
 
 // Forecast Views Table (track when users view forecasts for report prompts)
-export const forecastViews = mysqlTable("forecast_views", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
-  spotId: int("spotId").notNull(),
-  viewedAt: timestamp("viewedAt").notNull().defaultNow(),
-  forecastTime: timestamp("forecastTime").notNull(), // Time user was viewing forecast for
-  promptSent: int("promptSent").notNull().default(0), // 0 = not sent, 1 = sent
-  promptSentAt: timestamp("promptSentAt"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+export const forecastViews = mysqlTable(
+  "forecast_views",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    userId: int("userId").notNull(),
+    spotId: int("spotId").notNull(),
+    viewedAt: timestamp("viewedAt").notNull().defaultNow(),
+    viewedDate: date("viewedDate").notNull(), // Generated column: DATE(viewedAt)
+    forecastTime: timestamp("forecastTime").notNull(), // Time user was viewing forecast for
+    promptSent: int("promptSent").notNull().default(0), // 0 = not sent, 1 = sent
+    promptSentAt: timestamp("promptSentAt"),
+    sessionDuration: int("sessionDuration"), // Seconds user spent on page (nullable)
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => ({
+    idx_user_spot: index("idx_user_spot").on(table.userId, table.spotId),
+    idx_viewed_at: index("idx_viewed_at").on(table.viewedAt),
+    idx_prompt_pending: index("idx_prompt_pending").on(table.promptSent, table.viewedAt),
+    idx_session_duration: index("idx_session_duration").on(table.sessionDuration),
+    unique_user_spot_date: unique("unique_user_spot_date").on(
+      table.userId,
+      table.spotId,
+      table.viewedDate
+    ),
+  })
+);
 
 export type ForecastView = typeof forecastViews.$inferSelect;
 export type InsertForecastView = typeof forecastViews.$inferInsert;
