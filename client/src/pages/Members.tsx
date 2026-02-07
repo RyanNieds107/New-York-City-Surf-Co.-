@@ -227,46 +227,46 @@ export default function Members() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-4xl mx-auto px-3 sm:px-6 py-6 sm:py-10 w-full">
+      <main className="flex-1 max-w-4xl mx-auto px-3 sm:px-6 py-4 sm:py-10 w-full">
         {/* Tabbed Interface */}
         <Tabs value={activeTab} onValueChange={(value) => {
           setActiveTab(value);
           setLocation(`/members?tab=${value}`);
         }} className="w-full">
-          {/* Tab Navigation */}
-          <div className="border-b-2 border-black mb-0">
-            <TabsList className="bg-transparent p-0 h-auto flex gap-0 min-w-max">
+          {/* Tab Navigation - horizontal scroll on mobile */}
+          <div className="border-b-2 border-black mb-0 overflow-x-auto">
+            <TabsList className="bg-transparent p-0 h-auto flex gap-0 min-w-max w-full sm:w-auto">
               <TabsTrigger
                 value="home"
-                className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-white data-[state=inactive]:text-black border-2 border-black border-b-0 first:rounded-tl-lg rounded-none px-3 sm:px-6 py-2.5 sm:py-3 text-[10px] sm:text-xs uppercase tracking-widest font-semibold transition-all -mb-[2px] data-[state=active]:z-10"
+                className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-white data-[state=inactive]:text-black border-2 border-black border-b-0 first:rounded-tl-lg rounded-none px-4 sm:px-6 py-3 sm:py-3 text-xs sm:text-xs uppercase tracking-wide sm:tracking-widest font-semibold transition-all -mb-[2px] data-[state=active]:z-10 whitespace-nowrap flex-1 sm:flex-initial"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
-                <Home className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
-                Home
+                <Home className="h-4 w-4 mr-1.5 sm:mr-2" />
+                <span className="hidden xs:inline">Home</span>
               </TabsTrigger>
               <TabsTrigger
                 value="alerts"
-                className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-white data-[state=inactive]:text-black border-2 border-black border-b-0 border-l-0 rounded-none px-3 sm:px-6 py-2.5 sm:py-3 text-[10px] sm:text-xs uppercase tracking-widest font-semibold transition-all -mb-[2px] data-[state=active]:z-10"
+                className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-white data-[state=inactive]:text-black border-2 border-black border-b-0 border-l-0 rounded-none px-4 sm:px-6 py-3 sm:py-3 text-xs sm:text-xs uppercase tracking-wide sm:tracking-widest font-semibold transition-all -mb-[2px] data-[state=active]:z-10 whitespace-nowrap flex-1 sm:flex-initial"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
-                <Bell className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
-                Alerts
+                <Bell className="h-4 w-4 mr-1.5 sm:mr-2" />
+                <span className="hidden xs:inline">Alerts</span>
               </TabsTrigger>
               <TabsTrigger
                 value="community"
-                className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-white data-[state=inactive]:text-black border-2 border-black border-b-0 border-l-0 rounded-none px-3 sm:px-6 py-2.5 sm:py-3 text-[10px] sm:text-xs uppercase tracking-widest font-semibold transition-all -mb-[2px] data-[state=active]:z-10"
+                className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-white data-[state=inactive]:text-black border-2 border-black border-b-0 border-l-0 rounded-none px-4 sm:px-6 py-3 sm:py-3 text-xs sm:text-xs uppercase tracking-wide sm:tracking-widest font-semibold transition-all -mb-[2px] data-[state=active]:z-10 whitespace-nowrap flex-1 sm:flex-initial"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
-                <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
-                Community
+                <Users className="h-4 w-4 mr-1.5 sm:mr-2" />
+                <span className="hidden xs:inline">Community</span>
               </TabsTrigger>
               <TabsTrigger
                 value="services"
-                className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-white data-[state=inactive]:text-black border-2 border-black border-b-0 border-l-0 rounded-none px-3 sm:px-6 py-2.5 sm:py-3 text-[10px] sm:text-xs uppercase tracking-widest font-semibold transition-all -mb-[2px] data-[state=active]:z-10"
+                className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-white data-[state=inactive]:text-black border-2 border-black border-b-0 border-l-0 rounded-none px-4 sm:px-6 py-3 sm:py-3 text-xs sm:text-xs uppercase tracking-wide sm:tracking-widest font-semibold transition-all -mb-[2px] data-[state=active]:z-10 whitespace-nowrap flex-1 sm:flex-initial"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
-                <ShoppingBag className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
-                Marketplace
+                <ShoppingBag className="h-4 w-4 mr-1.5 sm:mr-2" />
+                <span className="hidden xs:inline">Market</span>
               </TabsTrigger>
             </TabsList>
           </div>
@@ -274,19 +274,19 @@ export default function Members() {
           {/* Home Tab */}
           <TabsContent value="home" className="mt-0">
             {/* Header Section */}
-            <div className="bg-white border-2 border-black border-t-0 p-5 sm:p-10">
-              <h1 className="text-4xl sm:text-6xl font-black text-black uppercase tracking-tight leading-none"
+            <div className="bg-white border-2 border-black border-t-0 p-4 sm:p-10">
+              <h1 className="text-3xl sm:text-6xl font-black text-black uppercase tracking-tight leading-none"
                   style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                 Long Island Surf
               </h1>
-              <p className="text-xs sm:text-sm text-gray-800 uppercase tracking-widest mt-2 sm:mt-3"
+              <p className="text-xs sm:text-sm text-gray-800 uppercase tracking-wide sm:tracking-widest mt-2 sm:mt-3"
                  style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                 Your local surf community hub
               </p>
             </div>
 
             {/* Content Grid */}
-            <div className="bg-white border-2 border-black border-t-0 p-5 sm:p-10 space-y-8">
+            <div className="bg-white border-2 border-black border-t-0 p-4 sm:p-10 space-y-6 sm:space-y-8">
 
               {/* Section 1: Local Photos */}
               <section>
@@ -333,11 +333,11 @@ export default function Members() {
           {/* Alerts Tab */}
           <TabsContent value="alerts" className="mt-0">
             {/* Header */}
-            <div className="bg-white border-2 border-black border-t-0 p-5 sm:p-10">
-              <h1 className="text-4xl sm:text-6xl font-black text-black uppercase tracking-tight leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+            <div className="bg-white border-2 border-black border-t-0 p-4 sm:p-10">
+              <h1 className="text-3xl sm:text-6xl font-black text-black uppercase tracking-tight leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                 Surf Alerts
               </h1>
-              <p className="text-xs sm:text-sm text-gray-500 uppercase tracking-widest mt-2 sm:mt-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              <p className="text-xs sm:text-sm text-gray-500 uppercase tracking-wide sm:tracking-widest mt-2 sm:mt-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                 Get notified when conditions are firing
               </p>
             </div>
@@ -345,11 +345,11 @@ export default function Members() {
               <form onSubmit={handleCreateAlert}>
                 {/* Section 01: Spots */}
                 <div className="p-4 sm:p-5 border-b-2 border-gray-200">
-                  <div className="text-[10px] sm:text-xs text-gray-500 font-semibold tracking-widest mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>01</div>
-                  <h3 className="text-lg sm:text-xl font-black text-black uppercase tracking-tight mb-2 sm:mb-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                  <div className="text-xs text-gray-500 font-semibold tracking-widest mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>01</div>
+                  <h3 className="text-xl sm:text-xl font-black text-black uppercase tracking-tight mb-2 sm:mb-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                     Spot
                   </h3>
-                  <p className="text-[10px] sm:text-xs text-gray-600 uppercase tracking-widest mb-3 sm:mb-4" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  <p className="text-xs text-gray-600 uppercase tracking-wide sm:tracking-widest mb-3 sm:mb-4" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                     Which break do you want alerts for?
                   </p>
                   <div className="grid grid-cols-2 gap-2 sm:gap-3">
@@ -361,14 +361,14 @@ export default function Members() {
                           // Single select: toggle between this spot and deselect
                           setAlertSpotId(alertSpotId === spot.id ? null : spot.id);
                         }}
-                        className={`p-3 sm:p-5 text-center transition-all ${
+                        className={`p-4 sm:p-5 text-center transition-all min-h-[56px] sm:min-h-auto ${
                           alertSpotId === spot.id
                             ? "bg-black text-white border-black"
                             : "bg-white text-black border-black hover:bg-gray-50"
                         }`}
                         style={{ borderWidth: "2px" }}
                       >
-                        <span className="font-bold text-xs sm:text-sm uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        <span className="font-bold text-sm uppercase tracking-wide sm:tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                           {spot.name.toUpperCase()}
                         </span>
                       </button>
@@ -376,17 +376,17 @@ export default function Members() {
                     <button
                       type="button"
                       onClick={() => setAlertSpotId(null)}
-                      className={`p-3 sm:p-4 text-left transition-all ${
+                      className={`p-4 text-left transition-all min-h-[56px] sm:min-h-auto ${
                         alertSpotId === null
                           ? "bg-black text-white border-black"
                           : "bg-white text-black border-black hover:bg-gray-50"
                       }`}
                       style={{ borderWidth: "2px", borderStyle: "solid" }}
                     >
-                      <div className="font-bold text-xs sm:text-sm uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      <div className="font-bold text-sm uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                         BEST SPOT ONLY
                       </div>
-                      <div className={`text-[10px] sm:text-[11px] mt-0.5 sm:mt-1 ${alertSpotId === null ? "text-gray-300" : "text-gray-500"}`}>
+                      <div className={`text-[11px] mt-1 ${alertSpotId === null ? "text-gray-300" : "text-gray-500"}`}>
                         Alerts for whichever beach has the highest quality score
                       </div>
                     </button>
@@ -395,30 +395,30 @@ export default function Members() {
 
                 {/* Section 02: Quality Threshold */}
                 <div className="p-4 sm:p-5 border-b-2 border-gray-200">
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center justify-between mb-4">
                     <div>
-                      <div className="text-[10px] sm:text-xs text-gray-500 font-semibold tracking-widest mb-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>02</div>
-                      <h3 className="text-lg sm:text-xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                      <div className="text-xs text-gray-500 font-semibold tracking-widest mb-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>02</div>
+                      <h3 className="text-xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                         Quality Threshold
                       </h3>
                     </div>
                     {/* Compact score display */}
                     <div className="text-right">
                       <div
-                        className="text-3xl sm:text-4xl font-black leading-none"
+                        className="text-4xl font-black leading-none"
                         style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
                       >
                         {minQualityScore}+
                       </div>
-                      <div className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-widest" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      <div className="text-[10px] text-gray-500 uppercase tracking-widest" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                         {minQualityScore <= 55 ? "Rideable" : minQualityScore <= 65 ? "Decent" : minQualityScore <= 75 ? "Good" : minQualityScore <= 85 ? "Great" : "Epic"}
                       </div>
                     </div>
                   </div>
 
-                  {/* Compact slider bar */}
+                  {/* Compact slider bar - increased height for mobile */}
                   <div
-                    className="relative h-8 sm:h-10 cursor-pointer group"
+                    className="relative h-10 sm:h-10 cursor-pointer group"
                     onMouseDown={(e) => {
                       setIsSliderDragging(true);
                       // Calculate initial value on click
@@ -443,7 +443,7 @@ export default function Members() {
                     onMouseLeave={() => setIsSliderDragging(false)}
                   >
                     {/* Track background */}
-                    <div className="absolute inset-y-2 sm:inset-y-3 left-0 right-0 bg-gray-200 rounded-sm overflow-hidden">
+                    <div className="absolute inset-y-3 left-0 right-0 bg-gray-200 rounded-sm overflow-hidden">
                       {/* Filled portion with gradient */}
                       <div
                         className="h-full transition-all duration-75"
@@ -454,9 +454,9 @@ export default function Members() {
                       />
                     </div>
 
-                    {/* Thumb */}
+                    {/* Thumb - larger for mobile */}
                     <div
-                      className={`absolute top-1/2 w-4 h-6 sm:w-5 sm:h-8 bg-black rounded-sm shadow-md transition-all duration-75 ${isSliderDragging ? 'scale-110' : 'group-hover:scale-110'}`}
+                      className={`absolute top-1/2 w-5 h-8 bg-black rounded-sm shadow-md transition-all duration-75 ${isSliderDragging ? 'scale-110' : 'group-hover:scale-110'}`}
                       style={{
                         left: `${((minQualityScore - 50) / (95 - 50)) * 100}%`,
                         transform: 'translate(-50%, -50%)',
@@ -477,7 +477,7 @@ export default function Members() {
                   </div>
 
                   {/* Minimal labels */}
-                  <div className="flex justify-between text-[8px] sm:text-[9px] text-gray-400 uppercase tracking-wider mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  <div className="flex justify-between text-[9px] text-gray-400 uppercase tracking-wider mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                     <span>50</span>
                     <span>95</span>
                   </div>
@@ -486,7 +486,7 @@ export default function Members() {
                   <button
                     type="button"
                     onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                    className="mt-4 text-xs sm:text-sm text-black font-bold hover:text-gray-600 transition-colors uppercase tracking-wider"
+                    className="mt-4 text-sm text-black font-bold hover:text-gray-600 transition-colors uppercase tracking-wider py-2"
                     style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
                     {showAdvancedFilters ? '− Hide' : '+ Add'} wave/wind filters
@@ -497,11 +497,11 @@ export default function Members() {
                     <div className="mt-4 pt-4 border-t border-gray-200 space-y-5">
                       {/* Min Wave Height */}
                       <div>
-                        <div className="flex justify-between items-center mb-2">
-                          <label className="text-[10px] sm:text-xs text-gray-700 font-semibold uppercase tracking-widest" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        <div className="flex justify-between items-center mb-3">
+                          <label className="text-xs text-gray-700 font-semibold uppercase tracking-wide sm:tracking-widest" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                             Min Wave Height
                           </label>
-                          <span className="text-[10px] sm:text-xs text-black font-bold" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                          <span className="text-xs text-black font-bold" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                             {minWaveHeight !== null ? `${minWaveHeight}ft` : 'Off'}
                           </span>
                         </div>
@@ -527,11 +527,11 @@ export default function Members() {
 
                       {/* Min Swell Period */}
                       <div>
-                        <div className="flex justify-between items-center mb-2">
-                          <label className="text-[10px] sm:text-xs text-gray-700 font-semibold uppercase tracking-widest" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        <div className="flex justify-between items-center mb-3">
+                          <label className="text-xs text-gray-700 font-semibold uppercase tracking-wide sm:tracking-widest" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                             Min Swell Period
                           </label>
-                          <span className="text-[10px] sm:text-xs text-black font-bold" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                          <span className="text-xs text-black font-bold" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                             {minPeriod !== null ? `${minPeriod}s` : 'Off'}
                           </span>
                         </div>
@@ -557,14 +557,14 @@ export default function Members() {
 
                       {/* Alert Days Filter */}
                       <div>
-                        <div className="font-bold text-[10px] sm:text-xs uppercase tracking-wider mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        <div className="font-bold text-xs uppercase tracking-wider mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                           Alert Days
                         </div>
-                        <div className="text-[9px] sm:text-[10px] text-gray-500 mb-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        <div className="text-[10px] text-gray-500 mb-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                           Only get alerts for swells on these days
                         </div>
-                        {/* Day buttons */}
-                        <div className="flex gap-1 sm:gap-2 mb-3">
+                        {/* Day buttons - larger for mobile */}
+                        <div className="flex gap-2 mb-3">
                           {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
                             <button
                               key={index}
@@ -579,7 +579,7 @@ export default function Members() {
                                   setAllowedDays([...allowedDays, index].sort((a, b) => a - b));
                                 }
                               }}
-                              className={`w-8 h-8 sm:w-9 sm:h-9 text-xs sm:text-sm font-bold transition-all border-2 ${
+                              className={`flex-1 h-10 sm:w-9 sm:h-9 sm:flex-initial text-sm font-bold transition-all border-2 ${
                                 allowedDays.includes(index)
                                   ? "bg-black text-white border-black"
                                   : "bg-white text-black border-gray-300 hover:border-black"
@@ -595,7 +595,7 @@ export default function Members() {
                           <button
                             type="button"
                             onClick={() => setAllowedDays([0, 6])}
-                            className={`px-2 py-1 text-[9px] sm:text-[10px] font-medium border transition-all ${
+                            className={`px-3 py-2 text-[10px] font-medium border transition-all ${
                               allowedDays.length === 2 && allowedDays.includes(0) && allowedDays.includes(6)
                                 ? "bg-black text-white border-black"
                                 : "bg-white text-black border-gray-300 hover:border-black"
@@ -607,7 +607,7 @@ export default function Members() {
                           <button
                             type="button"
                             onClick={() => setAllowedDays([1, 2, 3, 4, 5])}
-                            className={`px-2 py-1 text-[9px] sm:text-[10px] font-medium border transition-all ${
+                            className={`px-3 py-2 text-[10px] font-medium border transition-all ${
                               allowedDays.length === 5 && [1,2,3,4,5].every(d => allowedDays.includes(d))
                                 ? "bg-black text-white border-black"
                                 : "bg-white text-black border-gray-300 hover:border-black"
@@ -619,7 +619,7 @@ export default function Members() {
                           <button
                             type="button"
                             onClick={() => setAllowedDays([0, 1, 2, 3, 4, 5, 6])}
-                            className={`px-2 py-1 text-[9px] sm:text-[10px] font-medium border transition-all ${
+                            className={`px-3 py-2 text-[10px] font-medium border transition-all ${
                               allowedDays.length === 7
                                 ? "bg-black text-white border-black"
                                 : "bg-white text-black border-gray-300 hover:border-black"
@@ -636,14 +636,14 @@ export default function Members() {
 
                 {/* Section 03: Forecast Window */}
                 <div className="p-4 sm:p-5 border-b-2 border-gray-200">
-                  <div className="text-[10px] sm:text-xs text-gray-500 font-semibold tracking-widest mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>03</div>
-                  <h3 className="text-lg sm:text-xl font-black text-black uppercase tracking-tight mb-2 sm:mb-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                  <div className="text-xs text-gray-500 font-semibold tracking-widest mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>03</div>
+                  <h3 className="text-xl font-black text-black uppercase tracking-tight mb-2 sm:mb-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                     Forecast Window
                   </h3>
-                  <p className="text-[10px] sm:text-xs text-gray-600 uppercase tracking-widest mb-3 sm:mb-4" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  <p className="text-xs text-gray-600 uppercase tracking-wide sm:tracking-widest mb-3 sm:mb-4" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                     How far ahead should we look?
                   </p>
-                  <div className="space-y-2 sm:space-y-3">
+                  <div className="space-y-3">
                     {[
                       { value: 3, label: "3 Days", desc: "Short-term accuracy", disabled: false },
                       { value: 5, label: "5 Days", desc: "Week-ahead planning", disabled: false },
@@ -655,7 +655,7 @@ export default function Members() {
                         type="button"
                         onClick={() => !option.disabled && setDaysAdvanceNotice(option.value)}
                         disabled={option.disabled}
-                        className={`w-full p-3 sm:p-4 text-left transition-all ${
+                        className={`w-full p-4 text-left transition-all min-h-[60px] ${
                           option.disabled
                             ? "bg-gray-100 text-gray-400 border-gray-300 cursor-not-allowed"
                             : daysAdvanceNotice === option.value
@@ -664,8 +664,8 @@ export default function Members() {
                         }`}
                         style={{ borderWidth: "2px" }}
                       >
-                        <div className="font-bold text-xs sm:text-sm uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{option.label}</div>
-                        <div className={`text-[10px] sm:text-[11px] mt-0.5 sm:mt-1 ${option.disabled ? "text-gray-400" : daysAdvanceNotice === option.value ? "text-gray-300" : "text-gray-500"}`}>{option.desc}</div>
+                        <div className="font-bold text-sm uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{option.label}</div>
+                        <div className={`text-[11px] mt-1 ${option.disabled ? "text-gray-400" : daysAdvanceNotice === option.value ? "text-gray-300" : "text-gray-500"}`}>{option.desc}</div>
                       </button>
                     ))}
                   </div>
@@ -673,14 +673,14 @@ export default function Members() {
 
                 {/* Section 04: Alert Frequency */}
                 <div className="p-4 sm:p-5 border-b-2 border-gray-200">
-                  <div className="text-[10px] sm:text-xs text-gray-500 font-semibold tracking-widest mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>04</div>
-                  <h3 className="text-lg sm:text-xl font-black text-black uppercase tracking-tight mb-2 sm:mb-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                  <div className="text-xs text-gray-500 font-semibold tracking-widest mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>04</div>
+                  <h3 className="text-xl font-black text-black uppercase tracking-tight mb-2 sm:mb-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                     Alert Frequency
                   </h3>
-                  <p className="text-[10px] sm:text-xs text-gray-600 uppercase tracking-widest mb-3 sm:mb-4" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  <p className="text-xs text-gray-600 uppercase tracking-wide sm:tracking-widest mb-3 sm:mb-4" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                     How often do you want updates?
                   </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {[
                       { value: "once", label: "Once Daily", desc: "Morning summary" },
                       { value: "twice", label: "Twice Daily", desc: "AM + PM updates" },
@@ -691,15 +691,15 @@ export default function Members() {
                         key={option.value}
                         type="button"
                         onClick={() => setAlertFrequency(option.value)}
-                        className={`p-3 sm:p-4 text-left transition-all ${
+                        className={`p-4 text-left transition-all min-h-[60px] ${
                           alertFrequency === option.value
                             ? "bg-black text-white border-black"
                             : "bg-white text-black border-black hover:bg-gray-50"
                         }`}
                         style={{ borderWidth: "2px" }}
                       >
-                        <div className="font-bold text-xs sm:text-sm uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{option.label}</div>
-                        <div className={`text-[10px] sm:text-[11px] mt-0.5 sm:mt-1 ${alertFrequency === option.value ? "text-gray-300" : "text-gray-500"}`}>{option.desc}</div>
+                        <div className="font-bold text-sm uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{option.label}</div>
+                        <div className={`text-[11px] mt-1 ${alertFrequency === option.value ? "text-gray-300" : "text-gray-500"}`}>{option.desc}</div>
                       </button>
                     ))}
                   </div>
@@ -707,35 +707,35 @@ export default function Members() {
 
                 {/* Section 05: How Should We Notify You */}
                 <div className="p-4 sm:p-5 border-b-2 border-gray-200">
-                  <div className="text-[10px] sm:text-xs text-gray-500 font-semibold tracking-widest mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>05</div>
-                  <h3 className="text-lg sm:text-xl font-black text-black uppercase tracking-tight mb-3 sm:mb-4" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                  <div className="text-xs text-gray-500 font-semibold tracking-widest mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>05</div>
+                  <h3 className="text-xl font-black text-black uppercase tracking-tight mb-3 sm:mb-4" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                     How Should We Notify You?
                   </h3>
-                  <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     <button
                       type="button"
                       onClick={() => setEmailEnabled(!emailEnabled)}
-                      className={`p-3 sm:p-4 text-center transition-all border-black ${
+                      className={`p-4 text-center transition-all border-black min-h-[56px] ${
                         emailEnabled
                           ? "bg-black text-white"
                           : "bg-white text-black hover:bg-gray-50"
                       }`}
                       style={{ borderWidth: "2px", borderStyle: "solid" }}
                     >
-                      <span className="font-bold text-xs sm:text-sm uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Email</span>
+                      <span className="font-bold text-sm uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Email</span>
                     </button>
                     <button
                       type="button"
                       disabled
-                      className="p-3 sm:p-4 text-center transition-all border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed"
+                      className="p-4 text-center transition-all border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed min-h-[56px]"
                       style={{ borderWidth: "2px", borderStyle: "solid" }}
                     >
-                      <span className="font-bold text-xs sm:text-sm uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>SMS</span>
-                      <span className="block text-[10px] text-gray-400 mt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Coming Soon</span>
+                      <span className="font-bold text-sm uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>SMS</span>
+                      <span className="block text-[10px] text-gray-400 mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Coming Soon</span>
                     </button>
                   </div>
                   {!emailEnabled && (
-                    <p className="mt-3 text-[10px] sm:text-xs text-amber-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    <p className="mt-3 text-xs text-amber-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                       Please enable email to receive alerts
                     </p>
                   )}
@@ -746,7 +746,7 @@ export default function Members() {
                   <Button
                     type="submit"
                     disabled={createAlertMutation.isPending}
-                    className="w-full bg-white text-black hover:bg-gray-100 rounded-none uppercase tracking-widest text-base font-black py-5 h-auto transition-all"
+                    className="w-full bg-white text-black hover:bg-gray-100 rounded-none uppercase tracking-widest text-lg font-black py-6 h-auto transition-all"
                     style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: "2px" }}
                   >
                     {createAlertMutation.isPending ? (
@@ -826,39 +826,39 @@ export default function Members() {
 
           {/* Community Tab */}
           <TabsContent value="community" className="mt-0">
-            <div className="bg-white border-2 border-black border-t-0 p-5 sm:p-10">
-              <h1 className="text-4xl sm:text-6xl font-black text-black uppercase tracking-tight leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+            <div className="bg-white border-2 border-black border-t-0 p-4 sm:p-10">
+              <h1 className="text-3xl sm:text-6xl font-black text-black uppercase tracking-tight leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                 Community Reports
               </h1>
-              <p className="text-xs sm:text-sm text-gray-500 uppercase tracking-widest mt-2 sm:mt-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              <p className="text-xs sm:text-sm text-gray-500 uppercase tracking-wide sm:tracking-widest mt-2 sm:mt-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                 See what surfers are reporting from the water
               </p>
             </div>
-            <div className="bg-white border-2 border-black border-t-0 p-6 sm:p-10 space-y-8">
+            <div className="bg-white border-2 border-black border-t-0 p-4 sm:p-10 space-y-6 sm:space-y-8">
               {/* Report Submission Card */}
               <div className="bg-white border-2 border-black">
-                <div className="p-5 sm:p-6 border-b-2 border-gray-200">
+                <div className="p-4 sm:p-6 border-b-2 border-gray-200">
                   <h3 className="text-2xl font-black uppercase mb-2 text-black"
                       style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
                     + Submit Report
                   </h3>
-                  <p className="text-xs text-gray-800 uppercase tracking-widest"
+                  <p className="text-xs text-gray-800 uppercase tracking-wide sm:tracking-widest"
                      style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                     Share how your session went
                   </p>
                 </div>
 
-                <div className="p-5 sm:p-6 space-y-4">
+                <div className="p-4 sm:p-6 space-y-4">
                   {/* Spot Selector */}
                   <div>
-                    <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-700 mb-2"
+                    <label className="block text-xs font-semibold uppercase tracking-wide sm:tracking-widest text-gray-700 mb-2"
                            style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                       Which Spot?
                     </label>
                     <select
                       value={reportSpotId ?? ""}
                       onChange={(e) => setReportSpotId(e.target.value ? parseInt(e.target.value) : null)}
-                      className="w-full bg-white border-2 border-black px-4 py-3 text-sm font-bold uppercase"
+                      className="w-full bg-white border-2 border-black px-4 py-4 text-sm font-bold uppercase"
                       style={{ fontFamily: "'JetBrains Mono', monospace" }}
                     >
                       <option value="">Select a spot...</option>
@@ -872,7 +872,7 @@ export default function Members() {
 
                   {/* Date Picker */}
                   <div>
-                    <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-700 mb-2"
+                    <label className="block text-xs font-semibold uppercase tracking-wide sm:tracking-widest text-gray-700 mb-2"
                            style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                       Session Date
                     </label>
@@ -886,7 +886,7 @@ export default function Members() {
                   <Button
                     onClick={handleNavigateToReport}
                     disabled={!reportSpotId}
-                    className="w-full bg-black text-white hover:bg-gray-800 border-2 border-black py-6 text-base font-black uppercase"
+                    className="w-full bg-black text-white hover:bg-gray-800 border-2 border-black py-6 text-lg font-black uppercase"
                     style={{ fontFamily: "'Bebas Neue', sans-serif" }}
                   >
                     Continue to Report Form →
@@ -907,18 +907,18 @@ export default function Members() {
 
           {/* Marketplace Tab */}
           <TabsContent value="services" className="mt-0">
-            <div className="bg-white border-2 border-black border-t-0 p-5 sm:p-10">
-              <h1 className="text-4xl sm:text-6xl font-black text-black uppercase tracking-tight leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+            <div className="bg-white border-2 border-black border-t-0 p-4 sm:p-10">
+              <h1 className="text-3xl sm:text-6xl font-black text-black uppercase tracking-tight leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                 Marketplace
               </h1>
-              <p className="text-xs sm:text-sm text-gray-800 uppercase tracking-widest mt-2 sm:mt-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              <p className="text-xs sm:text-sm text-gray-800 uppercase tracking-wide sm:tracking-widest mt-2 sm:mt-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                 Local shops, services & surf gear
               </p>
             </div>
             <div className="bg-white border-2 border-black border-t-0">
               {/* Coming Soon Banner */}
               <div className="p-4 sm:p-6 bg-black text-white text-center">
-                <p className="text-[10px] sm:text-xs uppercase tracking-widest font-semibold" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                <p className="text-xs uppercase tracking-widest font-semibold" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                   Coming Soon
                 </p>
               </div>
@@ -928,14 +928,14 @@ export default function Members() {
                 {/* Expert Calls */}
                 <div className="p-4 sm:p-5 border-2 border-gray-200 hover:border-black transition-all">
                   <div className="flex items-start gap-3 sm:gap-4">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-black flex items-center justify-center flex-shrink-0">
-                      <Phone className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                    <div className="w-12 h-12 bg-black flex items-center justify-center flex-shrink-0">
+                      <Phone className="h-6 w-6 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-base sm:text-lg font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                      <h3 className="text-lg font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                         Expert Calls
                       </h3>
-                      <p className="text-[10px] sm:text-xs text-gray-600 mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      <p className="text-xs text-gray-600 mt-2 leading-relaxed" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                         Book 1-on-1 calls with local surf experts. Get personalized advice on spots, conditions, and technique from surfers who know these breaks inside out.
                       </p>
                     </div>
@@ -945,14 +945,14 @@ export default function Members() {
                 {/* Lessons & Coaching */}
                 <div className="p-4 sm:p-5 border-2 border-gray-200 hover:border-black transition-all">
                   <div className="flex items-start gap-3 sm:gap-4">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-black flex items-center justify-center flex-shrink-0">
-                      <GraduationCap className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                    <div className="w-12 h-12 bg-black flex items-center justify-center flex-shrink-0">
+                      <GraduationCap className="h-6 w-6 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-base sm:text-lg font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                      <h3 className="text-lg font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                         Lessons & Coaching
                       </h3>
-                      <p className="text-[10px] sm:text-xs text-gray-600 mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      <p className="text-xs text-gray-600 mt-2 leading-relaxed" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                         Connect with certified instructors for private or group lessons. From beginners to advanced surfers looking to level up.
                       </p>
                     </div>
@@ -962,14 +962,14 @@ export default function Members() {
                 {/* Local Shops */}
                 <div className="p-4 sm:p-5 border-2 border-gray-200 hover:border-black transition-all">
                   <div className="flex items-start gap-3 sm:gap-4">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-black flex items-center justify-center flex-shrink-0">
-                      <Store className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                    <div className="w-12 h-12 bg-black flex items-center justify-center flex-shrink-0">
+                      <Store className="h-6 w-6 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-base sm:text-lg font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                      <h3 className="text-lg font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                         Local Shops & Rentals
                       </h3>
-                      <p className="text-[10px] sm:text-xs text-gray-600 mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      <p className="text-xs text-gray-600 mt-2 leading-relaxed" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                         Discover local surf shops, board rentals, and gear. Support the businesses that keep our surf community thriving.
                       </p>
                     </div>
@@ -979,14 +979,14 @@ export default function Members() {
                 {/* Board Repair */}
                 <div className="p-4 sm:p-5 border-2 border-gray-200 hover:border-black transition-all">
                   <div className="flex items-start gap-3 sm:gap-4">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-black flex items-center justify-center flex-shrink-0">
-                      <Wrench className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                    <div className="w-12 h-12 bg-black flex items-center justify-center flex-shrink-0">
+                      <Wrench className="h-6 w-6 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-base sm:text-lg font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                      <h3 className="text-lg font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                         Board Repair & Ding Fix
                       </h3>
-                      <p className="text-[10px] sm:text-xs text-gray-600 mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      <p className="text-xs text-gray-600 mt-2 leading-relaxed" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                         Find trusted local shapers and repair specialists. Get your board back in the water fast with quality craftsmanship.
                       </p>
                     </div>
@@ -997,15 +997,15 @@ export default function Members() {
               {/* Business Interest CTA */}
               <div className="p-4 sm:p-6 bg-gray-100 border-t-2 border-gray-200">
                 <div className="text-center">
-                  <p className="text-[10px] sm:text-xs text-gray-500 uppercase tracking-widest mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide sm:tracking-widest mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                     Are you a local business or expert?
                   </p>
-                  <p className="text-xs sm:text-sm text-gray-700" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  <p className="text-sm text-gray-700 leading-relaxed px-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                     We're building a directory of trusted local surf services. Get in touch to be featured when we launch.
                   </p>
                   <a
                     href="mailto:hello@nycsurfco.com?subject=Services Directory Interest"
-                    className="inline-block mt-3 sm:mt-4 px-4 sm:px-6 py-2 sm:py-3 bg-black text-white text-[10px] sm:text-xs uppercase tracking-widest font-semibold hover:bg-gray-800 transition-all"
+                    className="inline-block mt-4 px-6 py-3 bg-black text-white text-xs uppercase tracking-widest font-semibold hover:bg-gray-800 transition-all"
                     style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
                     Get In Touch
