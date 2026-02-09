@@ -102,9 +102,11 @@ export function calculateSpotMultiplier(
   periodS: number
 ): number {
   // Global Small Swell Damping (The "Lake Atlantic" Rule)
-  // Small swells lose energy to friction and cannot use canyon or inlet mechanics
-  if (swellHeightFt < 2.0) {
-    return 0.8;
+  // IMPORTANT: Only apply to wind swell (period < 10s), NOT groundswell!
+  // Small wind swells lose energy to friction and cannot use canyon mechanics
+  // But small groundswells (period ≥ 10s) maintain energy and refract properly
+  if (swellHeightFt < 2.0 && periodS < 10) {
+    return 0.8;  // Wind swell damping only
   }
 
   // Groundswell bonus: +0.1 for periods > 10s

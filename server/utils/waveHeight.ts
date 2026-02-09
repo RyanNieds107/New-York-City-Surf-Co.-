@@ -328,27 +328,51 @@ export function getDominantSwell(
   // CRITICAL FIX: Filter out blocked directions BEFORE selecting dominant swell
   // This prevents selecting a west swell (250-310°) that would be killed, resulting in 0ft
   const validCandidates = candidates.filter(c => !isDirectionBlocked(c.direction_deg));
-  
+
   if (validCandidates.length === 0) {
     console.log('❌ [getDominantSwell] All swells are blocked by land (250-310° west)!');
     return null;
   }
 
-  // Log energy comparison for valid (non-blocked) candidates
-  // Energy now includes period-quality factor: H² × T × quality_factor
-  console.log('📊 [getDominantSwell] Energy comparison (H²×T×quality) - valid swells only:', validCandidates.map(c => ({
-    type: c.type,
-    height: c.height_ft.toFixed(1),
-    period: c.period_s,
-    qualityFactor: getPeriodQualityFactor(c.period_s),
-    energy: c.energy.toFixed(1),
-    direction: c.direction_deg,
-  })));
+  // NEW: Classify swells as groundswell (period ≥ 7s) vs wind swell (period < 7s)
+  // Prefer groundswell when it's ≥ 1.0ft offshore height
+  const groundswells = validCandidates.filter(c => c.period_s >= 7 && c.height_ft >= 1.0);
 
-  // Sort by QUALITY-ADJUSTED ENERGY (H² × T × quality_factor) - highest energy wins
-  // Only considering non-blocked directions
-  const sorted = [...validCandidates].sort((a, b) => b.energy - a.energy);
-  const winner = sorted[0];
+  let winner: SwellCandidate;
+
+  if (groundswells.length > 0) {
+    // Select highest energy groundswell (prefer quality swell over wind chop)
+    const sortedGroundswells = [...groundswells].sort((a, b) => b.energy - a.energy);
+    winner = sortedGroundswells[0];
+
+    console.log('🌊 [getDominantSwell] GROUNDSWELL PREFERENCE: Found qualifying groundswells (period ≥7s, height ≥1.0ft):', groundswells.map(c => ({
+      type: c.type,
+      height: c.height_ft.toFixed(1),
+      period: c.period_s,
+      energy: c.energy.toFixed(1),
+    })));
+    console.log('✅ [getDominantSwell] Selected groundswell:', {
+      type: winner.type,
+      height: winner.height_ft.toFixed(1),
+      period: winner.period_s,
+      energy: winner.energy.toFixed(1),
+    });
+  } else {
+    // Fall back to energy-based selection among all valid swells
+    const sorted = [...validCandidates].sort((a, b) => b.energy - a.energy);
+    winner = sorted[0];
+
+    // Log energy comparison for valid (non-blocked) candidates
+    // Energy now includes period-quality factor: H² × T × quality_factor
+    console.log('📊 [getDominantSwell] Energy comparison (H²×T×quality) - valid swells only (no qualifying groundswells):', validCandidates.map(c => ({
+      type: c.type,
+      height: c.height_ft.toFixed(1),
+      period: c.period_s,
+      qualityFactor: getPeriodQualityFactor(c.period_s),
+      energy: c.energy.toFixed(1),
+      direction: c.direction_deg,
+    })));
+  }
 
   // NOW calculate breaking height for the winner, applying tide and directional penalties
   // Pass through buoyPeriodS for Dynamic Period Selection if available
