@@ -38,10 +38,10 @@ export function ReportFeed({ spotId, limit = 20 }: ReportFeedProps) {
           {/* Header */}
           <div className="flex items-start justify-between mb-3">
             <div>
-              <p className="font-bold text-sm" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              <p className="font-bold text-sm text-black" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                 {report.user?.name || "Anonymous"}
               </p>
-              <div className="flex items-center gap-2 text-xs text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              <div className="flex items-center gap-2 text-xs text-gray-700" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                 <span>{formatDistanceToNow(new Date(report.sessionDate), { addSuffix: true })}</span>
                 {!spotId && 'spot' in report && (
                   <>
@@ -78,14 +78,14 @@ export function ReportFeed({ spotId, limit = 20 }: ReportFeedProps) {
 
           {/* Quick Note */}
           {report.quickNote && (
-            <p className="text-sm mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+            <p className="text-sm mb-2 text-gray-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
               "{report.quickNote}"
             </p>
           )}
 
           {/* Crowd Level */}
           {report.crowdLevel && (
-            <div className="flex items-center gap-2 text-xs text-gray-600">
+            <div className="flex items-center gap-2 text-xs text-gray-700">
               <Users className="h-3.5 w-3.5" />
               <span>{["Empty", "Light", "Moderate", "Crowded", "Packed"][report.crowdLevel - 1]}</span>
             </div>

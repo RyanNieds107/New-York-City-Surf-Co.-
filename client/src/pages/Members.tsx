@@ -858,7 +858,7 @@ export default function Members() {
                     <select
                       value={reportSpotId ?? ""}
                       onChange={(e) => setReportSpotId(e.target.value ? parseInt(e.target.value) : null)}
-                      className="w-full bg-white border-2 border-black px-4 py-4 text-sm font-bold uppercase"
+                      className="w-full bg-white border-2 border-black px-4 py-4 text-sm font-bold uppercase text-black"
                       style={{ fontFamily: "'JetBrains Mono', monospace" }}
                     >
                       <option value="">Select a spot...</option>

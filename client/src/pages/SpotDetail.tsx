@@ -1925,6 +1925,31 @@ export default function SpotDetail() {
                   )}
                 </div>
               )}
+
+              {/* Compact Report Submission - Authenticated Users Only */}
+              {isAuthenticated && (
+                <div className="border-t-2 border-gray-200 bg-gray-50 px-4 sm:px-6 py-3">
+                  <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                    <div className="flex-1 sm:max-w-xs">
+                      <label className="block text-[9px] font-semibold uppercase tracking-widest text-gray-600 mb-1.5"
+                             style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        Share Your Session
+                      </label>
+                      <ReportDatePicker
+                        selectedDate={reportDate}
+                        onDateChange={setReportDate}
+                      />
+                    </div>
+                    <Button
+                      onClick={handleSubmitReport}
+                      className="bg-black text-white hover:bg-gray-800 border-2 border-black px-4 py-3 sm:mt-5 text-sm font-bold uppercase whitespace-nowrap"
+                      style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                    >
+                      Submit Report →
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Forecast Timeline - Multi-Day Forecast - NYC Grit Style */}
@@ -4589,43 +4614,6 @@ export default function SpotDetail() {
               </Button>
             </CardContent>
           </Card>
-        )}
-
-        {/* Report Submission CTA - Authenticated Users */}
-        {spot && isAuthenticated && (
-          <div className="mt-8 bg-white border-2 border-black">
-            <div className="p-5 sm:p-6 border-b-2 border-black">
-              <h3 className="text-2xl sm:text-3xl font-black uppercase"
-                  style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
-                Got a Surf Report?
-              </h3>
-              <p className="text-xs sm:text-sm text-gray-500 uppercase tracking-widest mt-2"
-                 style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                Help the community by sharing your session
-              </p>
-            </div>
-
-            <div className="p-5 sm:p-6 flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center">
-              <div className="flex-1">
-                <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-700 mb-2"
-                       style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                  Session Date
-                </label>
-                <ReportDatePicker
-                  selectedDate={reportDate}
-                  onDateChange={setReportDate}
-                />
-              </div>
-
-              <Button
-                onClick={handleSubmitReport}
-                className="bg-black text-white hover:bg-gray-800 border-2 border-black px-6 py-6 sm:py-3 sm:mt-5 text-base font-black uppercase whitespace-nowrap"
-                style={{ fontFamily: "'Bebas Neue', sans-serif" }}
-              >
-                Submit Report →
-              </Button>
-            </div>
-          </div>
         )}
 
         {/* Sign-in Prompt - Unauthenticated Users */}

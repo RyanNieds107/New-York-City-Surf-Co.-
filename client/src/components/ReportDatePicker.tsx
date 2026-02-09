@@ -39,7 +39,7 @@ export function ReportDatePicker({ selectedDate, onDateChange }: ReportDatePicke
       <PopoverTrigger asChild>
         <Button
           variant="outline"
-          className="w-full justify-between bg-white border-2 border-black hover:bg-gray-50 px-4 py-3 h-auto font-bold uppercase text-sm"
+          className="w-full justify-between bg-white border-2 border-black hover:bg-gray-50 px-4 py-3 h-auto font-bold uppercase text-sm text-black"
           style={{ fontFamily: "'JetBrains Mono', monospace" }}
         >
           <span>{formatDateLabel(selectedDate)}</span>
