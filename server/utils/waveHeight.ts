@@ -121,7 +121,9 @@ export function energyToBaseHeight(energy: number, periodS: number): number {
  */
 export function isDirectionBlocked(directionDeg: number | null): boolean {
   if (directionDeg === null || directionDeg === undefined) return false;
-  return directionDeg >= 250 && directionDeg <= 310;
+  // Block W → NW → N → NE (250° to 70°, wraps around 0°/360°)
+  // Long Island south shore can only receive swells from E → SE → S (70° to 250°)
+  return directionDeg >= 250 || directionDeg <= 70;
 }
 
 /**

@@ -98,6 +98,9 @@ export function scoreDirection(
   }
 
   // CHECK HARD BLOCKS FIRST (The "Deal Breakers")
+  // NOTE: Most blocked directions (250-70°) are filtered out by isDirectionBlocked()
+  // in getDominantSwell() before reaching this scoring function. These penalties serve
+  // as backup validation and documentation of why certain directions are problematic.
 
   // West Block (247.5° to 292.5°): Blocked by landmass, no real surf
   const isWestSwell = swellDirectionDeg >= 247.5 && swellDirectionDeg <= 292.5;
