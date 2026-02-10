@@ -285,7 +285,7 @@ function setupSwellAlertChecking(): void {
   console.log(`[Swell Alerts] Automatic checking enabled - will run every ${intervalHours} hour(s)`);
 
   // Import the check function dynamically
-  import("../jobs/checkSwellAlerts").then(({ checkSwellAlerts }) => {
+  import("../layers/retention/jobs/checkSwellAlerts").then(({ checkSwellAlerts }) => {
     // Run immediately on startup (after a short delay to let forecasts load)
     setTimeout(() => {
       console.log("[Swell Alerts] Running first check (after 5-minute startup delay)");
@@ -310,7 +310,7 @@ if (reportPromptsEnabled) {
   console.log("[Report Prompts] Automatic checking enabled - will run every hour");
 
   // Import the job function dynamically
-  import("../jobs/sendReportPrompts").then(({ sendReportPrompts }) => {
+  import("../layers/retention/jobs/sendReportPrompts").then(({ sendReportPrompts }) => {
     // Run immediately on startup (after a short delay)
     setTimeout(() => {
       sendReportPrompts().catch(console.error);
@@ -391,7 +391,7 @@ function setupStormglassVerification(): void {
   console.log(`[Stormglass Verification] Scheduled for 7 AM + 7 PM ET daily`);
 
   // Import the fetch function dynamically
-  import("../jobs/fetchStormglassVerification").then(({ fetchStormglassVerification }) => {
+  import("../layers/environmental/jobs/fetchStormglassVerification").then(({ fetchStormglassVerification }) => {
 
     // Schedule next morning sync
     const scheduleMorningSync = () => {

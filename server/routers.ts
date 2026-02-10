@@ -2167,12 +2167,14 @@ export const appRouter = router({
             });
           }
 
-          // Create fake detected swell data using the real spot ID
+          // Create fake detected swell data using the real spot ID (shape must match DetectedSwell for formatSwellAlertNotification)
           const now = new Date();
           const swellStartTime = new Date(now.getTime() + 24 * 60 * 60 * 1000); // Tomorrow
           const swellEndTime = new Date(swellStartTime.getTime() + 36 * 60 * 60 * 1000); // 36 hours later
 
           const fakeDetectedSwell = {
+            alertId: 0,
+            userId: ctx.user.id,
             spotId: realSpot.id,
             swellStartTime,
             swellEndTime,
@@ -2180,16 +2182,13 @@ export const appRouter = router({
             peakQualityScore: input.qualityScore,
             avgQualityScore: input.qualityScore,
             avgPeriodSec: input.periodSec,
-            bestDay: swellStartTime,
-            confidenceScore: 85,
             conditions: [
               {
+                timestamp: swellStartTime,
+                waveHeight: input.waveHeightFt,
+                period: input.periodSec,
                 windType: "offshore" as const,
-                windSpeed: 8,
-                windDirection: 315,
-                primarySwellDirection: 180,
-                primarySwellPeriod: input.periodSec,
-                primarySwellHeight: input.waveHeightFt,
+                qualityScore: input.qualityScore,
               },
             ],
           };

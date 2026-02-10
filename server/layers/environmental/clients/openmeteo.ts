@@ -1,6 +1,6 @@
 import axios from "axios";
-import type { SurfSpot } from "../../drizzle/schema";
-import type { InsertForecastPoint } from "../../drizzle/schema";
+import type { SurfSpot } from "../../../drizzle/schema";
+import type { InsertForecastPoint } from "../../../drizzle/schema";
 
 /**
  * Open-Meteo Marine Forecast Service

@@ -1,5 +1,5 @@
-import { ENV } from "../_core/env";
-import type { SurfSpot } from "../../drizzle/schema";
+import { ENV } from "../../../_core/env";
+import type { SurfSpot } from "../../../drizzle/schema";
 
 /**
  * Stormglass API Response structure (ECMWF wave data)

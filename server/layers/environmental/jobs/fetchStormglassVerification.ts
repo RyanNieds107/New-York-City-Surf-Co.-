@@ -7,9 +7,9 @@
  * With 3 spots × 2 syncs = 6 requests per day, leaving 4 spare for manual fetches.
  */
 
-import { getAllSpots, insertStormglassVerificationBatch, getLatestStormglassFetchTime } from "../db";
+import { getAllSpots, insertStormglassVerificationBatch, getLatestStormglassFetchTime } from "../../../db";
 import { fetchStormglassForSpot, type StormglassForecastPoint } from "../clients/stormglass";
-import type { InsertStormglassVerification } from "../../drizzle/schema";
+import type { InsertStormglassVerification } from "../../../../drizzle/schema";
 
 /**
  * Minimum hours between fetches for a single spot.
