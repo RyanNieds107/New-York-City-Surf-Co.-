@@ -4691,48 +4691,6 @@ export default function SpotDetail() {
             </Button>
           </div>
         )}
-
-        {/* Members-Only Feature Callout */}
-        {spot && (
-          <div className="mt-8 bg-white border-2 border-black p-8">
-            <div className="text-center max-w-2xl mx-auto">
-              <h3 className="text-3xl font-black uppercase mb-3 text-black"
-                  style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
-                Local Surf Logs & Reports
-              </h3>
-              <p className="text-base text-gray-700 mb-6"
-                 style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                See what the crew is saying about conditions and share your own sessions.
-                View local surf logs, submit post-surf reports with photos, and connect with the community.
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
-                {isAuthenticated ? (
-                  <Button
-                    onClick={() => setLocation("/members")}
-                    className="bg-black text-white hover:bg-gray-800 border-2 border-black px-8 py-4 font-black uppercase text-lg"
-                    style={{ fontFamily: "'Bebas Neue', sans-serif" }}
-                  >
-                    View Members Page
-                  </Button>
-                ) : (
-                  <>
-                    <Button
-                      onClick={() => setLocation("/login?redirect=/members")}
-                      className="bg-black text-white hover:bg-gray-800 border-2 border-black px-8 py-4 font-black uppercase text-lg"
-                      style={{ fontFamily: "'Bebas Neue', sans-serif" }}
-                    >
-                      Sign In
-                    </Button>
-                    <span className="text-sm text-gray-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      Don't have an account? Sign up to access
-                    </span>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
       </main>
 
       <Footer />
