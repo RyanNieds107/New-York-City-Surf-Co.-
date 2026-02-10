@@ -1,4 +1,5 @@
 import { date, decimal, index, int, mysqlEnum, mysqlTable, text, timestamp, unique, varchar } from "drizzle-orm/mysql-core";
+import { sql, SQL } from "drizzle-orm";
 
 /**
  * Core user table backing auth flow.
@@ -271,7 +272,9 @@ export const forecastViews = mysqlTable(
     userId: int("userId").notNull(),
     spotId: int("spotId").notNull(),
     viewedAt: timestamp("viewedAt").notNull().defaultNow(),
-    viewedDate: date("viewedDate").notNull(), // Generated column: DATE(viewedAt)
+    viewedDate: date("viewedDate")
+      .generatedAlwaysAs((): SQL => sql`DATE(${forecastViews.viewedAt})`, { mode: "stored" })
+      .notNull(),
     forecastTime: timestamp("forecastTime").notNull(), // Time user was viewing forecast for
     promptSent: int("promptSent").notNull().default(0), // 0 = not sent, 1 = sent
     promptSentAt: timestamp("promptSentAt"),

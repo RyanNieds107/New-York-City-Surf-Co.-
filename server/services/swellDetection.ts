@@ -55,11 +55,20 @@ export async function detectUpcomingSwells(
   // Check each spot
   for (const spot of spotsToCheck) {
     // Get forecast timeline (168 hours = 7 days)
-    const forecastPoints = await getForecastTimeline(spot.id, 168);
-    
-    if (forecastPoints.length === 0) {
+    const hoursAhead = 168;
+    const forecastPoints = await getForecastTimeline(spot.id, hoursAhead);
+
+    if (!forecastPoints || forecastPoints.length === 0) {
+      console.log(`[Swell Detection] Spot ${spot.id} (${spot.name}): No forecast data`, {
+        hoursAhead,
+        reason: "getForecastTimeline returned empty",
+      });
       continue;
     }
+    console.log(`[Swell Detection] Spot ${spot.id} (${spot.name}): Checking forecast`, {
+      forecastPoints: forecastPoints.length,
+      hoursAhead,
+    });
 
     // Generate forecast timeline with quality scores
     const tideInfo = await getCurrentTideInfo(spot.tideStationId);
@@ -97,6 +106,10 @@ export async function detectUpcomingSwells(
       latestTime,
       spot
     );
+    console.log(`[Swell Detection] Spot ${spot.id} (${spot.name}): Found ${matchingWindows.length} matching window(s)`, {
+      totalForecastPoints: forecastPoints.length,
+      matchedPoints: matchingWindows.length,
+    });
 
     // Convert to DetectedSwell format
     for (const window of matchingWindows) {

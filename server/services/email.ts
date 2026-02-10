@@ -58,8 +58,13 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     const data = await response.json().catch(() => ({}));
     console.log(`[Email] Successfully sent email to ${to} (ID: ${data.id || "unknown"})`);
     return true;
-  } catch (error) {
-    console.error("[Email] Error sending email:", error);
+  } catch (error: any) {
+    console.error("[Email] Failed to send email:", {
+      to,
+      subject,
+      error: error?.message || "Unknown error",
+      response: error?.response?.body || "No response body",
+    });
     return false;
   }
 }

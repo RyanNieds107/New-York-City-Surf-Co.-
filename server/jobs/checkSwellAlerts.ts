@@ -40,6 +40,20 @@ export async function checkSwellAlerts(): Promise<void> {
         // Detect swells matching this alert's criteria
         const now = new Date();
         let detectedSwells = await detectUpcomingSwells(alert, spots, now);
+        console.log(`[Swell Alerts] Alert #${alert.id}: Detected ${detectedSwells.length} swell(s)`, {
+          spotId: alert.spotId ?? "Best Spot Mode",
+          criteria: {
+            minWaveHeight: alert.minWaveHeightFt,
+            minQualityScore: alert.minQualityScore,
+            minSwellPeriod: alert.minPeriodSec,
+            idealWindOnly: alert.idealWindOnly,
+          },
+        });
+
+        if (detectedSwells.length === 0) {
+          console.log(`[Swell Alerts] Alert #${alert.id}: No swells matched criteria`);
+          continue;
+        }
 
         // BEST SPOT ONLY LOGIC: If spotId is null, only keep the best scoring spot
         if (alert.spotId === null && detectedSwells.length > 1) {
@@ -52,8 +66,17 @@ export async function checkSwellAlerts(): Promise<void> {
           const shouldSend = await shouldSendNotification(alert, detectedSwell, spots);
 
           if (!shouldSend) {
+            console.log(`[Swell Alerts] Alert #${alert.id}: Frequency check BLOCKED`, {
+              frequency: alert.notificationFrequency,
+              spotId: detectedSwell.spotId,
+              reason: "Frequency/threshold/timing window check failed",
+            });
             continue;
           }
+          console.log(`[Swell Alerts] Alert #${alert.id}: Frequency check PASSED`, {
+            frequency: alert.notificationFrequency,
+            spotId: detectedSwell.spotId,
+          });
 
           // Check if we already sent a notification for this swell (duplicate protection)
           // Skip duplicate protection for realtime/immediate - they should send every time the job runs
@@ -69,10 +92,29 @@ export async function checkSwellAlerts(): Promise<void> {
             );
 
             if (alreadySent) {
-              console.log(`[Swell Alerts] Skipping duplicate for alert ${alert.id} (frequency: ${frequency})`);
+              const toleranceMs = detectedSwell.swellEndTime.getTime() - detectedSwell.swellStartTime.getTime();
+              console.log(`[Swell Alerts] Alert #${alert.id}: DUPLICATE blocked`, {
+                spotId: detectedSwell.spotId,
+                swellStart: detectedSwell.swellStartTime,
+                toleranceHours: toleranceMs / (60 * 60 * 1000),
+                frequency,
+              });
               continue; // Skip if already notified for this exact swell window
             }
           }
+          console.log(`[Swell Alerts] Alert #${alert.id}: Sending notification`, {
+            spotId: detectedSwell.spotId,
+            method:
+              alert.emailEnabled === 1 && alert.smsEnabled === 1
+                ? "email+sms"
+                : alert.emailEnabled === 1
+                  ? "email"
+                  : alert.smsEnabled === 1
+                    ? "sms"
+                    : "none",
+            swellStart: detectedSwell.swellStartTime,
+            peakScore: detectedSwell.peakQualityScore,
+          });
 
           // Get user info for email/phone
           const user = await getUserById(alert.userId);
@@ -109,8 +151,18 @@ export async function checkSwellAlerts(): Promise<void> {
               text: notification.emailText,
             });
 
-            if (emailSent && alertLogId) {
-              await updateSwellAlertLogEmailSent(alertLogId);
+            if (!emailSent) {
+              console.error(`[Swell Alerts] Alert #${alert.id}: Email FAILED`, {
+                userId: alert.userId,
+                email: user.email,
+                spotId: detectedSwell.spotId,
+              });
+              errors++;
+            } else {
+              console.log(`[Swell Alerts] Alert #${alert.id}: Email sent successfully`);
+              if (alertLogId) {
+                await updateSwellAlertLogEmailSent(alertLogId);
+              }
             }
           }
 

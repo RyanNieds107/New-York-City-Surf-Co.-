@@ -288,11 +288,13 @@ function setupSwellAlertChecking(): void {
   import("../jobs/checkSwellAlerts").then(({ checkSwellAlerts }) => {
     // Run immediately on startup (after a short delay to let forecasts load)
     setTimeout(() => {
+      console.log("[Swell Alerts] Running first check (after 5-minute startup delay)");
       checkSwellAlerts().catch(console.error);
     }, 5 * 60 * 1000); // Wait 5 minutes for forecasts to refresh
 
     // Set up interval to run periodically
     setInterval(() => {
+      console.log(`[Swell Alerts] Running periodic check (every ${intervalHours} hours)`);
       checkSwellAlerts().catch(console.error);
     }, intervalMs);
   }).catch((error) => {
