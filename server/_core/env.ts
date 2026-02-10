@@ -8,6 +8,7 @@ const projectRoot = resolve(__dirname, "../..");
 
 if (process.env.NODE_ENV !== "production") {
   config({ path: resolve(projectRoot, ".env") });
+  config({ path: resolve(projectRoot, ".env.local"), override: true });
 }
 
 export const ENV = {

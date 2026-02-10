@@ -395,7 +395,7 @@ export async function fetchOpenMeteoForecastForSpot(
         // Temperature data
         waterTempF,
         airTempF,
-        source: "ww3", // Keep same source enum for compatibility
+        source: "openmeteo", // Correct source label for Open-Meteo data
       });
     }
 

@@ -48,8 +48,8 @@ import {
   findConditionsForSession,
   createSurfReportValidation,
 } from "./db";
-import { getCurrentTideInfo } from "./services/tides";
-import { getCurrentConditionsFromOpenMeteo } from "./services/openMeteo";
+import { getCurrentTideInfo } from "./layers/environmental/clients/tides";
+import { getCurrentConditionsFromOpenMeteo } from "./layers/environmental/clients/openmeteo";
 import { generateForecast, generateForecastTimeline } from "./services/forecast";
 import { makeRequest, type DistanceMatrixResult, type TravelMode } from "./_core/map";
 import { getSpotProfile, getSpotKey, SPOT_PROFILES } from "./utils/spotProfiles";
@@ -59,7 +59,7 @@ import { forecastPoints, conditionsLog, users, verificationTokens, type User } f
 import { eq, desc, and, gt } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { getDb } from "./db";
-import { fetchBuoy44065Cached, clearBuoyCache } from "./services/buoy44065";
+import { fetchBuoy44065Cached, clearBuoyCache } from "./layers/environmental/clients/buoy44065";
 import { addConfidenceToTimeline, getConfidenceSummary, getConfidenceBadgeText, getWaveHeightDiscrepancy, getWaveHeightDiscrepancyByDay, type ConfidenceLevel } from "./utils/forecastConfidence";
 import { adminProcedure } from "./_core/trpc";
 import { sendBatchEmails, sendEmail } from "./services/email";
