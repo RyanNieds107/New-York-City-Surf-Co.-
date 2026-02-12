@@ -2,7 +2,7 @@ import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, MapPin, Clock, Car, Train, ChevronDown, Users, User } from "lucide-react";
-import { SwellArrow, WindArrowBadge, Arrow } from "@/components/ui/arrow";
+import { SwellArrow, SwellArrowBadge, WindArrowBadge, Arrow } from "@/components/ui/arrow";
 import { useState, useEffect, useMemo } from "react";
 import { useLocation, Link } from "wouter";
 import { Footer } from "@/components/Footer";
@@ -411,8 +411,8 @@ function SpotForecastCard({ spot, isExpanded, onToggleExpand, onNavigate, isAuth
             </span>
           </div>
 
-          {/* 4-Card Info Grid - Always blue styled */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 sm:gap-2">
+          {/* 3-Card Info Grid - Always blue styled */}
+          <div className="grid grid-cols-3 gap-1 sm:gap-2">
             {/* Primary Height */}
             <div className="border-2 border-blue-300 bg-blue-50 p-2 sm:p-3 flex flex-col items-center justify-center gap-1 sm:gap-1.5">
               {buoyLoading ? (
@@ -428,31 +428,22 @@ function SpotForecastCard({ spot, isExpanded, onToggleExpand, onNavigate, isAuth
               </p>
             </div>
 
-            {/* Primary Period */}
+            {/* Primary Period with Direction Arrow */}
             <div className="border-2 border-blue-300 bg-blue-50 p-2 sm:p-3 flex flex-col items-center justify-center gap-1 sm:gap-1.5">
               {buoyLoading ? (
                 <div className="h-4 w-16 bg-blue-200 rounded animate-pulse"></div>
               ) : (
-                <span className="text-xs sm:text-sm font-bold text-black uppercase tracking-wider text-center leading-tight whitespace-nowrap" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                  {primarySwellPeriod}
-                </span>
+                <div className="flex items-center gap-1 sm:gap-1.5">
+                  <span className="text-xs sm:text-sm font-bold text-black uppercase tracking-wider text-center leading-tight whitespace-nowrap" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    {primarySwellPeriod}
+                  </span>
+                  {primarySwellData.primaryDirectionDeg !== null && (
+                    <SwellArrowBadge directionDeg={primarySwellData.primaryDirectionDeg} badgeSize="sm" />
+                  )}
+                </div>
               )}
               <p className="text-[8px] sm:text-[10px] text-blue-600 uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                 Period
-              </p>
-            </div>
-
-            {/* Swell Direction */}
-            <div className="border-2 border-blue-300 bg-blue-50 p-2 sm:p-3 flex flex-col items-center justify-center gap-1 sm:gap-1.5">
-              {buoyLoading ? (
-                <div className="h-4 w-12 bg-blue-200 rounded animate-pulse"></div>
-              ) : (
-                <span className="text-xs sm:text-sm font-bold text-black uppercase tracking-wider text-center leading-tight" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                  {primarySwellDirection}
-                </span>
-              )}
-              <p className="text-[8px] sm:text-[10px] text-blue-600 uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                Direction
               </p>
             </div>
 

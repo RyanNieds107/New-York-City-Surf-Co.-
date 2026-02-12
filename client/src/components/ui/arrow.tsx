@@ -97,6 +97,36 @@ export const SwellArrow = ({
   return <Arrow degrees={rotation} color={color} size={size} />;
 };
 
+interface SwellArrowBadgeProps {
+  /** Swell direction in degrees (where swell comes FROM) */
+  directionDeg: number;
+  /** Size of the badge container */
+  badgeSize?: "sm" | "md";
+}
+
+/**
+ * Swell direction arrow inside a blue rounded badge.
+ * Matches WindArrowBadge styling but with neutral blue colors.
+ */
+export const SwellArrowBadge = ({
+  directionDeg,
+  badgeSize = "md",
+}: SwellArrowBadgeProps) => {
+  // Swell direction is where it comes FROM, add 180 to show direction of travel
+  const rotation = (directionDeg + 180) % 360;
+  const sizeClasses = badgeSize === "sm" ? "w-6 h-6" : "w-7 h-7";
+  const arrowSize = badgeSize === "sm" ? 14 : 16;
+
+  return (
+    <div
+      className={`${sizeClasses} rounded-lg flex items-center justify-center`}
+      style={{ backgroundColor: "#dbeafe" }}
+    >
+      <Arrow degrees={rotation} color="#1e40af" size={arrowSize} />
+    </div>
+  );
+};
+
 interface TrendArrowProps {
   /** Whether the trend is rising (true) or falling (false) */
   rising: boolean;
