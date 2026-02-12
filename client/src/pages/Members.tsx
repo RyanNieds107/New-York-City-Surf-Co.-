@@ -704,7 +704,7 @@ export default function Members() {
                   </h1>
                   <p
                     className="text-[10px] sm:text-xs md:text-sm text-gray-700 uppercase tracking-wide sm:tracking-widest mt-1.5 sm:mt-2 max-w-3xl"
-                    style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                    style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
                   >
                     High-fidelity intel for Lido, Long Beach, and Rockaway. Built by surfers for the first 40 locals. Backed by 20+ years of experience
                   </p>
