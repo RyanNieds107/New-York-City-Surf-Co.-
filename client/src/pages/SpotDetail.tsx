@@ -38,6 +38,7 @@ import { CURRENT_CONDITIONS_MAX_AGE_MS, formatSurfHeight, processTimelineForArea
 import { WaveHeightChart } from "@/components/WaveHeightChart";
 import { SpotContextHeader, SPOT_CONTEXT } from "@/components/SpotContextHeader";
 import { AlertsPromo } from "@/components/AlertsPromo";
+import { GateOverlay } from "@/components/GateOverlay";
 import { getScoreBadgeColors } from "@/lib/ratingColors";
 import { isNighttime } from "@/lib/sunTimes";
 import { useCurrentConditions } from "@/hooks/useCurrentConditions";
@@ -215,7 +216,7 @@ function SpotIdealConditions({ spotName }: { spotName: string }) {
       {/* Note */}
       <div className="p-3 sm:p-4 bg-gray-50">
         <p className="text-[9px] sm:text-[10px] text-gray-500 text-center tracking-wide" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-          Based on analysis of the 100 best days at {spotName} over the last 10 years.
+          Based on top 100 days at {spotName} over the last 5 years.
         </p>
       </div>
     </div>
@@ -1010,7 +1011,6 @@ export default function SpotDetail() {
     return "";
   };
 
-
   // Format relative time
   const formatRelativeTime = (date: Date): string => {
     const now = new Date();
@@ -1140,6 +1140,20 @@ export default function SpotDetail() {
   const conditionsAsOf = currentConditions?.forecastTimestamp
     ? new Date(currentConditions.forecastTimestamp)
     : null;
+  const unlockRedirectPath = typeof window === "undefined"
+    ? `/spot/${spotId}`
+    : `${window.location.pathname}${window.location.hash || ""}`;
+  const showGuideIntelGate =
+    !isAuthenticated &&
+    (activeTab === "offshore-bathymetry" ||
+      activeTab === "getting-there" ||
+      activeTab === "location" ||
+      activeTab === "wave-mechanics" ||
+      activeTab === "surf-culture");
+
+  const handleUnlockSpot = () => {
+    setLocation(`/login?redirect=${encodeURIComponent(unlockRedirectPath)}`);
+  };
 
   return (
     <div className="min-h-screen bg-white">
@@ -1837,14 +1851,26 @@ export default function SpotDetail() {
                     </span>
                     <span className="ml-2 text-xs text-gray-500 group-hover:text-black transition-colors flex items-center gap-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                       <ExpandArrow expanded={showScoreBreakdown} size={10} />
-                      {showScoreBreakdown ? 'Hide breakdown' : 'Why this rating?'}
+                      {showScoreBreakdown
+                        ? (isAuthenticated ? 'Hide breakdown' : 'Hide preview')
+                        : (isAuthenticated ? 'Why this rating?' : 'Unlock breakdown')}
                     </span>
                   </button>
 
                   {/* Score Breakdown - Expandable */}
                   {showScoreBreakdown && currentConditions && (
                     <div className="mt-4 pt-4 border-t border-gray-200 animate-in slide-in-from-top-2 duration-200">
-                      <div className="flex justify-center gap-8">
+                      <GateOverlay
+                        locked={!isAuthenticated}
+                        title="FULL SCORE BREAKDOWN"
+                        description="Sign in to unlock the full factor breakdown."
+                        ctaLabel="SIGN IN TO UNLOCK"
+                        onUnlock={handleUnlockSpot}
+                        compact={true}
+                        cardClassName="max-w-lg"
+                        overlayClassName="items-center"
+                      >
+                        <div className="flex justify-center gap-8">
                         {/* Swell Score - uses NOAA buoy data when available */}
                         <div className="text-center">
                           <div className="text-xs text-gray-500 uppercase tracking-wider mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Swell</div>
@@ -1923,6 +1949,7 @@ export default function SpotDetail() {
                           </div>
                         </div>
                       </div>
+                      </GateOverlay>
                     </div>
                   )}
                 </div>
@@ -1980,30 +2007,26 @@ export default function SpotDetail() {
                         </div>
                         <p className="text-[10px] text-gray-600 uppercase tracking-widest mt-1"
                            style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                          Explore partner products
+                          Coming Soon
                         </p>
                       </div>
-                      <div className="p-4">
-                        <div className="flex items-center gap-3 mb-3">
-                          {/* Partner logo placeholder - replace with actual logo */}
-                          <div className="w-12 h-12 bg-black flex items-center justify-center">
-                            <ShoppingBag className="h-6 w-6 text-white" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-black"
-                               style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                              JS Surfboards
-                            </p>
-                            <p className="text-[10px] text-gray-600"
-                               style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                              Official Partner
-                            </p>
-                          </div>
+                      <div className="p-4 sm:p-6">
+                        <div className="border border-black bg-black px-2 py-1 inline-flex items-center mb-4">
+                          <span className="text-[9px] font-semibold uppercase tracking-widest text-white" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                            Coming Soon
+                          </span>
                         </div>
-                        <p className="text-sm text-gray-700"
-                           style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                          Explore surfboards for when the waves get better
+                        <p className="text-sm text-gray-700 mb-4" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                          We are building this section now.
                         </p>
+                        <a
+                          href="mailto:rniederreither@gmail.com?subject=Gear%20%26%20Services%20Interest"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center justify-center px-4 py-2 bg-black text-white text-[10px] uppercase tracking-widest hover:bg-gray-800 transition-colors"
+                          style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                        >
+                          Contact to learn more
+                        </a>
                       </div>
                     </a>
                   </div>
@@ -2637,7 +2660,14 @@ export default function SpotDetail() {
                   })()
                 ) : (
                 <div className="divide-y-2 divide-black">
-                    {groupedTimeline.map(([dayKey, points], dayIndex) => {
+                    {(() => {
+                      const gatedStartIndex = 2;
+                      const gateOverlayIndex =
+                        groupedTimeline.length > gatedStartIndex
+                          ? Math.floor((gatedStartIndex + groupedTimeline.length - 1) / 2)
+                          : -1;
+
+                      return groupedTimeline.map(([dayKey, points], dayIndex) => {
                       const today = new Date();
                       today.setHours(0, 0, 0, 0);
                       // Parse ISO date string (YYYY-MM-DD) to create date in local timezone
@@ -2902,8 +2932,9 @@ export default function SpotDetail() {
                         const dayDiscrepancy = byDay?.[easternDayKey];
                         const showModelSplit = Boolean(dayDiscrepancy?.hasLargeDiscrepancy);
                         const maxDiffFt: number | null = dayDiscrepancy?.maxDiffFt ?? null;
+                        const dayNeedsGate = !isAuthenticated && dayIndex >= 2;
 
-                        return (
+                        const dayCard = (
                           <div
                             key={dayKey}
                             className={`${showSurfableHoursCallout ? 'bg-white' : getCardBackgroundColor(avgScore)} border-l-4 ${getAccentColor(avgScore)} transition-all`}
@@ -3430,7 +3461,28 @@ export default function SpotDetail() {
                             </div>
                           </div>
                         );
-                    })}
+
+                        if (dayNeedsGate) {
+                          return (
+                            <GateOverlay
+                              key={dayKey}
+                              locked={true}
+                              showOverlay={dayIndex === gateOverlayIndex}
+                              title="PROPRIETARY 7-DAY OUTLOOK"
+                              description="Join the local lineup for free to view the detected swell windows."
+                              ctaLabel="ACCESS FOR FREE"
+                              onUnlock={handleUnlockSpot}
+                              cardClassName="max-w-2xl"
+                              overlayClassName="items-center justify-center"
+                            >
+                              {dayCard}
+                            </GateOverlay>
+                          );
+                        }
+
+                        return dayCard;
+                      });
+                    })()}
                 </div>
                 )
               ) : (
@@ -3561,6 +3613,15 @@ export default function SpotDetail() {
                 </div>
 
                 {/* Tab Content */}
+                <GateOverlay
+                  locked={showGuideIntelGate}
+                  title="Member-Only Intel: Access local sandbar data and wind-block guides."
+                  description="NYC Surf Co. Intel unlocks detailed bathymetry, wave mechanics, and culture notes from verified locals."
+                  ctaLabel="Unlock Member-Only Intel"
+                  onUnlock={handleUnlockSpot}
+                  cardClassName="max-w-2xl"
+                  overlayClassName="items-start pt-4 sm:pt-6"
+                >
                 <div className="min-h-[400px]">
                   {/* Ideal Conditions Tab */}
                   {activeTab === "ideal-conditions" && spot && (
@@ -4653,6 +4714,7 @@ export default function SpotDetail() {
                     </>
                   )}
                 </div>
+                </GateOverlay>
               </div>
             )}
 
@@ -4673,23 +4735,6 @@ export default function SpotDetail() {
               </Button>
             </CardContent>
           </Card>
-        )}
-
-        {/* Sign-in Prompt - Unauthenticated Users */}
-        {spot && !isAuthenticated && (
-          <div className="mt-8 bg-gray-50 border-2 border-gray-200 p-6 text-center">
-            <p className="text-sm text-gray-600 mb-3"
-               style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-              Sign in to submit surf reports
-            </p>
-            <Button
-              onClick={() => setLocation("/login")}
-              variant="outline"
-              className="border-2 border-black"
-            >
-              Sign In
-            </Button>
-          </div>
         )}
       </main>
 

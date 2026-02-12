@@ -11,6 +11,7 @@ import { PhotoSpotCard } from "@/components/PhotoSpotCard";
 import { Footer } from "@/components/Footer";
 import { YearInReview2025 } from "@/components/YearInReview2025";
 import { Logo } from "@/components/Logo";
+import { GateOverlay } from "@/components/GateOverlay";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 
@@ -59,10 +60,15 @@ export default function Dashboard() {
   );
 
   // Auth and alerts query for promo banner
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
+  const showGuideGate = !isAuthenticated;
   const alertsQuery = trpc.alerts.list.useQuery(undefined, {
     enabled: isAuthenticated,
   });
+
+  const unlockGuide = () => {
+    setLocation(`/login?redirect=${encodeURIComponent("/surf-analysis")}`);
+  };
 
   const refreshAllMutation = trpc.forecasts.refreshAll.useMutation({
     onSuccess: () => {
@@ -428,42 +434,53 @@ export default function Dashboard() {
             {/* <YearInReview2025 /> */}
 
             {/* Surf Analysis Card */}
-            <Card
-              id="surf-analysis-card"
-              className="bg-white border-2 border-black rounded-none shadow-lg mt-6 sm:mt-8 md:mt-12 mb-4 sm:mb-6 md:mb-8 overflow-hidden cursor-pointer group transition-all duration-300 hover:scale-[1.02] hover:shadow-xl p-0"
-              style={{ borderRadius: '2px' }}
-              onClick={() => setLocation("/surf-analysis")}
-            >
-              {/* Header Section */}
-              <div className="bg-gray-50 px-4 sm:px-6 md:px-8 lg:px-12 py-6 sm:py-8 md:py-10 lg:py-12 border-b-2 border-black">
-                {/* GUIDE Badge */}
-                <div className="mb-4 sm:mb-6">
-                  <span className="inline-block px-3 py-1.5 sm:px-4 sm:py-2 bg-black text-white text-[10px] sm:text-xs font-bold uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", letterSpacing: '2px' }}>
-                    GUIDE
-                  </span>
-                </div>
-                <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black text-black mb-3 sm:mb-4 leading-tight tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                  When Western Long Island Surf Actually Works
-                </h2>
-                <div className="text-xs sm:text-sm md:text-base text-gray-700 font-semibold" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                  An analysis based on five years of historical swell data
-                </div>
-              </div>
-
-              <CardContent className="px-4 sm:px-6 md:px-8 lg:px-12 py-4 sm:py-6 md:py-8 bg-white">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <p className="text-sm sm:text-base md:text-lg text-gray-700 mb-3 sm:mb-4" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                    We tracked every surfable day on Western Long Island over the last five years, using Lido Beach as a baseline. Here's what the numbers say.
-                    </p>
-                    <div className="text-xs sm:text-sm text-black uppercase tracking-wider transition-colors group-hover:text-gray-700" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      Click to read full analysis →
+            <div className="relative mt-6 sm:mt-8 md:mt-12 mb-4 sm:mb-6 md:mb-8">
+              <GateOverlay
+                locked={showGuideGate}
+                title="Unlock our 5-Year Swell Study"
+                description="Wave Intelligence is reserved for members. Join the lineup to unlock the full analysis."
+                ctaLabel="Enter Email to Unlock Full Analysis"
+                onUnlock={unlockGuide}
+                overlayClassName="items-center justify-center"
+              >
+                <Card
+                  id="surf-analysis-card"
+                  className={`bg-white border-2 border-black rounded-none shadow-lg overflow-hidden group transition-all duration-300 p-0 ${showGuideGate ? "" : "cursor-pointer hover:scale-[1.02] hover:shadow-xl"}`}
+                  style={{ borderRadius: '2px' }}
+                  onClick={showGuideGate ? undefined : () => setLocation("/surf-analysis")}
+                >
+                  {/* Header Section */}
+                  <div className="bg-gray-50 px-4 sm:px-6 md:px-8 lg:px-12 py-6 sm:py-8 md:py-10 lg:py-12 border-b-2 border-black">
+                    {/* GUIDE Badge */}
+                    <div className="mb-4 sm:mb-6">
+                      <span className="inline-block px-3 py-1.5 sm:px-4 sm:py-2 bg-black text-white text-[10px] sm:text-xs font-bold uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", letterSpacing: '2px' }}>
+                        GUIDE
+                      </span>
+                    </div>
+                    <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black text-black mb-3 sm:mb-4 leading-tight tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                      When Western Long Island Surf Actually Works
+                    </h2>
+                    <div className="text-xs sm:text-sm md:text-base text-gray-700 font-semibold" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                      An analysis based on five years of historical swell data
                     </div>
                   </div>
-                  <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6 text-black ml-3 sm:ml-4 transition-transform group-hover:translate-x-1" />
-                </div>
-              </CardContent>
-            </Card>
+
+                  <CardContent className="px-4 sm:px-6 md:px-8 lg:px-12 py-4 sm:py-6 md:py-8 bg-white">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-sm sm:text-base md:text-lg text-gray-700 mb-3 sm:mb-4" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                        We tracked every surfable day on Western Long Island over the last five years, using Lido Beach as a baseline. Here's what the numbers say.
+                        </p>
+                        <div className="text-xs sm:text-sm text-black uppercase tracking-wider transition-colors group-hover:text-gray-700" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                          Click to read full analysis →
+                        </div>
+                      </div>
+                      <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6 text-black ml-3 sm:ml-4 transition-transform group-hover:translate-x-1" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </GateOverlay>
+            </div>
           </>
         )}
 

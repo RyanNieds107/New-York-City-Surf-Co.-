@@ -1,10 +1,10 @@
 import { Link } from "wouter";
-import { Instagram, Facebook, Compass, Share2, FileText, Users } from "lucide-react";
+import { Instagram, Facebook, Compass, Share2, FileText } from "lucide-react";
 import { Logo } from "./Logo";
 import { useAuth } from "@/_core/hooks/useAuth";
 
 export function Footer() {
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   return (
     <footer className="bg-white border-t-2 border-black mt-auto">
@@ -55,17 +55,7 @@ export function Footer() {
                     className="text-xs md:text-sm text-black hover:bg-black hover:text-white px-1 py-0.5 md:px-2 md:py-1 -ml-1 md:-ml-2 transition-colors inline-block font-medium"
                     style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
                   >
-                    Our Mission
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/members"
-                    className="flex items-center gap-1 md:gap-2 text-xs md:text-sm text-black hover:bg-black hover:text-white px-1 py-0.5 md:px-2 md:py-1 -ml-1 md:-ml-2 transition-colors font-medium"
-                    style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
-                  >
-                    <Users className="h-3 w-3 md:h-4 md:w-4" />
-                    Members Portal
+                     Our Mission
                   </Link>
                 </li>
                 {!isAuthenticated && (
@@ -118,20 +108,6 @@ export function Footer() {
                   >
                     <Facebook className="h-3 w-3 md:h-4 md:w-4" />
                     Facebook
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="https://tiktok.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 md:gap-2 text-xs md:text-sm text-black hover:bg-black hover:text-white px-1 py-0.5 md:px-2 md:py-1 -ml-1 md:-ml-2 transition-colors font-medium"
-                    style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
-                  >
-                    <svg className="h-3 w-3 md:h-4 md:w-4" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
-                    </svg>
-                    TikTok
                   </a>
                 </li>
               </ul>

@@ -187,19 +187,38 @@ const formatBuoyTimestamp = (timestamp: Date | string): string => {
   });
 };
 
+const formatRelativeAgeCompact = (timestamp: Date | string): string => {
+  const date = typeof timestamp === "string" ? new Date(timestamp) : timestamp;
+  const diffMs = Date.now() - date.getTime();
+  const diffMins = Math.max(0, Math.floor(diffMs / 60000));
+  if (diffMins < 1) return "NOW";
+  if (diffMins < 60) return `${diffMins}M AGO`;
+  if (diffMins < 24 * 60) return `${Math.floor(diffMins / 60)}H AGO`;
+  return `${Math.floor(diffMins / (24 * 60))}D AGO`;
+};
+
+const degreesToCardinal = (deg: number | null | undefined): string => {
+  if (deg === null || deg === undefined) return "N/A";
+  const cardinals = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+  const index = Math.round(deg / 22.5) % 16;
+  return cardinals[index];
+};
+
+
 // SpotForecastCard component - extracted to properly use hooks
 type SpotForecastCardProps = {
   spot: { id: number; name: string };
   isExpanded: boolean;
   onToggleExpand: () => void;
   onNavigate: (path: string) => void;
+  isAuthenticated: boolean;
   travelMode?: "driving" | "transit";
   useNeutralBackground?: boolean;
   // Legacy props for compatibility (unused - hook handles data)
   buoyData?: BuoyReading;
 };
 
-function SpotForecastCard({ spot, isExpanded, onToggleExpand, onNavigate, travelMode = "driving", useNeutralBackground = false, buoyData }: SpotForecastCardProps) {
+function SpotForecastCard({ spot, isExpanded, onToggleExpand, onNavigate, isAuthenticated, travelMode = "driving", useNeutralBackground = false, buoyData }: SpotForecastCardProps) {
   // Use unified hook for current conditions (same logic as spot detail pages and banner)
   const currentData = useCurrentConditions(spot.id);
 
@@ -220,11 +239,18 @@ function SpotForecastCard({ spot, isExpanded, onToggleExpand, onNavigate, travel
   const surfHeight = formatSurfHeight(heightUsed);
   const ratingLabel = getRatingLabel(score, surfHeight);
 
-  // Swell info from unified hook
-  const swellPeriod = currentData.swell.period !== null ? `${currentData.swell.period.toFixed(0)}s` : '—';
-  const swellDirection = currentData.swell.direction !== null ? formatSwellDirection(currentData.swell.direction) : '—';
-  const swellDirectionDeg = currentData.swell.direction;
-  
+  // Swell info - BUOY BOXES MUST USE PRIMARY SWELL (not dominant)
+  // Box 1 shows PRIMARY swell height, so Box 2 must show PRIMARY swell period
+  // Priority: timeline PRIMARY swell → buoy fallback → dominant fallback
+  // Note: Buoy's SwP field reports dominant energy swell at buoy location (can be secondary),
+  // so timeline PRIMARY data is more accurate for matching the "PRIMARY" label in expanded view
+  const primaryPeriod = currentPoint?.wavePeriodSec ?? buoyData?.swellPeriod ?? currentData.swell.period;
+  const primaryDirection = currentPoint?.waveDirectionDeg ?? buoyData?.swellDirectionDeg ?? currentData.swell.direction;
+
+  const swellPeriod = primaryPeriod !== null && primaryPeriod !== undefined ? `${primaryPeriod.toFixed(0)}s` : '—';
+  const swellDirection = primaryDirection !== null ? formatSwellDirection(primaryDirection) : '—';
+  const swellDirectionDeg = primaryDirection;
+
   // Get just the cardinal direction without degrees
   const getCardinalDirection = (deg: number | null | undefined): string => {
     if (deg === null || deg === undefined) return "—";
@@ -233,7 +259,7 @@ function SpotForecastCard({ spot, isExpanded, onToggleExpand, onNavigate, travel
     const index = Math.round(deg / 22.5) % 16;
     return cardinals[index];
   };
-  const swellDirectionLabel = getCardinalDirection(currentData.swell.direction);
+  const swellDirectionLabel = getCardinalDirection(primaryDirection);
 
   // Wind info from unified hook
   const windSpeed = currentData.wind.speedMph !== null
@@ -253,6 +279,7 @@ function SpotForecastCard({ spot, isExpanded, onToggleExpand, onNavigate, travel
   // Get background tint based on score
   // If useNeutralBackground is true, always use white (no tints)
   const backgroundTint = useNeutralBackground ? "bg-white" : getScoreBackgroundTint(score, false);
+  const showVerdictGate = !isAuthenticated;
 
   return (
     <div
@@ -292,26 +319,46 @@ function SpotForecastCard({ spot, isExpanded, onToggleExpand, onNavigate, travel
           </div>
 
           {/* Right: Score badge + rating */}
-          <div className="flex flex-col items-end gap-1 sm:gap-2">
-            {/* Clean square score badge with label */}
-            <div className="flex flex-col items-center">
-              <span className="text-[8px] sm:text-[9px] text-gray-600 uppercase tracking-wider mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                SCORE
-              </span>
-              <div
-                className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 flex items-center justify-center transition-all duration-300 border-2 border-black"
-                style={{
-                  backgroundColor: getScoreBadgeHexColor(score),
-                }}
-              >
-                <span className="text-xl sm:text-2xl font-black leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", color: getScoreBadgeTextHexColor(score) }}>
-                  {score}
+          <div className="relative">
+            <div className="flex flex-col items-end gap-1 sm:gap-2">
+              {/* Clean square score badge with label */}
+              <div className="flex flex-col items-center">
+                <span className="text-[8px] sm:text-[9px] text-gray-600 uppercase tracking-wider mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  SCORE
                 </span>
+                <div
+                  className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 flex items-center justify-center transition-all duration-300 border-2 border-black"
+                  style={{
+                    backgroundColor: getScoreBadgeHexColor(score),
+                  }}
+                >
+                  <span className="text-xl sm:text-2xl font-black leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", color: getScoreBadgeTextHexColor(score) }}>
+                    {score}
+                  </span>
+                </div>
               </div>
+              <span className="text-[9px] sm:text-[10px] font-medium text-black uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                {ratingLabel}
+              </span>
             </div>
-            <span className="text-[9px] sm:text-[10px] font-medium text-black uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-              {ratingLabel}
-            </span>
+
+            {showVerdictGate && (
+              <>
+                <div className="absolute inset-0 z-20 bg-white/20 backdrop-blur-[10px]" />
+                <div className="absolute inset-0 z-30 flex items-center justify-center px-2">
+                  <Button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigate(`/login?redirect=${encodeURIComponent("/")}`);
+                    }}
+                    className="bg-black text-white hover:bg-gray-800 border-2 border-black rounded-none uppercase tracking-wide px-3 sm:px-4 py-2 text-[10px] sm:text-xs"
+                    style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                  >
+                    Unlock Verdict
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -834,12 +881,9 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
     });
   }, [bestSpot, isSurfable, rockawayData.buoyData, hasLoggedThisHour, logConditionsMutation]);
 
-  // Find next surf window if not currently surfable
-  const findNextWindow = () => {
-    if (isSurfable) return null;
-
+  // Helper function to scan for future surf windows at a given score threshold
+  const scanForWindows = (minScore: number): Array<{ name: string; time: Date; score: number; endTime?: Date }> => {
     const futureWindows: Array<{ name: string; time: Date; score: number; endTime?: Date }> = [];
-    
     const now = Date.now();
 
     for (const spot of currentConditions) {
@@ -859,9 +903,9 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
       for (const point of timeline) {
         const pointTime = new Date(point.forecastTimestamp);
         if (pointTime.getTime() <= now) continue; // Skip past times
-        
+
         const isNight = isNighttime(pointTime, lat, lng);
-        
+
         // If we hit nighttime and have an open window, close it at the last daylight hour
         if (isNight && windowStart && lastDaylightTime) {
           futureWindows.push({ name, time: windowStart, score: windowScore, endTime: lastDaylightTime });
@@ -869,19 +913,19 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
           lastDaylightTime = null;
           continue;
         }
-        
+
         // Skip nighttime hours
         if (isNight) continue;
-        
+
         // Track last daylight time for window ending
         lastDaylightTime = pointTime;
 
         const score = point.quality_score ?? point.probabilityScore ?? 0;
 
-        if (score >= 50 && !windowStart) {
+        if (score >= minScore && !windowStart) {
           windowStart = pointTime;
           windowScore = score;
-        } else if (score < 50 && windowStart) {
+        } else if (score < minScore && windowStart) {
           futureWindows.push({ name, time: windowStart, score: windowScore, endTime: pointTime });
           windowStart = null;
         }
@@ -895,10 +939,35 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
 
     // Sort by time, return earliest
     futureWindows.sort((a, b) => a.time.getTime() - b.time.getTime());
-    return futureWindows[0] || null;
+    return futureWindows;
   };
 
-  const nextWindow = findNextWindow();
+  // Find next surf window with two-tier threshold system
+  // Good windows: score >= 50 (Fair/Good conditions)
+  // Marginal windows: score >= 40 (Worth a Look conditions)
+  const findNextWindowTwoTier = (): {
+    type: 'good' | 'marginal' | 'none';
+    window: { name: string; time: Date; score: number; endTime?: Date } | null;
+  } => {
+    if (isSurfable) return { type: 'none', window: null };
+
+    // Scan 1: Look for score >= 50 (good windows)
+    const goodWindows = scanForWindows(50);
+    if (goodWindows.length > 0) {
+      return { type: 'good', window: goodWindows[0] };
+    }
+
+    // Scan 2: Look for score >= 40 (marginal windows)
+    const marginalWindows = scanForWindows(40);
+    if (marginalWindows.length > 0) {
+      return { type: 'marginal', window: marginalWindows[0] };
+    }
+
+    // No windows found in 7-day forecast
+    return { type: 'none', window: null };
+  };
+
+  const nextWindowData = findNextWindowTwoTier();
 
   // Format time for display
   const formatWindowTime = (date: Date, endDate?: Date) => {
@@ -1263,11 +1332,20 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
               <span className="text-2xl md:text-3xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                 {unsurfableInfo.headline}
               </span>
-              {nextWindow && (
+              {nextWindowData.type !== 'none' && nextWindowData.window && (
                 <>
                   <span className="text-xl md:text-2xl text-gray-400" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>•</span>
-                  <span className="text-xl md:text-2xl text-gray-700" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                    Next window: {formatWindowTime(nextWindow.time, nextWindow.endTime)}
+                  <span className={`text-xl md:text-2xl ${nextWindowData.type === 'good' ? 'text-green-700' : 'text-yellow-700'}`} style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                    {nextWindowData.type === 'good' ? 'Good window: ' : 'Marginal window: '}
+                    {formatWindowTime(nextWindowData.window.time, nextWindowData.window.endTime)}
+                  </span>
+                </>
+              )}
+              {nextWindowData.type === 'none' && !isSurfable && (
+                <>
+                  <span className="text-xl md:text-2xl text-gray-400" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>•</span>
+                  <span className="text-xl md:text-2xl text-gray-500" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                    No improvement in 7-day forecast
                   </span>
                 </>
               )}
@@ -1343,6 +1421,12 @@ export default function LandingPage() {
   // Get featured spots (simplified - no forecast data, hooks fetch per spot)
   const featuredSpots = spotsQuery.data
     ?.filter((spot) => featuredSpotNames.includes(spot.name)) || [];
+  const rockawayId = featuredSpots.find((s) => s.name === "Rockaway Beach")?.id ?? 0;
+  const longBeachId = featuredSpots.find((s) => s.name === "Long Beach")?.id ?? 0;
+  const lidoId = featuredSpots.find((s) => s.name === "Lido Beach")?.id ?? 0;
+  const rockawayLive = useCurrentConditions(rockawayId);
+  const longBeachLive = useCurrentConditions(longBeachId);
+  const lidoLive = useCurrentConditions(lidoId);
 
   const scrollToFeatured = () => {
     document.getElementById("featured-spots")?.scrollIntoView({ behavior: "smooth" });
@@ -1356,6 +1440,92 @@ export default function LandingPage() {
     });
   };
 
+  const landingLiveStatusLine = useMemo(() => {
+    const buoy = buoyQuery.data;
+    const rockawayHeight = buoyBreakingHeightsQuery.data?.["Rockaway Beach"]?.height ?? buoy?.waveHeight ?? null;
+    const period = buoy?.dominantPeriod ?? null;
+    const windMph = buoy?.windSpeedKts != null ? Math.round(buoy.windSpeedKts * 1.15) : null;
+    const windDirection = degreesToCardinal(buoy?.windDirectionDeg ?? null);
+    const ageLabel = buoy?.timestamp ? formatRelativeAgeCompact(buoy.timestamp) : "UPDATING";
+    return `LIVE ROCKAWAY: ${rockawayHeight != null ? `${rockawayHeight.toFixed(1)}FT` : "N/A"} @ ${period != null ? `${Math.round(period)}S` : "N/A"} • ${windMph != null ? `${windMph}MPH` : "N/A"} ${windDirection} • ${ageLabel}`;
+  }, [buoyQuery.data, buoyBreakingHeightsQuery.data]);
+
+  const landingNextWindowLine = useMemo(() => {
+    const now = Date.now();
+    const spotCoordinatesMap: Record<string, string> = {
+      "Rockaway": "40.5794,-73.8136",
+      "Long Beach": "40.5884,-73.6580",
+      "Lido": "40.5890,-73.6250",
+    };
+
+    const candidates = [
+      { name: "Rockaway", timeline: rockawayLive.queries.timeline.data?.timeline },
+      { name: "Long Beach", timeline: longBeachLive.queries.timeline.data?.timeline },
+      { name: "Lido", timeline: lidoLive.queries.timeline.data?.timeline },
+    ];
+
+    // Helper to find windows at a given threshold (daylight hours only)
+    const findWindowsAtThreshold = (minScore: number): Array<{ name: string; start: Date; score: number }> => {
+      const windows: Array<{ name: string; start: Date; score: number }> = [];
+      candidates.forEach((candidate) => {
+        if (!candidate.timeline) return;
+
+        // Get coordinates for nighttime check
+        const coords = spotCoordinatesMap[candidate.name];
+        if (!coords) return;
+        const [lat, lng] = coords.split(',').map(Number);
+
+        const next = candidate.timeline.find((point) => {
+          const pointTime = new Date(point.forecastTimestamp);
+          const t = pointTime.getTime();
+
+          // Skip past times
+          if (t <= now) return false;
+
+          // Skip nighttime hours
+          if (isNighttime(pointTime, lat, lng)) return false;
+
+          const score = point.quality_score ?? point.probabilityScore ?? 0;
+          return score >= minScore;
+        });
+        if (next) {
+          const score = next.quality_score ?? next.probabilityScore ?? 0;
+          windows.push({ name: candidate.name, start: new Date(next.forecastTimestamp), score });
+        }
+      });
+      return windows;
+    };
+
+    // Try for good windows (score >= 50)
+    let windows = findWindowsAtThreshold(50);
+    let windowType: 'good' | 'marginal' | 'none' = 'good';
+
+    // If no good windows, try marginal (score >= 40)
+    if (windows.length === 0) {
+      windows = findWindowsAtThreshold(40);
+      windowType = windows.length > 0 ? 'marginal' : 'none';
+    }
+
+    // No windows found
+    if (windows.length === 0) {
+      return "NEXT WINDOW: NO IMPROVEMENT IN 7-DAY FORECAST";
+    }
+
+    // Format the earliest window
+    windows.sort((a, b) => a.start.getTime() - b.start.getTime());
+    const next = windows[0];
+    const isToday = next.start.toDateString() === new Date().toDateString();
+    const isTomorrow = next.start.toDateString() === new Date(Date.now() + 86400000).toDateString();
+    const dayLabel = isToday
+      ? "TODAY"
+      : isTomorrow
+        ? "TOMORROW"
+        : next.start.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase();
+    const hourLabel = next.start.toLocaleTimeString("en-US", { hour: "numeric", hour12: true }).replace(" ", "").toUpperCase();
+
+    const prefix = windowType === 'good' ? 'GOOD WINDOW' : 'MARGINAL WINDOW';
+    return `${prefix}: ${next.name.toUpperCase()} ${dayLabel} ${hourLabel}`;
+  }, [rockawayLive.queries.timeline.data?.timeline, longBeachLive.queries.timeline.data?.timeline, lidoLive.queries.timeline.data?.timeline]);
 
   return (
     <div className="min-h-screen bg-white">
@@ -1378,7 +1548,7 @@ export default function LandingPage() {
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
-                    className="text-white hover:text-white/80 hover:bg-white/10 px-3 py-2 text-sm font-bold uppercase"
+                    className="text-white hover:text-white/80 hover:bg-white/10 px-3 py-2 text-base font-bold uppercase"
                     style={{ fontFamily: "'Bebas Neue', sans-serif" }}
                   >
                     Forecasting
@@ -1388,21 +1558,21 @@ export default function LandingPage() {
                 <DropdownMenuContent align="center" className="w-48 bg-white border-2 border-black rounded-none shadow-lg">
                   <DropdownMenuItem
                     onClick={() => setLocation("/spot/3")}
-                    className="cursor-pointer px-4 py-3 text-sm font-bold hover:bg-black hover:text-white focus:bg-black focus:text-white"
+                    className="cursor-pointer px-4 py-3 text-sm font-bold text-gray-900 hover:bg-black hover:text-white focus:bg-black focus:text-white"
                     style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
                     Rockaway
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => setLocation("/spot/2")}
-                    className="cursor-pointer px-4 py-3 text-sm font-bold hover:bg-black hover:text-white focus:bg-black focus:text-white"
+                    className="cursor-pointer px-4 py-3 text-sm font-bold text-gray-900 hover:bg-black hover:text-white focus:bg-black focus:text-white"
                     style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
                     Long Beach
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => setLocation("/spot/1")}
-                    className="cursor-pointer px-4 py-3 text-sm font-bold hover:bg-black hover:text-white focus:bg-black focus:text-white"
+                    className="cursor-pointer px-4 py-3 text-sm font-bold text-gray-900 hover:bg-black hover:text-white focus:bg-black focus:text-white"
                     style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
                     Lido Beach
@@ -1415,7 +1585,7 @@ export default function LandingPage() {
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
-                    className="text-white hover:text-white/80 hover:bg-white/10 px-3 py-2 text-sm font-bold uppercase"
+                    className="text-white hover:text-white/80 hover:bg-white/10 px-3 py-2 text-base font-bold uppercase"
                     style={{ fontFamily: "'Bebas Neue', sans-serif" }}
                   >
                     Local Guides
@@ -1425,21 +1595,21 @@ export default function LandingPage() {
                 <DropdownMenuContent align="center" className="w-48 bg-white border-2 border-black rounded-none shadow-lg">
                   <DropdownMenuItem
                     onClick={() => setLocation("/spot/3#guide")}
-                    className="cursor-pointer px-4 py-3 text-sm font-bold hover:bg-black hover:text-white focus:bg-black focus:text-white"
+                    className="cursor-pointer px-4 py-3 text-sm font-bold text-gray-900 hover:bg-black hover:text-white focus:bg-black focus:text-white"
                     style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
                     Rockaway
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => setLocation("/spot/2#guide")}
-                    className="cursor-pointer px-4 py-3 text-sm font-bold hover:bg-black hover:text-white focus:bg-black focus:text-white"
+                    className="cursor-pointer px-4 py-3 text-sm font-bold text-gray-900 hover:bg-black hover:text-white focus:bg-black focus:text-white"
                     style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
                     Long Beach
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => setLocation("/spot/1#guide")}
-                    className="cursor-pointer px-4 py-3 text-sm font-bold hover:bg-black hover:text-white focus:bg-black focus:text-white"
+                    className="cursor-pointer px-4 py-3 text-sm font-bold text-gray-900 hover:bg-black hover:text-white focus:bg-black focus:text-white"
                     style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
                     Lido Beach
@@ -1452,7 +1622,7 @@ export default function LandingPage() {
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
-                    className="text-white hover:text-white/80 hover:bg-white/10 px-3 py-2 text-sm font-bold uppercase"
+                    className="text-white hover:text-white/80 hover:bg-white/10 px-3 py-2 text-base font-bold uppercase"
                     style={{ fontFamily: "'Bebas Neue', sans-serif" }}
                   >
                     Members Portal
@@ -1542,9 +1712,32 @@ export default function LandingPage() {
         </div>
       </header>
 
+      <div className="fixed top-[70px] sm:top-[80px] left-0 w-full z-40 px-3 sm:px-6 pointer-events-none">
+        <div className="container">
+          <div className="flex flex-col gap-1.5">
+            <div
+              className="inline-flex items-center gap-2 text-[10px] sm:text-xs uppercase tracking-wider text-white/85"
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+              </span>
+              <span>{landingLiveStatusLine}</span>
+            </div>
+            <div
+              className="text-[10px] sm:text-xs uppercase tracking-wider text-white/75"
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              {landingNextWindowLine}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Hero Section */}
       <section 
-        className="relative w-full h-screen flex items-center justify-center bg-cover bg-center bg-no-repeat pt-16 overflow-hidden"
+        className="relative w-full h-screen flex items-center justify-center bg-cover bg-center bg-no-repeat pt-24 sm:pt-28 overflow-hidden"
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => setIsPaused(false)}
       >
@@ -1624,9 +1817,9 @@ export default function LandingPage() {
             Know if it's worth the commute in 5 seconds
           </h1>
           <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-white font-light mb-6 sm:mb-8 md:mb-10">
-            Hyper-local surf forecasts that take the uncertainty out of surfing just outside NYC
+            Score more. Commute less. Join the first 40+ members for free.
           </p>
-          <div className="flex justify-center">
+          <div className="flex flex-col items-center">
             <button
               onClick={scrollToFeatured}
               className="!border-2 !border-white bg-black text-white hover:bg-white hover:text-black rounded-none uppercase transition-all duration-300 hover:-translate-y-0.5 group flex items-center gap-2 px-6 py-3 sm:px-8 sm:py-4 md:px-10 md:py-[18px] text-xs sm:text-sm md:text-[0.95rem]"
@@ -1735,6 +1928,7 @@ export default function LandingPage() {
                   isExpanded={expandedSpot === spot.id}
                   onToggleExpand={() => setExpandedSpot(expandedSpot === spot.id ? null : spot.id)}
                   onNavigate={setLocation}
+                  isAuthenticated={isAuthenticated}
                   travelMode={travelMode}
                   useNeutralBackground={true}
                   buoyData={buoyQuery.data}

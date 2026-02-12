@@ -22,9 +22,18 @@ export default function VerifyMagicLink() {
       setVerificationState("success");
       // Invalidate auth state to refresh user info
       await utils.auth.me.invalidate();
-      // Redirect to members portal after a brief delay
+      const storedRedirect =
+        typeof window === "undefined"
+          ? null
+          : sessionStorage.getItem("postLoginRedirect");
+
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("postLoginRedirect");
+      }
+
+      // Redirect after a brief delay
       setTimeout(() => {
-        setLocation("/members");
+        setLocation(storedRedirect || "/members");
       }, 1500);
     },
     onError: (error) => {
@@ -110,7 +119,7 @@ export default function VerifyMagicLink() {
                   className="text-sm text-gray-600"
                   style={{ fontFamily: "'JetBrains Mono', monospace" }}
                 >
-                  Redirecting to members portal...
+                  Redirecting...
                 </p>
               </>
             )}

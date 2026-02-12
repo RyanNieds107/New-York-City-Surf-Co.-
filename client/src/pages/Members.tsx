@@ -4,7 +4,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
-import { Loader2, Bell, Users, ShoppingBag, Home, X, ChevronRight, Phone, Store, GraduationCap, Wrench, LogOut } from "lucide-react";
+import { Loader2, Bell, Users, ShoppingBag, Home, X, ChevronRight, Phone, Store, GraduationCap, Wrench, LogOut, Video, Link2, Upload, ExternalLink } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -36,6 +36,12 @@ export default function Members() {
   const { data: alerts, refetch: refetchAlerts } = trpc.alerts.list.useQuery(undefined, {
     enabled: !!user,
   });
+  const currentConditionsQuery = trpc.forecasts.getCurrentConditionsForAll.useQuery(undefined, {
+    refetchInterval: 30 * 60 * 1000,
+  });
+  const recentReportsQuery = trpc.reports.getRecentReports.useQuery({ limit: 12 }, {
+    enabled: !!user,
+  });
 
   // Real-time alerts state
   const [alertSpotId, setAlertSpotId] = useState<number | null>(null);
@@ -59,6 +65,30 @@ export default function Members() {
   // Report submission state
   const [reportSpotId, setReportSpotId] = useState<number | null>(null);
   const [reportDate, setReportDate] = useState<Date>(new Date());
+  const [wakeThreshold, setWakeThreshold] = useState<number>(75);
+  const [mediaPostType, setMediaPostType] = useState<"my_youtube" | "shared_youtube" | "session_media">("my_youtube");
+  const [mediaTitle, setMediaTitle] = useState("");
+  const [mediaUrl, setMediaUrl] = useState("");
+  const [mediaCaption, setMediaCaption] = useState("");
+  const [communityMediaPosts, setCommunityMediaPosts] = useState<Array<{
+    id: string;
+    type: "my_youtube" | "shared_youtube" | "session_media";
+    title: string;
+    url: string;
+    caption?: string;
+    author: string;
+    createdAt: string;
+  }>>([
+    {
+      id: "seed-1",
+      type: "shared_youtube",
+      title: "Perfect Long Beach Morning Session",
+      url: "https://www.youtube.com/watch?v=0rRLS3A5VwA",
+      caption: "Clean lines and classic winter shape setup.",
+      author: "NYC Surf Co.",
+      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
+    },
+  ]);
 
   const createAlertMutation = trpc.alerts.create.useMutation({
     onSuccess: async () => {
@@ -181,6 +211,114 @@ export default function Members() {
 
   const selectStyles = "w-full bg-white border border-gray-300 px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all";
   const labelStyles = "block text-[10px] font-semibold uppercase tracking-widest text-gray-700 mb-1.5";
+  const navigateToTab = (value: string) => {
+    setActiveTab(value);
+    setLocation(`/members?tab=${value}`);
+  };
+
+  const lidoEntry = currentConditionsQuery.data?.find((item) => item.spot?.name === "Lido Beach");
+  const lidoCurrent = lidoEntry?.currentConditions;
+  const lidoScore = lidoCurrent?.qualityScore ?? lidoCurrent?.probabilityScore ?? 0;
+  const lidoStatus = lidoScore >= 60 ? "GO" : "STANDBY";
+  const waveHeightFt = lidoCurrent?.breakingWaveHeightFt ?? lidoCurrent?.dominantSwellHeightFt ?? 1.5;
+  const lidoWaveLabel = `${Math.max(1, Math.floor(waveHeightFt))}-${Math.max(2, Math.ceil(waveHeightFt))}FT`;
+  const windSpeed = Math.round(lidoCurrent?.windSpeedMph ?? 14);
+  const formatCardinal = (deg: number | null | undefined) => {
+    if (deg === null || deg === undefined) return "S";
+    const cardinals = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+    const index = Math.round(deg / 22.5) % 16;
+    return cardinals[index];
+  };
+  const windDirection = formatCardinal(lidoCurrent?.windDirectionDeg ?? null);
+  const latestPhotoReport = recentReportsQuery.data?.find((report) => Boolean(report.photoUrl));
+  const nextWindowHours = lidoStatus === "GO" ? 0 : Math.max(1, Math.round((70 - lidoScore) / 3));
+  const intensityPct = Math.max(8, Math.min(100, Math.round((lidoScore / 95) * 100)));
+  const recentSessions = (recentReportsQuery.data || []).filter((report) => Boolean(report.photoUrl)).slice(0, 3);
+  const qualityHeatMap = (currentConditionsQuery.data || [])
+    .map((item) => ({
+      spotId: item.spot?.id ?? 0,
+      spotName: item.spot?.name || "Unknown",
+      score: item.currentConditions?.qualityScore ?? item.currentConditions?.probabilityScore ?? 0,
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 6);
+  const topSignals = qualityHeatMap.slice(0, 3);
+  const crowdLabelByLevel = ["Empty", "Light", "Moderate", "Crowded", "Packed"];
+  const crowdIntelText = (recentReportsQuery.data || [])
+    .filter((report) => report.spot?.name === "Lido Beach" && report.crowdLevel)
+    .slice(0, 1)
+    .map((report) => crowdLabelByLevel[(report.crowdLevel || 3) - 1])[0] || "Light";
+  const perkSpotlight = [
+    "This Week: 20% off Vissla wetsuits.",
+    "Early Access: Dawn reports 2 hours before public feed.",
+    "Intel Drop: Winter sandbar shift map now live.",
+  ][new Date().getDate() % 3];
+  const getTier = (score: number) => {
+    if (score >= 80) return "FIRING";
+    if (score >= 65) return "PRIME";
+    return "MARGINAL";
+  };
+  const getTierColor = (score: number) => {
+    if (score >= 80) return "bg-emerald-600";
+    if (score >= 65) return "bg-amber-500";
+    return "bg-gray-400";
+  };
+  const getYouTubeEmbedUrl = (url: string) => {
+    try {
+      const parsed = new URL(url);
+      if (parsed.hostname.includes("youtu.be")) {
+        const id = parsed.pathname.replace("/", "");
+        return id ? `https://www.youtube.com/embed/${id}` : null;
+      }
+      if (parsed.hostname.includes("youtube.com")) {
+        const id = parsed.searchParams.get("v");
+        return id ? `https://www.youtube.com/embed/${id}` : null;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+  const isLikelyVideo = (url: string) => /\.(mp4|mov|webm|m4v)(\?.*)?$/i.test(url);
+  const isLikelyImage = (url: string) => /\.(jpg|jpeg|png|gif|webp|avif)(\?.*)?$/i.test(url);
+
+  const handleSubmitMediaPost = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mediaTitle.trim()) {
+      toast.error("Add a title for your post");
+      return;
+    }
+    if (!mediaUrl.trim()) {
+      toast.error("Add a YouTube or media link");
+      return;
+    }
+
+    if (mediaPostType === "my_youtube" || mediaPostType === "shared_youtube") {
+      if (!getYouTubeEmbedUrl(mediaUrl.trim())) {
+        toast.error("Please use a valid YouTube link");
+        return;
+      }
+    }
+
+    setCommunityMediaPosts((current) => [
+      {
+        id: `media-${Date.now()}`,
+        type: mediaPostType,
+        title: mediaTitle.trim(),
+        url: mediaUrl.trim(),
+        caption: mediaCaption.trim() || undefined,
+        author: user?.name || user?.email || "Local Member",
+        createdAt: new Date().toISOString(),
+      },
+      ...current,
+    ]);
+
+    setMediaTitle("");
+    setMediaUrl("");
+    setMediaCaption("");
+    setMediaPostType("my_youtube");
+    toast.success("Media post shared with the community");
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -227,106 +365,358 @@ export default function Members() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-4xl mx-auto px-3 sm:px-6 py-4 sm:py-10 w-full">
+      <main className="flex-1 max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-10 w-full">
         {/* Tabbed Interface */}
         <Tabs value={activeTab} onValueChange={(value) => {
-          setActiveTab(value);
-          setLocation(`/members?tab=${value}`);
+          navigateToTab(value);
         }} className="w-full">
           {/* Tab Navigation - horizontal scroll on mobile */}
-          <div className="border-b-2 border-black mb-0 overflow-x-auto">
+          <div className="border-b border-gray-300 mb-3 sm:mb-5 overflow-x-auto">
             <TabsList className="bg-transparent p-0 h-auto flex gap-0 min-w-max w-full sm:w-auto">
               <TabsTrigger
                 value="home"
-                className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-white data-[state=inactive]:text-black border-2 border-black border-b-0 first:rounded-tl-lg rounded-none px-4 sm:px-6 py-3 sm:py-3 text-xs sm:text-xs uppercase tracking-wide sm:tracking-widest font-semibold transition-all -mb-[2px] data-[state=active]:z-10 whitespace-nowrap flex-1 sm:flex-initial"
+                className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-gray-100 data-[state=inactive]:text-gray-800 border border-gray-400 border-b-0 first:rounded-tl-lg rounded-none px-3 sm:px-6 py-2 sm:py-2.5 text-[10px] sm:text-xs uppercase tracking-wide sm:tracking-widest font-semibold transition-all -mb-[1px] data-[state=active]:z-10 whitespace-nowrap flex-1 sm:flex-initial flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
-                <Home className="h-4 w-4 mr-1.5 sm:mr-2" />
-                <span className="hidden xs:inline">Home</span>
+                <Home className="h-4 w-4 sm:h-4 sm:w-4" />
+                <span>Home</span>
               </TabsTrigger>
               <TabsTrigger
                 value="alerts"
-                className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-white data-[state=inactive]:text-black border-2 border-black border-b-0 border-l-0 rounded-none px-4 sm:px-6 py-3 sm:py-3 text-xs sm:text-xs uppercase tracking-wide sm:tracking-widest font-semibold transition-all -mb-[2px] data-[state=active]:z-10 whitespace-nowrap flex-1 sm:flex-initial"
+                className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-gray-100 data-[state=inactive]:text-gray-800 border border-gray-400 border-b-0 border-l-0 rounded-none px-3 sm:px-6 py-2 sm:py-2.5 text-[10px] sm:text-xs uppercase tracking-wide sm:tracking-widest font-semibold transition-all -mb-[1px] data-[state=active]:z-10 whitespace-nowrap flex-1 sm:flex-initial flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
-                <Bell className="h-4 w-4 mr-1.5 sm:mr-2" />
-                <span className="hidden xs:inline">Alerts</span>
+                <Bell className="h-4 w-4 sm:h-4 sm:w-4" />
+                <span>Alerts</span>
               </TabsTrigger>
               <TabsTrigger
                 value="community"
-                className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-white data-[state=inactive]:text-black border-2 border-black border-b-0 border-l-0 rounded-none px-4 sm:px-6 py-3 sm:py-3 text-xs sm:text-xs uppercase tracking-wide sm:tracking-widest font-semibold transition-all -mb-[2px] data-[state=active]:z-10 whitespace-nowrap flex-1 sm:flex-initial"
+                className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-gray-100 data-[state=inactive]:text-gray-800 border border-gray-400 border-b-0 border-l-0 rounded-none px-3 sm:px-6 py-2 sm:py-2.5 text-[10px] sm:text-xs uppercase tracking-wide sm:tracking-widest font-semibold transition-all -mb-[1px] data-[state=active]:z-10 whitespace-nowrap flex-1 sm:flex-initial flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
-                <Users className="h-4 w-4 mr-1.5 sm:mr-2" />
-                <span className="hidden xs:inline">Community</span>
+                <Users className="h-4 w-4 sm:h-4 sm:w-4" />
+                <span>Media</span>
               </TabsTrigger>
               <TabsTrigger
                 value="services"
-                className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-white data-[state=inactive]:text-black border-2 border-black border-b-0 border-l-0 rounded-none px-4 sm:px-6 py-3 sm:py-3 text-xs sm:text-xs uppercase tracking-wide sm:tracking-widest font-semibold transition-all -mb-[2px] data-[state=active]:z-10 whitespace-nowrap flex-1 sm:flex-initial"
+                className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-gray-100 data-[state=inactive]:text-gray-800 border border-gray-400 border-b-0 border-l-0 rounded-none px-3 sm:px-6 py-2 sm:py-2.5 text-[10px] sm:text-xs uppercase tracking-wide sm:tracking-widest font-semibold transition-all -mb-[1px] data-[state=active]:z-10 whitespace-nowrap flex-1 sm:flex-initial flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
-                <ShoppingBag className="h-4 w-4 mr-1.5 sm:mr-2" />
-                <span className="hidden xs:inline">Market</span>
+                <ShoppingBag className="h-4 w-4 sm:h-4 sm:w-4" />
+                <span>Gear</span>
               </TabsTrigger>
             </TabsList>
           </div>
 
           {/* Home Tab */}
           <TabsContent value="home" className="mt-0">
-            {/* Header Section */}
-            <div className="bg-white border-2 border-black border-t-0 p-4 sm:p-10">
-              <h1 className="text-3xl sm:text-6xl font-black text-black uppercase tracking-tight leading-none"
-                  style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                Long Island Surf
-              </h1>
-              <p className="text-xs sm:text-sm text-gray-800 uppercase tracking-wide sm:tracking-widest mt-2 sm:mt-3"
-                 style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                Your local surf community hub
-              </p>
-            </div>
+            <div className="bg-white border-2 border-black p-3 sm:p-6 md:p-8">
+              <div className="mb-3 sm:mb-4 border-2 border-black bg-black text-white p-2 sm:p-3">
+                <div className="text-[9px] sm:text-[10px] uppercase tracking-widest mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  Swell Alignment Feed: Live Member Intel
+                </div>
+                <div className="flex gap-2 overflow-x-auto whitespace-nowrap pb-1">
+                  {topSignals.length > 0 ? (
+                    topSignals.map((signal, index) => (
+                      <button
+                        key={signal.spotId || `${signal.spotName}-${index}`}
+                        type="button"
+                        onClick={() => signal.spotId && setLocation(`/spot/${signal.spotId}`)}
+                        className="inline-flex items-center gap-2 border border-white/35 px-2 py-1 text-[10px] uppercase hover:bg-white hover:text-black transition-colors"
+                        style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                      >
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                        <span>{signal.spotName}: window in {index + 2}h</span>
+                        <span className="text-white/70">{getTier(signal.score)}</span>
+                      </button>
+                    ))
+                  ) : (
+                    <span className="text-[10px] uppercase tracking-wider text-white/80" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      Alignment scanner is warming up. New detections incoming.
+                    </span>
+                  )}
+                  <span className="inline-flex items-center px-2 text-[10px] uppercase text-white/80" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    Crowd Intel: Lido is {crowdIntelText.toLowerCase()} before 9AM weekdays.
+                  </span>
+                </div>
+              </div>
 
-            {/* Content Grid */}
-            <div className="bg-white border-2 border-black border-t-0 p-4 sm:p-10 space-y-6 sm:space-y-8">
-
-              {/* Section 1: Local Photos */}
-              <section>
-                <h2 className="text-2xl font-black uppercase mb-4 text-black"
-                    style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
-                  Latest from the Water
-                </h2>
-                <p className="text-xs text-gray-800 uppercase tracking-widest mb-4"
-                   style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                  Recent photos from the local crew
-                </p>
-                <LatestPhotos />
-              </section>
-
-              {/* Section 2: Announcements/News */}
-              <section>
-                <h2 className="text-2xl font-black uppercase mb-4 text-black"
-                    style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
-                  News & Announcements
-                </h2>
-                <AnnouncementsFeed />
-              </section>
-
-              {/* Section 3: Community Chat (Coming Soon) */}
-              <section>
-                <h2 className="text-2xl font-black uppercase mb-4 text-black"
-                    style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
-                  Community Chat
-                </h2>
-                <div className="bg-gray-50 border-2 border-gray-300 p-8 text-center">
-                  <p className="text-sm text-gray-600 uppercase tracking-wide"
-                     style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    Coming Soon
-                  </p>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Real-time chat with the local surf community
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4 sm:mb-6">
+                <div>
+                  <h1
+                    className="text-2xl sm:text-5xl md:text-6xl font-black text-black uppercase tracking-tight leading-none"
+                    style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
+                  >
+                    Founding Member Command Center
+                  </h1>
+                  <p
+                    className="text-xs sm:text-sm text-gray-700 uppercase tracking-wide sm:tracking-widest mt-2"
+                    style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                  >
+                    Proprietary Intel for the Founding 40
                   </p>
                 </div>
-              </section>
+                <div
+                  className="self-start text-[10px] sm:text-xs border border-black px-2.5 py-1 uppercase tracking-wider whitespace-nowrap"
+                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                >
+                  Member 015 / 040
+                </div>
+              </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4 items-start">
+                <div className="md:col-span-5 space-y-3 sm:space-y-4">
+                  <button
+                    type="button"
+                    onClick={() => setLocation("/spot/1")}
+                    className="w-full border-2 border-black p-3 sm:p-4 text-left hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="text-[10px] uppercase tracking-widest text-gray-600 mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      The Lido Verdict
+                    </div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={`h-2 w-2 rounded-full ${lidoStatus === "GO" ? "bg-emerald-500" : "bg-gray-500"}`} />
+                      <span className="text-[10px] uppercase tracking-wider text-gray-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        Live
+                      </span>
+                    </div>
+                    <div
+                      className={`text-4xl sm:text-5xl font-black uppercase leading-none ${lidoStatus === "GO" ? "text-emerald-600" : "text-orange-700"}`}
+                      style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
+                    >
+                      {lidoStatus}
+                    </div>
+                    <p className="mt-1.5 text-[11px] sm:text-xs uppercase tracking-wide text-gray-700" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      {lidoStatus === "GO" ? "Window is active now. Strike at first light." : `Turns FAIR in ${nextWindowHours} hours.`}
+                    </p>
+                    <div className="mt-2.5">
+                      <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-gray-500 mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        <span>Intensity Meter</span>
+                        <span>{Math.round(lidoScore)} / 95</span>
+                      </div>
+                      <div className="h-2 border border-black bg-gray-200">
+                        <div
+                          className={`h-full ${lidoStatus === "GO" ? "bg-emerald-600" : "bg-orange-600"}`}
+                          style={{ width: `${intensityPct}%` }}
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-2.5 grid grid-cols-2 gap-2">
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wider text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                          Wave Height
+                        </div>
+                        <div className="text-xl sm:text-2xl font-black uppercase leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                          {lidoWaveLabel}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wider text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                          Wind
+                        </div>
+                        <div className="text-xl sm:text-2xl font-black uppercase leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                          {windSpeed}MPH {windDirection}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <Button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigateToTab("alerts");
+                        }}
+                        className="bg-black text-white hover:bg-gray-800 border border-black uppercase tracking-wider text-xs"
+                        style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                      >
+                        Open Alerts
+                      </Button>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => navigateToTab("services")}
+                    className="w-full border-2 border-black p-3 sm:p-4 text-left hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="text-[10px] uppercase tracking-widest text-gray-600 mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      Gear Archive
+                    </div>
+                    <div className="text-2xl sm:text-3xl font-black uppercase leading-none mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                      Proprietary Kit
+                    </div>
+                    <div className="border border-gray-300 p-2 mb-2">
+                      <div className="text-[10px] uppercase tracking-widest text-gray-600 mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        Preview Board
+                      </div>
+                      <div className="text-sm font-black uppercase text-black leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                        JS Monsta 10
+                      </div>
+                      <div className="text-[10px] uppercase tracking-wide text-gray-600 mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        5'11" x 19 1/4 x 2 7/16. 29.6L
+                      </div>
+                    </div>
+                    <div className="text-[10px] uppercase tracking-wide text-gray-700 mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      Founding Perk: {perkSpotlight}
+                    </div>
+                    <p className="text-[11px] text-gray-700 leading-tight" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                      Board drops, wetsuit offers, and early report windows.
+                    </p>
+                  </button>
+
+                  <div className="border-2 border-black p-3 sm:p-4 bg-gray-50">
+                    <div className="text-[10px] uppercase tracking-widest text-gray-600 mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      Community Tracker
+                    </div>
+                    <p className="text-xs sm:text-sm text-black uppercase tracking-wide" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      Use the Community tab to log conditions and track how locals are reading the swell in real time.
+                    </p>
+                    <Button
+                      type="button"
+                      onClick={() => navigateToTab("community")}
+                      className="mt-3 bg-black text-white hover:bg-gray-800 border border-black uppercase tracking-wider text-xs"
+                      style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                    >
+                      Open Community Tracker
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="md:col-span-7 border-2 border-black bg-white">
+                  <div className="p-3 sm:p-4 border-b border-gray-300">
+                    <div className="text-[10px] uppercase tracking-widest text-gray-600 mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      Local Media Board
+                    </div>
+                    <div className="text-2xl sm:text-3xl font-black uppercase leading-none mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                      Post Community Media
+                    </div>
+                    <p className="text-[10px] uppercase tracking-wide text-gray-700" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      Share your own YouTube, favorite clips, and session photos/videos.
+                    </p>
+                  </div>
+
+                  <form onSubmit={handleSubmitMediaPost} className="p-3 sm:p-4 border-b border-gray-300 space-y-3">
+                    <div className="grid grid-cols-1 gap-2">
+                      {[
+                        { value: "my_youtube", label: "My YouTube", icon: Video },
+                        { value: "shared_youtube", label: "Favorite YouTube", icon: Link2 },
+                        { value: "session_media", label: "Session Photo/Video", icon: Upload },
+                      ].map((option) => {
+                        const Icon = option.icon;
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => setMediaPostType(option.value as "my_youtube" | "shared_youtube" | "session_media")}
+                            className={`border px-2.5 py-2 text-left transition-all ${
+                              mediaPostType === option.value
+                                ? "bg-black text-white border-black"
+                                : "bg-white text-black border-gray-300 hover:border-black"
+                            }`}
+                          >
+                            <span className="inline-flex items-center gap-2 text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                              <Icon className="h-3.5 w-3.5" />
+                              {option.label}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <input
+                      type="text"
+                      value={mediaTitle}
+                      onChange={(e) => setMediaTitle(e.target.value)}
+                      placeholder="Title"
+                      className={`${selectStyles} py-2`}
+                    />
+                    <input
+                      type="url"
+                      value={mediaUrl}
+                      onChange={(e) => setMediaUrl(e.target.value)}
+                      placeholder={mediaPostType === "session_media" ? "Photo/video URL" : "YouTube URL"}
+                      className={`${selectStyles} py-2`}
+                    />
+                    <textarea
+                      value={mediaCaption}
+                      onChange={(e) => setMediaCaption(e.target.value)}
+                      rows={2}
+                      placeholder="Caption (optional)"
+                      className={`${selectStyles} py-2 resize-y`}
+                    />
+                    <Button
+                      type="submit"
+                      className="w-full bg-black text-white hover:bg-gray-800 border border-black uppercase tracking-wider text-xs"
+                      style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                    >
+                      Post to Local Media
+                    </Button>
+                  </form>
+
+                  <div className="p-3 sm:p-4 space-y-3 max-h-[460px] overflow-y-auto">
+                    {communityMediaPosts.slice(0, 3).map((post) => {
+                      const embedUrl = getYouTubeEmbedUrl(post.url);
+                      const showYouTube = Boolean(embedUrl) && (post.type === "my_youtube" || post.type === "shared_youtube");
+                      const showImage = post.type === "session_media" && isLikelyImage(post.url);
+                      const showVideo = post.type === "session_media" && isLikelyVideo(post.url);
+                      return (
+                        <article key={post.id} className="border border-black p-2.5">
+                          <div className="mb-2">
+                            <h3 className="text-sm font-black uppercase leading-tight text-black" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+                              {post.title}
+                            </h3>
+                            <p className="text-[9px] uppercase tracking-wider text-gray-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                              {post.author} · {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
+                            </p>
+                          </div>
+
+                          {showYouTube && embedUrl && (
+                            <div className="mb-2 border border-black overflow-hidden">
+                              <iframe
+                                src={embedUrl}
+                                title={post.title}
+                                className="w-full aspect-video"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                referrerPolicy="strict-origin-when-cross-origin"
+                                allowFullScreen
+                              />
+                            </div>
+                          )}
+
+                          {showImage && (
+                            <img src={post.url} alt={post.title} className="w-full h-40 object-cover border border-black mb-2" />
+                          )}
+
+                          {showVideo && (
+                            <video controls className="w-full h-40 object-cover border border-black mb-2">
+                              <source src={post.url} />
+                            </video>
+                          )}
+
+                          {!showYouTube && !showImage && !showVideo && (
+                            <a
+                              href={post.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide border border-black px-2 py-1 hover:bg-black hover:text-white transition-colors mb-2"
+                              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                            >
+                              Open Media
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          )}
+
+                          {post.caption && (
+                            <p className="text-xs text-gray-700" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                              {post.caption}
+                            </p>
+                          )}
+                        </article>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
             </div>
           </TabsContent>
 
@@ -828,10 +1218,10 @@ export default function Members() {
           <TabsContent value="community" className="mt-0">
             <div className="bg-white border-2 border-black border-t-0 p-4 sm:p-10">
               <h1 className="text-3xl sm:text-6xl font-black text-black uppercase tracking-tight leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                Community Reports
+                Locals Tracking The Swell
               </h1>
               <p className="text-xs sm:text-sm text-gray-500 uppercase tracking-wide sm:tracking-widest mt-2 sm:mt-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                See what surfers are reporting from the water
+                Session-by-session reporting from locals in the lineup
               </p>
             </div>
             <div className="bg-white border-2 border-black border-t-0 p-4 sm:p-10 space-y-6 sm:space-y-8">
@@ -840,11 +1230,11 @@ export default function Members() {
                 <div className="p-4 sm:p-6 border-b-2 border-gray-200">
                   <h3 className="text-2xl font-black uppercase mb-2 text-black"
                       style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
-                    + Submit Report
+                    + Log Swell Report
                   </h3>
                   <p className="text-xs text-gray-800 uppercase tracking-wide sm:tracking-widest"
                      style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    Share how your session went
+                    Track how the swell actually showed up at your spot
                   </p>
                 </div>
 
@@ -1004,7 +1394,7 @@ export default function Members() {
                     We're building a directory of trusted local surf services. Get in touch to be featured when we launch.
                   </p>
                   <a
-                    href="mailto:hello@nycsurfco.com?subject=Services Directory Interest"
+                    href="mailto:rniederreither@gmail.com?subject=Services Directory Interest"
                     className="inline-block mt-4 px-6 py-3 bg-black text-white text-xs uppercase tracking-widest font-semibold hover:bg-gray-800 transition-all"
                     style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
