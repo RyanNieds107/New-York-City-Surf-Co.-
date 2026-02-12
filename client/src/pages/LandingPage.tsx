@@ -411,8 +411,8 @@ function SpotForecastCard({ spot, isExpanded, onToggleExpand, onNavigate, isAuth
             </span>
           </div>
 
-          {/* 3-Card Info Grid - Always blue styled */}
-          <div className="grid grid-cols-3 gap-1 sm:gap-2">
+          {/* 4-Card Info Grid - Always blue styled */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 sm:gap-2">
             {/* Primary Height */}
             <div className="border-2 border-blue-300 bg-blue-50 p-2 sm:p-3 flex flex-col items-center justify-center gap-1 sm:gap-1.5">
               {buoyLoading ? (
@@ -439,6 +439,20 @@ function SpotForecastCard({ spot, isExpanded, onToggleExpand, onNavigate, isAuth
               )}
               <p className="text-[8px] sm:text-[10px] text-blue-600 uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                 Period
+              </p>
+            </div>
+
+            {/* Swell Direction */}
+            <div className="border-2 border-blue-300 bg-blue-50 p-2 sm:p-3 flex flex-col items-center justify-center gap-1 sm:gap-1.5">
+              {buoyLoading ? (
+                <div className="h-4 w-12 bg-blue-200 rounded animate-pulse"></div>
+              ) : (
+                <span className="text-xs sm:text-sm font-bold text-black uppercase tracking-wider text-center leading-tight" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  {primarySwellDirection}
+                </span>
+              )}
+              <p className="text-[8px] sm:text-[10px] text-blue-600 uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                Direction
               </p>
             </div>
 
