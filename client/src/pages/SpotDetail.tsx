@@ -1957,10 +1957,10 @@ export default function SpotDetail() {
 
               {/* Share Your Session - Full Width */}
               {isAuthenticated && (
-                <div className="border-t-2 border-gray-200 bg-white p-2 sm:p-3 md:p-4">
-                  <div className="border-2 border-black bg-white max-w-4xl mx-auto">
+                <div className="border-t-2 border-gray-200 bg-white p-2 sm:p-3">
+                  <div className="border-2 border-black bg-white max-w-4xl mx-auto shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                     {/* Header */}
-                    <div className="px-3 py-2 sm:px-4 sm:py-2 border-b-2 border-black">
+                    <div className="px-3 py-1.5 sm:px-4 sm:py-2 border-b-2 border-black">
                       <h3 className="text-base sm:text-lg font-black uppercase tracking-tight"
                           style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
                         Share Your Session
@@ -1972,8 +1972,8 @@ export default function SpotDetail() {
                     </div>
 
                     {/* Form - Vertical on Mobile, Horizontal on Desktop */}
-                    <div className="p-3 sm:p-4">
-                      <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+                    <div className="p-2.5 sm:p-3">
+                      <div className="flex flex-col sm:flex-row sm:items-end gap-2.5">
                         <div className="flex-1">
                           <label className="block text-[9px] font-semibold uppercase tracking-widest text-gray-700 mb-1"
                                  style={{ fontFamily: "'JetBrains Mono', monospace" }}>
