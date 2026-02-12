@@ -1955,25 +1955,24 @@ export default function SpotDetail() {
                 </div>
               )}
 
-              {/* Two-Column Layout: Report Submission + Marketplace */}
+              {/* Share Your Session - Full Width */}
               {isAuthenticated && (
-                <div className="border-t-2 border-gray-200 bg-white p-4 sm:p-6">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {/* Left: Report Submission Card */}
-                    <div className="border-2 border-black bg-white">
-                      <div className="p-4 border-b-2 border-black">
+                <div className="border-t-2 border-gray-200 bg-white p-3 sm:p-4">
+                  <div className="border-2 border-black bg-white max-w-4xl mx-auto">
+                    <div className="px-4 py-2 border-b-2 border-black flex items-center justify-between">
+                      <div>
                         <h3 className="text-lg font-black uppercase tracking-tight"
                             style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
                           Share Your Session
                         </h3>
-                        <p className="text-[10px] text-gray-600 uppercase tracking-widest mt-1"
+                        <p className="text-[10px] text-gray-600 uppercase tracking-widest"
                            style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                           Help the community with your report
                         </p>
                       </div>
-                      <div className="p-4 space-y-3">
+                      <div className="flex items-center gap-3">
                         <div>
-                          <label className="block text-[9px] font-semibold uppercase tracking-widest text-gray-700 mb-2"
+                          <label className="block text-[9px] font-semibold uppercase tracking-widest text-gray-700 mb-1"
                                  style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                             Session Date
                           </label>
@@ -1984,51 +1983,13 @@ export default function SpotDetail() {
                         </div>
                         <Button
                           onClick={handleSubmitReport}
-                          className="w-full bg-black text-white hover:bg-gray-800 border-2 border-black py-3 text-sm font-bold uppercase"
+                          className="bg-black text-white hover:bg-gray-800 border-2 border-black px-6 py-2 text-sm font-bold uppercase"
                           style={{ fontFamily: "'Bebas Neue', sans-serif" }}
                         >
                           Submit Report →
                         </Button>
                       </div>
                     </div>
-
-                    {/* Right: Marketplace Card */}
-                    <a
-                      href="/members?tab=services"
-                      className="block border-2 border-black bg-white hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="p-4 border-b-2 border-black">
-                        <div className="flex items-center justify-between">
-                          <h3 className="text-lg font-black uppercase tracking-tight"
-                              style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
-                            Gear & Services
-                          </h3>
-                          <ChevronRight className="h-5 w-5" />
-                        </div>
-                        <p className="text-[10px] text-gray-600 uppercase tracking-widest mt-1"
-                           style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                          Coming Soon
-                        </p>
-                      </div>
-                      <div className="p-4 sm:p-6">
-                        <div className="border border-black bg-black px-2 py-1 inline-flex items-center mb-4">
-                          <span className="text-[9px] font-semibold uppercase tracking-widest text-white" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                            Coming Soon
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-700 mb-4" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                          We are building this section now.
-                        </p>
-                        <a
-                          href="mailto:rniederreither@gmail.com?subject=Gear%20%26%20Services%20Interest"
-                          onClick={(e) => e.stopPropagation()}
-                          className="inline-flex items-center justify-center px-4 py-2 bg-black text-white text-[10px] uppercase tracking-widest hover:bg-gray-800 transition-colors"
-                          style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                        >
-                          Contact to learn more
-                        </a>
-                      </div>
-                    </a>
                   </div>
                 </div>
               )}
