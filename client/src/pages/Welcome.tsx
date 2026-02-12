@@ -145,7 +145,7 @@ export default function Welcome() {
             className="bg-black text-white hover:bg-gray-800 border-2 border-black rounded-none uppercase tracking-wide font-bold py-6 px-12 text-base sm:text-lg"
             style={{ fontFamily: "'JetBrains Mono', monospace" }}
           >
-            Go to Members Portal
+            Members Portal (Private Beta)
             <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
         </div>

@@ -4,7 +4,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
-import { Loader2, Bell, Users, ShoppingBag, Home, X, ChevronRight, Phone, Store, GraduationCap, Wrench, LogOut, Video, Link2, Upload, ExternalLink } from "lucide-react";
+import { Loader2, Bell, Users, ShoppingBag, Home, X, ChevronRight, Phone, Store, GraduationCap, Wrench, LogOut, Video, Link2, Upload, ExternalLink, Waves } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,6 +14,7 @@ import { UserStatsWidget } from "@/components/UserStatsWidget";
 import { ReportDatePicker } from "@/components/ReportDatePicker";
 import { LatestPhotos } from "@/components/LatestPhotos";
 import { AnnouncementsFeed } from "@/components/AnnouncementsFeed";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 export default function Members() {
   const [, setLocation] = useLocation();
@@ -89,6 +90,18 @@ export default function Members() {
       createdAt: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
     },
   ]);
+  const [isDossierOpen, setIsDossierOpen] = useState(false);
+  const [dossierName, setDossierName] = useState("");
+  const [dossierEmail, setDossierEmail] = useState("");
+  const [dossierHomeBreak, setDossierHomeBreak] = useState<"Lido Beach" | "Long Beach" | "Rockaway Beach">("Lido Beach");
+  const [dossierExperienceYears, setDossierExperienceYears] = useState<number>(20);
+  const [dossierLocation, setDossierLocation] = useState("");
+  const [dossierPrimaryBoard, setDossierPrimaryBoard] = useState("");
+  const [dossierVolumeL, setDossierVolumeL] = useState("");
+  const [dossierMinWaveHeight, setDossierMinWaveHeight] = useState<number>(2);
+  const [dossierWindPreference, setDossierWindPreference] = useState("OFFSHORE");
+
+  const dossierStorageKey = user ? `member_dossier_${user.id}` : null;
 
   const createAlertMutation = trpc.alerts.create.useMutation({
     onSuccess: async () => {
@@ -127,6 +140,19 @@ export default function Members() {
     },
   });
 
+  const updateAlertMutation = trpc.alerts.update.useMutation({
+    onSuccess: async () => {
+      await utils.alerts.list.invalidate();
+      await refetchAlerts();
+    },
+  });
+
+  const updateProfileMutation = trpc.auth.updateProfile.useMutation({
+    onSuccess: async () => {
+      await utils.auth.me.invalidate();
+    },
+  });
+
   const submitCrowdMutation = trpc.crowd.submit.useMutation({
     onSuccess: () => {
       toast.success("Report submitted!");
@@ -142,6 +168,46 @@ export default function Members() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    setDossierName(user.name || "");
+    setDossierEmail(user.email || "");
+  }, [user]);
+
+  useEffect(() => {
+    if (!alerts || alerts.length === 0) return;
+    const dossierAlert = alerts[0];
+    const alertSpot = spots?.find((spot) => spot.id === dossierAlert.spotId)?.name;
+    if (alertSpot === "Lido Beach" || alertSpot === "Long Beach" || alertSpot === "Rockaway Beach") {
+      setDossierHomeBreak(alertSpot);
+    }
+    if (typeof dossierAlert.minWaveHeightFt === "number") {
+      setDossierMinWaveHeight(dossierAlert.minWaveHeightFt);
+    }
+  }, [alerts, spots]);
+
+  useEffect(() => {
+    if (!dossierStorageKey) return;
+    const raw = localStorage.getItem(dossierStorageKey);
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw) as {
+        experienceYears?: number;
+        location?: string;
+        primaryBoard?: string;
+        volumeL?: string;
+        windPreference?: string;
+      };
+      if (typeof parsed.experienceYears === "number") setDossierExperienceYears(parsed.experienceYears);
+      if (typeof parsed.location === "string") setDossierLocation(parsed.location);
+      if (typeof parsed.primaryBoard === "string") setDossierPrimaryBoard(parsed.primaryBoard);
+      if (typeof parsed.volumeL === "string") setDossierVolumeL(parsed.volumeL);
+      if (typeof parsed.windPreference === "string") setDossierWindPreference(parsed.windPreference);
+    } catch {
+      // Ignore malformed local storage.
+    }
+  }, [dossierStorageKey]);
 
   // CONDITIONAL RETURNS - must come AFTER all hooks
   // Show loading state while checking auth
@@ -216,23 +282,23 @@ export default function Members() {
     setLocation(`/members?tab=${value}`);
   };
 
-  const lidoEntry = currentConditionsQuery.data?.find((item) => item.spot?.name === "Lido Beach");
-  const lidoCurrent = lidoEntry?.currentConditions;
-  const lidoScore = lidoCurrent?.qualityScore ?? lidoCurrent?.probabilityScore ?? 0;
-  const lidoStatus = lidoScore >= 60 ? "GO" : "STANDBY";
-  const waveHeightFt = lidoCurrent?.breakingWaveHeightFt ?? lidoCurrent?.dominantSwellHeightFt ?? 1.5;
-  const lidoWaveLabel = `${Math.max(1, Math.floor(waveHeightFt))}-${Math.max(2, Math.ceil(waveHeightFt))}FT`;
-  const windSpeed = Math.round(lidoCurrent?.windSpeedMph ?? 14);
+  const homeBreakEntry = currentConditionsQuery.data?.find((item) => item.spot?.name === dossierHomeBreak);
+  const homeBreakCurrent = homeBreakEntry?.currentConditions;
+  const homeBreakScore = homeBreakCurrent?.qualityScore ?? homeBreakCurrent?.probabilityScore ?? 0;
+  const homeBreakStatus = homeBreakScore >= 60 ? "GO" : "STANDBY";
+  const waveHeightFt = homeBreakCurrent?.breakingWaveHeightFt ?? homeBreakCurrent?.dominantSwellHeightFt ?? 1.5;
+  const homeBreakWaveLabel = `${Math.max(1, Math.floor(waveHeightFt))}-${Math.max(2, Math.ceil(waveHeightFt))}FT`;
+  const homeBreakWindSpeed = Math.round(homeBreakCurrent?.windSpeedMph ?? 14);
   const formatCardinal = (deg: number | null | undefined) => {
     if (deg === null || deg === undefined) return "S";
     const cardinals = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
     const index = Math.round(deg / 22.5) % 16;
     return cardinals[index];
   };
-  const windDirection = formatCardinal(lidoCurrent?.windDirectionDeg ?? null);
+  const windDirection = formatCardinal(homeBreakCurrent?.windDirectionDeg ?? null);
   const latestPhotoReport = recentReportsQuery.data?.find((report) => Boolean(report.photoUrl));
-  const nextWindowHours = lidoStatus === "GO" ? 0 : Math.max(1, Math.round((70 - lidoScore) / 3));
-  const intensityPct = Math.max(8, Math.min(100, Math.round((lidoScore / 95) * 100)));
+  const nextWindowHours = homeBreakStatus === "GO" ? 0 : Math.max(1, Math.round((70 - homeBreakScore) / 3));
+  const intensityPct = Math.max(8, Math.min(100, Math.round((homeBreakScore / 95) * 100)));
   const recentSessions = (recentReportsQuery.data || []).filter((report) => Boolean(report.photoUrl)).slice(0, 3);
   const qualityHeatMap = (currentConditionsQuery.data || [])
     .map((item) => ({
@@ -245,14 +311,9 @@ export default function Members() {
   const topSignals = qualityHeatMap.slice(0, 3);
   const crowdLabelByLevel = ["Empty", "Light", "Moderate", "Crowded", "Packed"];
   const crowdIntelText = (recentReportsQuery.data || [])
-    .filter((report) => report.spot?.name === "Lido Beach" && report.crowdLevel)
+    .filter((report) => report.spot?.name === dossierHomeBreak && report.crowdLevel)
     .slice(0, 1)
     .map((report) => crowdLabelByLevel[(report.crowdLevel || 3) - 1])[0] || "Light";
-  const perkSpotlight = [
-    "This Week: 20% off Vissla wetsuits.",
-    "Early Access: Dawn reports 2 hours before public feed.",
-    "Intel Drop: Winter sandbar shift map now live.",
-  ][new Date().getDate() % 3];
   const getTier = (score: number) => {
     if (score >= 80) return "FIRING";
     if (score >= 65) return "PRIME";
@@ -320,6 +381,62 @@ export default function Members() {
     toast.success("Media post shared with the community");
   };
 
+  const handleUpdateDossier = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!spots || !user) return;
+
+    const selectedSpot = spots.find((spot) => spot.name === dossierHomeBreak);
+    if (!selectedSpot) {
+      toast.error("Please select a valid home break");
+      return;
+    }
+
+    try {
+      await updateProfileMutation.mutateAsync({
+        name: dossierName.trim(),
+        email: dossierEmail.trim(),
+      });
+
+      const dossierAlert = alerts?.[0];
+      if (dossierAlert) {
+        await updateAlertMutation.mutateAsync({
+          alertId: dossierAlert.id,
+          spotId: selectedSpot.id,
+          minWaveHeightFt: dossierMinWaveHeight,
+        });
+      } else {
+        await createAlertMutation.mutateAsync({
+          spotId: selectedSpot.id,
+          minWaveHeightFt: dossierMinWaveHeight,
+          minQualityScore: 60,
+          emailEnabled: false,
+          smsEnabled: false,
+          hoursAdvanceNotice: 24,
+          notificationFrequency: "once",
+        });
+      }
+
+      if (dossierStorageKey) {
+        localStorage.setItem(
+          dossierStorageKey,
+          JSON.stringify({
+            experienceYears: dossierExperienceYears,
+            location: dossierLocation,
+            primaryBoard: dossierPrimaryBoard,
+            volumeL: dossierVolumeL,
+            windPreference: dossierWindPreference,
+          })
+        );
+      }
+
+      toast.success("Dossier updated");
+      setIsDossierOpen(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to update dossier";
+      toast.error(message);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Minimal Header */}
@@ -330,13 +447,15 @@ export default function Members() {
             <div className="flex items-center gap-4 sm:gap-5">
               {/* User email - hidden on very small screens */}
               {user?.email && (
-                <span
-                  className="hidden sm:block text-xs text-gray-500 truncate max-w-[200px]"
+                <button
+                  type="button"
+                  onClick={() => setIsDossierOpen(true)}
+                  className="hidden sm:block text-xs text-gray-500 truncate max-w-[220px] hover:text-black transition-colors"
                   style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   title={user.email}
                 >
                   {user.email}
-                </span>
+                </button>
               )}
               {/* Sign Out Button */}
               <button
@@ -363,6 +482,144 @@ export default function Members() {
           </div>
         </div>
       </header>
+
+      <Sheet open={isDossierOpen} onOpenChange={setIsDossierOpen}>
+        <SheetContent
+          side="right"
+          className="w-full sm:max-w-xl border-l border-white/30 bg-white/70 backdrop-blur-xl"
+        >
+          <SheetHeader>
+            <SheetTitle
+              className="text-xl font-black uppercase tracking-tight text-black"
+              style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
+            >
+              MEMBER DOSSIER [015/040]
+            </SheetTitle>
+          </SheetHeader>
+
+          <form onSubmit={handleUpdateDossier} className="mt-6 space-y-5">
+            <section className="border border-black/15 bg-white/60 p-4">
+              <div className="text-[10px] uppercase tracking-widest text-gray-700 mb-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                Identity Intel
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>Name</label>
+                  <input
+                    value={dossierName}
+                    onChange={(e) => setDossierName(e.target.value)}
+                    className={selectStyles}
+                    placeholder="Name"
+                  />
+                </div>
+                <div>
+                  <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>Email</label>
+                  <input
+                    type="email"
+                    value={dossierEmail}
+                    onChange={(e) => setDossierEmail(e.target.value)}
+                    className={selectStyles}
+                    placeholder="Email"
+                  />
+                </div>
+              </div>
+            </section>
+
+            <section className="border border-black/15 bg-white/60 p-4">
+              <div className="text-[10px] uppercase tracking-widest text-gray-700 mb-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                Operational Parameters
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="sm:col-span-2">
+                  <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>Home Break</label>
+                  <select
+                    value={dossierHomeBreak}
+                    onChange={(e) => setDossierHomeBreak(e.target.value as "Lido Beach" | "Long Beach" | "Rockaway Beach")}
+                    className={selectStyles}
+                  >
+                    <option value="Lido Beach">Lido</option>
+                    <option value="Long Beach">Long Beach</option>
+                    <option value="Rockaway Beach">Rockaway</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>Board Volume (L)</label>
+                  <input
+                    value={dossierVolumeL}
+                    onChange={(e) => setDossierVolumeL(e.target.value)}
+                    className={selectStyles}
+                    placeholder="29.6"
+                  />
+                </div>
+                <div>
+                  <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>Surf Experience (Years)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={80}
+                    value={dossierExperienceYears}
+                    onChange={(e) => setDossierExperienceYears(Number(e.target.value) || 0)}
+                    className={selectStyles}
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>Primary Board</label>
+                  <input
+                    value={dossierPrimaryBoard}
+                    onChange={(e) => setDossierPrimaryBoard(e.target.value)}
+                    className={selectStyles}
+                    placeholder="JS Monsta 10"
+                  />
+                </div>
+              </div>
+            </section>
+
+            <section className="border border-black/15 bg-white/60 p-4">
+              <div className="text-[10px] uppercase tracking-widest text-gray-700 mb-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                Alert Thresholds
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>Min Height (ft)</label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    min={0}
+                    max={12}
+                    value={dossierMinWaveHeight}
+                    onChange={(e) => setDossierMinWaveHeight(Number(e.target.value) || 0)}
+                    className={selectStyles}
+                  />
+                </div>
+                <div>
+                  <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>Wind Preference</label>
+                  <input
+                    value={dossierWindPreference}
+                    onChange={(e) => setDossierWindPreference(e.target.value)}
+                    className={selectStyles}
+                    placeholder="OFFSHORE, WNW"
+                  />
+                </div>
+              </div>
+            </section>
+
+            <Button
+              type="submit"
+              disabled={updateProfileMutation.isPending || updateAlertMutation.isPending || createAlertMutation.isPending}
+              className="w-full bg-black text-white hover:bg-gray-800 border border-black uppercase tracking-widest"
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              {updateProfileMutation.isPending || updateAlertMutation.isPending || createAlertMutation.isPending
+                ? "UPDATING"
+                : "UPDATE DOSSIER"}
+            </Button>
+
+            <p className="text-[10px] text-gray-600 uppercase tracking-wide text-center" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              Precision in data leads to certainty in the water.
+            </p>
+          </form>
+        </SheetContent>
+      </Sheet>
 
       {/* Main Content */}
       <main className="flex-1 max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-10 w-full">
@@ -394,8 +651,8 @@ export default function Members() {
                 className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-gray-100 data-[state=inactive]:text-gray-800 border border-gray-400 border-b-0 border-l-0 rounded-none px-3 sm:px-6 py-2 sm:py-2.5 text-[10px] sm:text-xs uppercase tracking-wide sm:tracking-widest font-semibold transition-all -mb-[1px] data-[state=active]:z-10 whitespace-nowrap flex-1 sm:flex-initial flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
-                <Users className="h-4 w-4 sm:h-4 sm:w-4" />
-                <span>Media</span>
+                <Waves className="h-4 w-4 sm:h-4 sm:w-4" />
+                <span>Swell Reports</span>
               </TabsTrigger>
               <TabsTrigger
                 value="services"
@@ -411,36 +668,6 @@ export default function Members() {
           {/* Home Tab */}
           <TabsContent value="home" className="mt-0">
             <div className="bg-white border-2 border-black p-3 sm:p-6 md:p-8">
-              <div className="mb-3 sm:mb-4 border-2 border-black bg-black text-white p-2 sm:p-3">
-                <div className="text-[9px] sm:text-[10px] uppercase tracking-widest mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                  Swell Alignment Feed: Live Member Intel
-                </div>
-                <div className="flex gap-2 overflow-x-auto whitespace-nowrap pb-1">
-                  {topSignals.length > 0 ? (
-                    topSignals.map((signal, index) => (
-                      <button
-                        key={signal.spotId || `${signal.spotName}-${index}`}
-                        type="button"
-                        onClick={() => signal.spotId && setLocation(`/spot/${signal.spotId}`)}
-                        className="inline-flex items-center gap-2 border border-white/35 px-2 py-1 text-[10px] uppercase hover:bg-white hover:text-black transition-colors"
-                        style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                      >
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                        <span>{signal.spotName}: window in {index + 2}h</span>
-                        <span className="text-white/70">{getTier(signal.score)}</span>
-                      </button>
-                    ))
-                  ) : (
-                    <span className="text-[10px] uppercase tracking-wider text-white/80" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      Alignment scanner is warming up. New detections incoming.
-                    </span>
-                  )}
-                  <span className="inline-flex items-center px-2 text-[10px] uppercase text-white/80" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    Crowd Intel: Lido is {crowdIntelText.toLowerCase()} before 9AM weekdays.
-                  </span>
-                </div>
-              </div>
-
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4 sm:mb-6">
                 <div>
                   <h1
@@ -453,50 +680,170 @@ export default function Members() {
                     className="text-xs sm:text-sm text-gray-700 uppercase tracking-wide sm:tracking-widest mt-2"
                     style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
-                    Proprietary Intel for the Founding 40
+                    Private Beta // Closed Network
                   </p>
                 </div>
                 <div
-                  className="self-start text-[10px] sm:text-xs border border-black px-2.5 py-1 uppercase tracking-wider whitespace-nowrap"
+                  className="self-start text-[10px] sm:text-xs text-gray-500 border border-black px-2.5 py-1 uppercase tracking-wider whitespace-nowrap"
                   style={{ fontFamily: "'JetBrains Mono', monospace" }}
                 >
-                  Member 015 / 040
+                  MEMBER: 15/40
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4 items-start">
-                <div className="md:col-span-5 space-y-3 sm:space-y-4">
+              <div className="mb-4 sm:mb-6 border-2 border-black bg-white">
+                <div className="border-b border-gray-300 px-3 sm:px-4 py-2.5">
+                  <h2
+                    className="text-xl sm:text-2xl font-black uppercase tracking-tight text-black"
+                    style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
+                  >
+                    Member Dossier
+                  </h2>
+                </div>
+                <form onSubmit={handleUpdateDossier} className="p-3 sm:p-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <section className="border border-gray-300 p-3">
+                      <div className="text-[10px] uppercase tracking-widest text-gray-700 mb-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        Identity Intel
+                      </div>
+                      <div className="space-y-3">
+                        <div>
+                          <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>Name</label>
+                          <input value={dossierName} onChange={(e) => setDossierName(e.target.value)} className={selectStyles} />
+                        </div>
+                        <div>
+                          <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>Email</label>
+                          <input type="email" value={dossierEmail} onChange={(e) => setDossierEmail(e.target.value)} className={selectStyles} />
+                        </div>
+                        <div>
+                          <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>Location</label>
+                          <input
+                            value={dossierLocation}
+                            onChange={(e) => setDossierLocation(e.target.value)}
+                            className={selectStyles}
+                            placeholder="Long Island, NY"
+                          />
+                        </div>
+                        <div className="border border-black px-3 py-2 bg-gray-50">
+                          <div className="text-[10px] uppercase tracking-wider text-gray-700" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                            Service Record: MEMBER 015 / 040
+                          </div>
+                          <div className="text-[10px] uppercase tracking-wider text-gray-700 mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                            Local Status: VERIFIED
+                          </div>
+                        </div>
+                      </div>
+                    </section>
+
+                    <section className="border border-gray-300 p-3">
+                      <div className="text-[10px] uppercase tracking-widest text-gray-700 mb-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        Operational Parameters
+                      </div>
+                      <div className="space-y-3">
+                        <div>
+                          <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>Home Break</label>
+                          <select
+                            value={dossierHomeBreak}
+                            onChange={(e) => setDossierHomeBreak(e.target.value as "Lido Beach" | "Long Beach" | "Rockaway Beach")}
+                            className={selectStyles}
+                          >
+                            <option value="Lido Beach">Lido</option>
+                            <option value="Long Beach">Long Beach</option>
+                            <option value="Rockaway Beach">Rockaway</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>Experience (Years)</label>
+                          <input
+                            type="number"
+                            min={0}
+                            max={80}
+                            value={dossierExperienceYears}
+                            onChange={(e) => setDossierExperienceYears(Number(e.target.value) || 0)}
+                            className={selectStyles}
+                          />
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>Primary Board</label>
+                            <input value={dossierPrimaryBoard} onChange={(e) => setDossierPrimaryBoard(e.target.value)} className={selectStyles} />
+                          </div>
+                          <div>
+                            <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>Volume (L)</label>
+                            <input value={dossierVolumeL} onChange={(e) => setDossierVolumeL(e.target.value)} className={selectStyles} />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>Min Wave Height (ft)</label>
+                            <input
+                              type="number"
+                              step="0.5"
+                              min={0}
+                              max={12}
+                              value={dossierMinWaveHeight}
+                              onChange={(e) => setDossierMinWaveHeight(Number(e.target.value) || 0)}
+                              className={selectStyles}
+                            />
+                          </div>
+                          <div>
+                            <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>Preferred Wind Directions</label>
+                            <input value={dossierWindPreference} onChange={(e) => setDossierWindPreference(e.target.value)} className={selectStyles} placeholder="OFFSHORE, WNW" />
+                          </div>
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+
+                  <div className="mt-4">
+                    <Button
+                      type="submit"
+                      disabled={updateProfileMutation.isPending || updateAlertMutation.isPending || createAlertMutation.isPending}
+                      className="w-full bg-black text-white hover:bg-gray-800 border border-black uppercase tracking-widest"
+                      style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                    >
+                      {updateProfileMutation.isPending || updateAlertMutation.isPending || createAlertMutation.isPending ? "UPDATING" : "UPDATE DOSSIER"}
+                    </Button>
+                    <p className="text-[10px] text-gray-600 uppercase tracking-wide text-center mt-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      Precision in data leads to certainty in the water.
+                    </p>
+                  </div>
+                </form>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 items-stretch">
+                <div className="space-y-3 sm:space-y-4">
                   <button
                     type="button"
                     onClick={() => setLocation("/spot/1")}
-                    className="w-full border-2 border-black p-3 sm:p-4 text-left hover:bg-gray-50 transition-colors"
+                    className="w-full border-2 border-black p-3 sm:p-4 text-left hover:bg-gray-50 transition-colors min-h-[300px]"
                   >
                     <div className="text-[10px] uppercase tracking-widest text-gray-600 mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      The Lido Verdict
+                      The {dossierHomeBreak} Verdict
                     </div>
                     <div className="flex items-center gap-2 mb-2">
-                      <span className={`h-2 w-2 rounded-full ${lidoStatus === "GO" ? "bg-emerald-500" : "bg-gray-500"}`} />
+                      <span className={`h-2 w-2 rounded-full ${homeBreakStatus === "GO" ? "bg-emerald-500" : "bg-gray-500"}`} />
                       <span className="text-[10px] uppercase tracking-wider text-gray-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                         Live
                       </span>
                     </div>
                     <div
-                      className={`text-4xl sm:text-5xl font-black uppercase leading-none ${lidoStatus === "GO" ? "text-emerald-600" : "text-orange-700"}`}
+                      className={`text-4xl sm:text-5xl font-black uppercase leading-none ${homeBreakStatus === "GO" ? "text-emerald-600" : "text-orange-700"}`}
                       style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
                     >
-                      {lidoStatus}
+                      {homeBreakStatus}
                     </div>
                     <p className="mt-1.5 text-[11px] sm:text-xs uppercase tracking-wide text-gray-700" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      {lidoStatus === "GO" ? "Window is active now. Strike at first light." : `Turns FAIR in ${nextWindowHours} hours.`}
+                      {homeBreakStatus === "GO" ? "Window is active now. Strike at first light." : `Turns FAIR in ${nextWindowHours} hours.`}
                     </p>
                     <div className="mt-2.5">
                       <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-gray-500 mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                         <span>Intensity Meter</span>
-                        <span>{Math.round(lidoScore)} / 95</span>
+                        <span>{Math.round(homeBreakScore)} / 95</span>
                       </div>
                       <div className="h-2 border border-black bg-gray-200">
                         <div
-                          className={`h-full ${lidoStatus === "GO" ? "bg-emerald-600" : "bg-orange-600"}`}
+                          className={`h-full ${homeBreakStatus === "GO" ? "bg-emerald-600" : "bg-orange-600"}`}
                           style={{ width: `${intensityPct}%` }}
                         />
                       </div>
@@ -507,7 +854,7 @@ export default function Members() {
                           Wave Height
                         </div>
                         <div className="text-xl sm:text-2xl font-black uppercase leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                          {lidoWaveLabel}
+                          {homeBreakWaveLabel}
                         </div>
                       </div>
                       <div>
@@ -515,7 +862,7 @@ export default function Members() {
                           Wind
                         </div>
                         <div className="text-xl sm:text-2xl font-black uppercase leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                          {windSpeed}MPH {windDirection}
+                          {homeBreakWindSpeed}MPH {windDirection}
                         </div>
                       </div>
                     </div>
@@ -533,56 +880,25 @@ export default function Members() {
                       </Button>
                     </div>
                   </button>
-
-                  <button
-                    type="button"
-                    onClick={() => navigateToTab("services")}
-                    className="w-full border-2 border-black p-3 sm:p-4 text-left hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="text-[10px] uppercase tracking-widest text-gray-600 mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      Gear Archive
-                    </div>
-                    <div className="text-2xl sm:text-3xl font-black uppercase leading-none mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                      Proprietary Kit
-                    </div>
-                    <div className="border border-gray-300 p-2 mb-2">
-                      <div className="text-[10px] uppercase tracking-widest text-gray-600 mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                        Preview Board
-                      </div>
-                      <div className="text-sm font-black uppercase text-black leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                        JS Monsta 10
-                      </div>
-                      <div className="text-[10px] uppercase tracking-wide text-gray-600 mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                        5'11" x 19 1/4 x 2 7/16. 29.6L
-                      </div>
-                    </div>
-                    <div className="text-[10px] uppercase tracking-wide text-gray-700 mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      Founding Perk: {perkSpotlight}
-                    </div>
-                    <p className="text-[11px] text-gray-700 leading-tight" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                      Board drops, wetsuit offers, and early report windows.
-                    </p>
-                  </button>
-
-                  <div className="border-2 border-black p-3 sm:p-4 bg-gray-50">
-                    <div className="text-[10px] uppercase tracking-widest text-gray-600 mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      Community Tracker
-                    </div>
-                    <p className="text-xs sm:text-sm text-black uppercase tracking-wide" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      Use the Community tab to log conditions and track how locals are reading the swell in real time.
-                    </p>
-                    <Button
-                      type="button"
-                      onClick={() => navigateToTab("community")}
-                      className="mt-3 bg-black text-white hover:bg-gray-800 border border-black uppercase tracking-wider text-xs"
-                      style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                    >
-                      Open Community Tracker
-                    </Button>
-                  </div>
                 </div>
 
-                <div className="md:col-span-7 border-2 border-black bg-white">
+                <div className="border-2 border-black p-3 sm:p-4 bg-white min-h-[300px] flex flex-col justify-center">
+                  <div className="text-[10px] uppercase tracking-widest text-gray-600 mb-2 text-center" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    Surf Cams
+                  </div>
+                  <div
+                    className="text-4xl sm:text-5xl font-black uppercase leading-none text-center text-gray-300"
+                    style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
+                  >
+                    Coming Soon
+                  </div>
+                  <p className="mt-3 text-[11px] sm:text-xs uppercase tracking-wide text-gray-500 text-center" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    Live camera feeds for your home break will be available here.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-3 sm:mt-4 border-2 border-black bg-white">
                   <div className="p-3 sm:p-4 border-b border-gray-300">
                     <div className="text-[10px] uppercase tracking-widest text-gray-600 mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                       Local Media Board
@@ -716,7 +1032,6 @@ export default function Members() {
                     })}
                   </div>
                 </div>
-              </div>
             </div>
           </TabsContent>
 
@@ -1218,7 +1533,7 @@ export default function Members() {
           <TabsContent value="community" className="mt-0">
             <div className="bg-white border-2 border-black border-t-0 p-4 sm:p-10">
               <h1 className="text-3xl sm:text-6xl font-black text-black uppercase tracking-tight leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                Locals Tracking The Swell
+                Human-In-The-Loop Swell Tracking
               </h1>
               <p className="text-xs sm:text-sm text-gray-500 uppercase tracking-wide sm:tracking-widest mt-2 sm:mt-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                 Session-by-session reporting from locals in the lineup

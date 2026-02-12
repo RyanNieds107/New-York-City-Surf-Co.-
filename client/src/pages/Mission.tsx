@@ -74,7 +74,7 @@ export default function Mission() {
           </p>
 
           <p className="text-gray-800 leading-relaxed font-medium">
-            Join the Founding 40. Access the proprietary models for free and stop guessing.
+            Slot Allocation: 15 / 40 Provisioned. Access the proprietary models for free and stop guessing.
           </p>
         </div>
       </div>

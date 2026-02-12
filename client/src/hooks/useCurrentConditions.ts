@@ -125,6 +125,39 @@ export function useCurrentConditions(spotId: number, options?: { refetchInterval
 
     const swell = getDominantSwellInfo();
 
+    // Resolve PRIMARY swell (first component in timeline, NOT energy-based dominant)
+    const getPrimarySwellInfo = () => {
+      // Priority 1: Timeline primary swell (always first component)
+      if (currentPoint?.wavePeriodSec != null) {
+        return {
+          height: currentPoint.waveHeightFt ?? null,
+          period: currentPoint.wavePeriodSec,
+          direction: currentPoint.waveDirectionDeg,
+          type: 'primary' as const,
+        };
+      }
+
+      // Priority 2: Buoy fallback (when no timeline data)
+      if (buoySwellPeriod !== null && buoySwellPeriod !== undefined && buoySwellPeriod > 0) {
+        return {
+          height: buoyQuery.data?.swellHeight ?? null,
+          period: buoySwellPeriod,
+          direction: buoySwellDirection ?? null,
+          type: 'buoy' as const,
+        };
+      }
+
+      // Priority 3: Forecast (no period/direction available)
+      return {
+        height: forecast?.waveHeightTenthsFt != null ? forecast.waveHeightTenthsFt / 10 : null,
+        period: null,
+        direction: null,
+        type: 'forecast' as const,
+      };
+    };
+
+    const primarySwell = getPrimarySwellInfo();
+
     // Wind: timeline → forecast
     const wind = {
       speedMph: currentPoint?.windSpeedMph ?? forecast?.windSpeedMph ?? null,
@@ -157,6 +190,8 @@ export function useCurrentConditions(spotId: number, options?: { refetchInterval
       score,
       waveHeight,
       swell,
+      // PRIMARY swell data (consistent source for UI display)
+      primarySwell,
       wind,
       tide,
       temps,

@@ -95,7 +95,7 @@ export default function CheckEmail() {
                 className="text-xs text-gray-600 mb-2"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
-                2. Click the "Sign In to Members Portal" button
+                2. Click the "Sign In to Members Portal (Private Beta)" button
               </p>
               <p
                 className="text-xs text-gray-600"

@@ -82,6 +82,32 @@ export const appRouter = router({
 
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
+    updateProfile: protectedProcedure
+      .input(
+        z.object({
+          name: z.string().min(1).max(128),
+          email: z.string().email(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db || !ctx.user) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Database not available",
+          });
+        }
+
+        await db
+          .update(users)
+          .set({
+            name: input.name.trim(),
+            email: input.email.toLowerCase().trim(),
+          })
+          .where(eq(users.id, ctx.user.id));
+
+        return { success: true };
+      }),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });

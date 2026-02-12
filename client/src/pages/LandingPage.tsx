@@ -166,6 +166,56 @@ type BuoyReading = {
   windDirectionDeg: number | null; // WDIR in degrees
 } | null;
 
+type LandingCardSwellPoint = {
+  secondarySwellHeightFt?: number | null;
+  secondarySwellPeriodS?: number | null;
+  secondarySwellDirectionDeg?: number | null;
+};
+
+type LandingCardPrimarySwell = {
+  primaryHeight: number;
+  primaryPeriod: number | null;
+  primaryDirectionLabel: string | null;
+  primaryDirectionDeg: number | null;
+  secondaryHeight: number;
+  secondaryPeriod: number | null;
+  secondaryDirectionLabel: string | null;
+};
+
+const getLandingCardPrimarySwell = (
+  buoyData: BuoyReading,
+  currentPoint: LandingCardSwellPoint | null | undefined
+): LandingCardPrimarySwell => {
+  const windWaveHeight = buoyData?.windWaveHeight ?? (buoyData?.waveHeight ?? 0);
+  const windWavePeriod = buoyData?.windWavePeriod ?? (buoyData?.dominantPeriod ?? null);
+  const windWaveDirectionLabel = buoyData?.windWaveDirection
+    ? formatCardinalWithDegrees(buoyData.windWaveDirection)
+    : (buoyData?.directionLabel ? `${buoyData.directionLabel} ${Math.round(buoyData.waveDirection)}°` : null);
+  const windWaveDirectionDeg = buoyData?.windWaveDirectionDeg
+    ?? cardinalToDegrees(buoyData?.windWaveDirection)
+    ?? buoyData?.waveDirection
+    ?? null;
+
+  const swellHeight = buoyData?.swellHeight ?? (currentPoint?.secondarySwellHeightFt ? Number(currentPoint.secondarySwellHeightFt) : 0);
+  const swellPeriod = buoyData?.swellPeriod ?? (currentPoint?.secondarySwellPeriodS ?? null);
+  const swellDirectionLabel = buoyData?.swellDirection
+    ? formatCardinalWithDegrees(buoyData.swellDirection)
+    : (currentPoint?.secondarySwellDirectionDeg ? formatSwellDirection(currentPoint.secondarySwellDirectionDeg) : null);
+  const swellDirectionDeg = buoyData?.swellDirectionDeg ?? currentPoint?.secondarySwellDirectionDeg ?? null;
+
+  const isSwellPrimary = swellHeight >= windWaveHeight;
+
+  return {
+    primaryHeight: isSwellPrimary ? swellHeight : windWaveHeight,
+    primaryPeriod: isSwellPrimary ? swellPeriod : windWavePeriod,
+    primaryDirectionLabel: isSwellPrimary ? swellDirectionLabel : windWaveDirectionLabel,
+    primaryDirectionDeg: isSwellPrimary ? swellDirectionDeg : windWaveDirectionDeg,
+    secondaryHeight: isSwellPrimary ? windWaveHeight : swellHeight,
+    secondaryPeriod: isSwellPrimary ? windWavePeriod : swellPeriod,
+    secondaryDirectionLabel: isSwellPrimary ? windWaveDirectionLabel : swellDirectionLabel,
+  };
+};
+
 // Format buoy timestamp for display
 const formatBuoyTimestamp = (timestamp: Date | string): string => {
   const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp;
@@ -239,34 +289,19 @@ function SpotForecastCard({ spot, isExpanded, onToggleExpand, onNavigate, isAuth
   const surfHeight = formatSurfHeight(heightUsed);
   const ratingLabel = getRatingLabel(score, surfHeight);
 
-  // Swell info - BUOY BOXES MUST USE PRIMARY SWELL (not dominant)
-  // Box 1 shows PRIMARY swell height, so Box 2 must show PRIMARY swell period
-  // Priority: timeline PRIMARY swell → buoy fallback → dominant fallback
-  // Note: Buoy's SwP field reports dominant energy swell at buoy location (can be secondary),
-  // so timeline PRIMARY data is more accurate for matching the "PRIMARY" label in expanded view
-  const primaryPeriod = currentPoint?.wavePeriodSec ?? buoyData?.swellPeriod ?? currentData.swell.period;
-  const primaryDirection = currentPoint?.waveDirectionDeg ?? buoyData?.swellDirectionDeg ?? currentData.swell.direction;
-
-  const swellPeriod = primaryPeriod !== null && primaryPeriod !== undefined ? `${primaryPeriod.toFixed(0)}s` : '—';
-  const swellDirection = primaryDirection !== null ? formatSwellDirection(primaryDirection) : '—';
-  const swellDirectionDeg = primaryDirection;
-
-  // Get just the cardinal direction without degrees
-  const getCardinalDirection = (deg: number | null | undefined): string => {
-    if (deg === null || deg === undefined) return "—";
-    const cardinals = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
-                       'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
-    const index = Math.round(deg / 22.5) % 16;
-    return cardinals[index];
-  };
-  const swellDirectionLabel = getCardinalDirection(primaryDirection);
+  // Shared primary/secondary swell derivation for compact and expanded cards.
+  const primarySwellData = getLandingCardPrimarySwell(buoyData, currentPoint);
+  const primarySwellHeight = primarySwellData.primaryHeight > 0
+    ? `${primarySwellData.primaryHeight.toFixed(1)}ft`
+    : '—';
+  const primarySwellPeriod = primarySwellData.primaryPeriod !== null && primarySwellData.primaryPeriod !== undefined
+    ? `${primarySwellData.primaryPeriod.toFixed(0)}s`
+    : '—';
+  const primarySwellDirection = primarySwellData.primaryDirectionLabel ?? '—';
 
   // Wind info from unified hook
   const windSpeed = currentData.wind.speedMph !== null
     ? `${currentData.wind.speedMph.toFixed(0)}mph`
-    : '—';
-  const windDirection = currentData.wind.directionDeg !== null
-    ? formatSwellDirection(currentData.wind.directionDeg)
     : '—';
   const windDirectionDeg = currentData.wind.directionDeg;
   const windType = getWindType(currentData.wind.type);
@@ -378,42 +413,39 @@ function SpotForecastCard({ spot, isExpanded, onToggleExpand, onNavigate, isAuth
 
           {/* 3-Card Info Grid - Always blue styled */}
           <div className="grid grid-cols-3 gap-1 sm:gap-2">
-            {/* Swell Height - use buoy data if available, otherwise forecast */}
+            {/* Primary Height */}
             <div className="border-2 border-blue-300 bg-blue-50 p-2 sm:p-3 flex flex-col items-center justify-center gap-1 sm:gap-1.5">
               {buoyLoading ? (
                 <div className="h-4 w-12 bg-blue-200 rounded animate-pulse"></div>
               ) : (
                 <p className="text-xs sm:text-sm font-bold text-black uppercase tracking-wider text-center leading-tight" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                  {buoyData ? `${(buoyData.dominantWaveHeight ?? buoyData.waveHeight).toFixed(1)}ft` : surfHeight}
+                  {primarySwellHeight}
                 </p>
               )}
-              <p className="text-[8px] sm:text-[10px] text-blue-600 uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                <span className="hidden sm:inline">Swell Height</span>
+              <p className="text-[8px] sm:text-[10px] text-blue-600 uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                <span className="hidden sm:inline">Primary Height</span>
                 <span className="sm:hidden">Height</span>
               </p>
             </div>
 
-            {/* Period + Direction - use buoy data if available, otherwise forecast */}
+            {/* Primary Period */}
             <div className="border-2 border-blue-300 bg-blue-50 p-2 sm:p-3 flex flex-col items-center justify-center gap-1 sm:gap-1.5">
               {buoyLoading ? (
                 <div className="h-4 w-16 bg-blue-200 rounded animate-pulse"></div>
               ) : (
-                <div className="flex items-center gap-1 sm:gap-1.5">
-                  <span className="text-xs sm:text-sm font-bold text-black uppercase tracking-wider text-center leading-tight whitespace-nowrap" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    {swellPeriod} {swellDirectionLabel}
-                  </span>
-                  {swellDirectionDeg !== null && <SwellArrow directionDeg={swellDirectionDeg} size={12} />}
-                </div>
+                <span className="text-xs sm:text-sm font-bold text-black uppercase tracking-wider text-center leading-tight whitespace-nowrap" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  {primarySwellPeriod}
+                </span>
               )}
-              <p className="text-[8px] sm:text-[10px] text-blue-600 uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              <p className="text-[8px] sm:text-[10px] text-blue-600 uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                 Period
               </p>
             </div>
 
-            {/* Wind - always from forecast */}
+            {/* Wind */}
             <div className="border-2 border-blue-300 bg-blue-50 p-2 sm:p-3 flex flex-col items-center justify-center gap-1 sm:gap-1.5">
               {buoyLoading ? (
-                <div className="h-4 w-10 bg-blue-200 rounded animate-pulse"></div>
+                <div className="h-4 w-14 bg-blue-200 rounded animate-pulse"></div>
               ) : (
                 <div className="flex items-center gap-1 sm:gap-1.5">
                   <span className="text-xs sm:text-sm font-bold text-black uppercase tracking-wider text-center leading-tight" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
@@ -424,7 +456,7 @@ function SpotForecastCard({ spot, isExpanded, onToggleExpand, onNavigate, isAuth
                   )}
                 </div>
               )}
-              <p className="text-[8px] sm:text-[10px] text-blue-600 uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              <p className="text-[8px] sm:text-[10px] text-blue-600 uppercase tracking-wider whitespace-nowrap" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                 Wind
               </p>
             </div>
@@ -456,75 +488,43 @@ function SpotForecastCard({ spot, isExpanded, onToggleExpand, onNavigate, isAuth
         <div className="p-8 space-y-6">
           {/* Swell Data Row - uses NOAA Buoy spectral data when available */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {(() => {
-              // Determine primary vs secondary based on size
-              // Get wind wave height (from buoy spectral data or fallback)
-              const windWaveHeight = buoyData?.windWaveHeight ?? (buoyData?.waveHeight ?? 0);
-              const windWavePeriod = buoyData?.windWavePeriod ?? (buoyData?.dominantPeriod ?? null);
-              const windWaveDirection = buoyData?.windWaveDirection 
-                ? formatCardinalWithDegrees(buoyData.windWaveDirection)
-                : (buoyData?.directionLabel ? `${buoyData.directionLabel} ${Math.round(buoyData.waveDirection)}°` : null);
-              
-              // Get swell height (from buoy spectral data or forecast)
-              const swellHeight = buoyData?.swellHeight ?? (currentPoint?.secondarySwellHeightFt ? Number(currentPoint.secondarySwellHeightFt) : 0);
-              const swellPeriod = buoyData?.swellPeriod ?? (currentPoint?.secondarySwellPeriodS ?? null);
-              const swellDirection = buoyData?.swellDirection 
-                ? formatCardinalWithDegrees(buoyData.swellDirection)
-                : (currentPoint?.secondarySwellDirectionDeg ? formatSwellDirection(currentPoint.secondarySwellDirectionDeg) : null);
-              
-              // Determine which is larger (primary = larger, secondary = smaller)
-              const isSwellPrimary = swellHeight >= windWaveHeight;
-              
-              const primaryHeight = isSwellPrimary ? swellHeight : windWaveHeight;
-              const primaryPeriod = isSwellPrimary ? swellPeriod : windWavePeriod;
-              const primaryDirection = isSwellPrimary ? swellDirection : windWaveDirection;
-              
-              const secondaryHeight = isSwellPrimary ? windWaveHeight : swellHeight;
-              const secondaryPeriod = isSwellPrimary ? windWavePeriod : swellPeriod;
-              const secondaryDirection = isSwellPrimary ? windWaveDirection : swellDirection;
-              
-              return (
+            {/* Primary Swell - the larger of wind wave or background swell */}
+            <div>
+              <div className="text-[10px] text-gray-600 uppercase tracking-wider mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>PRIMARY</div>
+              {buoyLoading ? (
+                <div className="h-8 w-24 bg-gray-200 rounded animate-pulse"></div>
+              ) : primarySwellData.primaryHeight > 0 ? (
                 <>
-                  {/* Primary Swell - the larger of wind wave or background swell */}
-                  <div>
-                    <div className="text-[10px] text-gray-600 uppercase tracking-wider mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>PRIMARY</div>
-                    {buoyLoading ? (
-                      <div className="h-8 w-24 bg-gray-200 rounded animate-pulse"></div>
-                    ) : primaryHeight > 0 ? (
-                      <>
-                        <div className="text-2xl text-black font-bold" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.01em' }}>
-                          {primaryHeight.toFixed(1)}ft @ {primaryPeriod ? (typeof primaryPeriod === 'number' ? primaryPeriod.toFixed(0) : primaryPeriod) : 'N/A'}s
-                        </div>
-                        <div className="text-xs text-black mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                          {primaryDirection || 'N/A'}
-                        </div>
-                      </>
-                    ) : (
-                      <div className="text-sm text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>—</div>
-                    )}
+                  <div className="text-2xl text-black font-bold" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.01em' }}>
+                    {primarySwellData.primaryHeight.toFixed(1)}ft @ {primarySwellData.primaryPeriod ? primarySwellData.primaryPeriod.toFixed(0) : 'N/A'}s
                   </div>
-
-                  {/* Secondary Swell - the smaller of wind wave or background swell */}
-                  <div>
-                    <div className="text-[10px] text-gray-600 uppercase tracking-wider mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>SECONDARY</div>
-                    {buoyLoading ? (
-                      <div className="h-8 w-24 bg-gray-200 rounded animate-pulse"></div>
-                    ) : secondaryHeight > 0 ? (
-                      <>
-                        <div className="text-2xl text-black font-bold" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.01em' }}>
-                          {secondaryHeight.toFixed(1)}ft @ {secondaryPeriod ? (typeof secondaryPeriod === 'number' ? secondaryPeriod.toFixed(0) : secondaryPeriod) : 'N/A'}s
-                        </div>
-                        <div className="text-xs text-black mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                          {secondaryDirection || 'N/A'}
-                        </div>
-                      </>
-                    ) : (
-                      <div className="text-sm text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>—</div>
-                    )}
+                  <div className="text-xs text-black mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    {primarySwellData.primaryDirectionLabel || 'N/A'}
                   </div>
                 </>
-              );
-            })()}
+              ) : (
+                <div className="text-sm text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>—</div>
+              )}
+            </div>
+
+            {/* Secondary Swell - the smaller of wind wave or background swell */}
+            <div>
+              <div className="text-[10px] text-gray-600 uppercase tracking-wider mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>SECONDARY</div>
+              {buoyLoading ? (
+                <div className="h-8 w-24 bg-gray-200 rounded animate-pulse"></div>
+              ) : primarySwellData.secondaryHeight > 0 ? (
+                <>
+                  <div className="text-2xl text-black font-bold" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.01em' }}>
+                    {primarySwellData.secondaryHeight.toFixed(1)}ft @ {primarySwellData.secondaryPeriod ? primarySwellData.secondaryPeriod.toFixed(0) : 'N/A'}s
+                  </div>
+                  <div className="text-xs text-black mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    {primarySwellData.secondaryDirectionLabel || 'N/A'}
+                  </div>
+                </>
+              ) : (
+                <div className="text-sm text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>—</div>
+              )}
+            </div>
 
             {/* Wind Swell - wind-generated waves */}
             <div>
@@ -1443,12 +1443,12 @@ export default function LandingPage() {
   const landingLiveStatusLine = useMemo(() => {
     const buoy = buoyQuery.data;
     const rockawayHeight = buoyBreakingHeightsQuery.data?.["Rockaway Beach"]?.height ?? buoy?.waveHeight ?? null;
-    const period = buoy?.dominantPeriod ?? null;
-    const windMph = buoy?.windSpeedKts != null ? Math.round(buoy.windSpeedKts * 1.15) : null;
-    const windDirection = degreesToCardinal(buoy?.windDirectionDeg ?? null);
+    const surfLabel = rockawayHeight != null ? formatSurfHeight(rockawayHeight).toUpperCase() : "N/A";
+    const windMph = rockawayLive.wind.speedMph != null ? Math.round(rockawayLive.wind.speedMph) : null;
+    const windDirection = degreesToCardinal(rockawayLive.wind.directionDeg ?? null);
     const ageLabel = buoy?.timestamp ? formatRelativeAgeCompact(buoy.timestamp) : "UPDATING";
-    return `LIVE ROCKAWAY: ${rockawayHeight != null ? `${rockawayHeight.toFixed(1)}FT` : "N/A"} @ ${period != null ? `${Math.round(period)}S` : "N/A"} • ${windMph != null ? `${windMph}MPH` : "N/A"} ${windDirection} • ${ageLabel}`;
-  }, [buoyQuery.data, buoyBreakingHeightsQuery.data]);
+    return `LIVE ROCKAWAY: ${surfLabel} • ${windMph != null ? `${windMph}MPH` : "N/A"} ${windDirection} • ${ageLabel}`;
+  }, [buoyQuery.data, buoyBreakingHeightsQuery.data, rockawayLive.wind.speedMph, rockawayLive.wind.directionDeg]);
 
   const landingNextWindowLine = useMemo(() => {
     const now = Date.now();
@@ -1625,21 +1625,29 @@ export default function LandingPage() {
                     className="text-white hover:text-white/80 hover:bg-white/10 px-3 py-2 text-base font-bold uppercase"
                     style={{ fontFamily: "'Bebas Neue', sans-serif" }}
                   >
-                    Members Portal
+                    Members Portal (Private Beta)
                     <ChevronDown className="ml-1 h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="center" className="w-64 bg-white border-2 border-black rounded-none shadow-lg p-4">
                   <div className="space-y-2">
                     <p className="text-sm text-gray-800 font-medium" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                      Set up custom surf alerts, submit session reports with photos, view local surf logs, and connect with the NYC surf community.
+                      Join the first 40.
                     </p>
+                    <div className="space-y-1">
+                      <div className="h-2 w-full border border-black bg-gray-100">
+                        <div className="h-full bg-black" style={{ width: "37.5%" }} />
+                      </div>
+                      <p className="text-[10px] uppercase tracking-wider text-gray-700" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        15/40 spots filled
+                      </p>
+                    </div>
                     <Button
                       onClick={() => setLocation("/members")}
                       className="w-full bg-black text-white hover:bg-gray-800 border-2 border-black px-4 py-2 font-bold uppercase text-sm"
                       style={{ fontFamily: "'Bebas Neue', sans-serif" }}
                     >
-                      View Portal
+                      Join The Crew
                     </Button>
                   </div>
                 </DropdownMenuContent>
@@ -1685,7 +1693,7 @@ export default function LandingPage() {
                         onClick={() => setLocation("/members")}
                         className="cursor-pointer px-3 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100 focus:bg-gray-100"
                       >
-                        Members Portal
+                        Members Portal (Private Beta)
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={async () => {
