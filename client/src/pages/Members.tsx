@@ -671,13 +671,13 @@ export default function Members() {
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4 sm:mb-6">
                 <div>
                   <h1
-                    className="text-2xl sm:text-5xl md:text-6xl font-black text-black uppercase tracking-tight leading-none"
+                    className="text-2xl sm:text-4xl md:text-6xl font-black text-black uppercase tracking-tight leading-none"
                     style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
                   >
                     Founding Member Command Center
                   </h1>
                   <p
-                    className="text-xs sm:text-sm text-gray-700 uppercase tracking-wide sm:tracking-widest mt-2"
+                    className="text-[10px] sm:text-xs md:text-sm text-gray-700 uppercase tracking-wide sm:tracking-widest mt-1.5 sm:mt-2"
                     style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
                     Private Beta // Closed Network
@@ -853,7 +853,7 @@ export default function Members() {
                         <div className="text-[10px] uppercase tracking-wider text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                           Wave Height
                         </div>
-                        <div className="text-xl sm:text-2xl font-black uppercase leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                        <div className="text-lg sm:text-xl md:text-2xl font-black uppercase leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                           {homeBreakWaveLabel}
                         </div>
                       </div>
@@ -861,7 +861,7 @@ export default function Members() {
                         <div className="text-[10px] uppercase tracking-wider text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                           Wind
                         </div>
-                        <div className="text-xl sm:text-2xl font-black uppercase leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                        <div className="text-base sm:text-lg md:text-2xl font-black uppercase leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                           {homeBreakWindSpeed}MPH {windDirection}
                         </div>
                       </div>
@@ -900,13 +900,13 @@ export default function Members() {
 
               <div className="mt-3 sm:mt-4 border-2 border-black bg-white">
                   <div className="p-3 sm:p-4 border-b border-gray-300">
-                    <div className="text-[10px] uppercase tracking-widest text-gray-600 mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    <div className="text-[10px] uppercase tracking-widest text-gray-600 mb-1.5 sm:mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                       Local Media Board
                     </div>
-                    <div className="text-2xl sm:text-3xl font-black uppercase leading-none mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                    <div className="text-xl sm:text-2xl md:text-3xl font-black uppercase leading-none mb-1.5 sm:mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                       Post Community Media
                     </div>
-                    <p className="text-[10px] uppercase tracking-wide text-gray-700" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    <p className="text-[10px] sm:text-xs uppercase tracking-wide text-gray-700" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                       Share your own YouTube, favorite clips, and session photos/videos.
                     </p>
                   </div>
@@ -1038,8 +1038,8 @@ export default function Members() {
           {/* Alerts Tab */}
           <TabsContent value="alerts" className="mt-0">
             {/* Header */}
-            <div className="bg-white border-2 border-black border-t-0 p-4 sm:p-10">
-              <h1 className="text-3xl sm:text-6xl font-black text-black uppercase tracking-tight leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+            <div className="bg-white border-2 border-black border-t-0 p-4 sm:p-6 md:p-10">
+              <h1 className="text-3xl sm:text-4xl md:text-6xl font-black text-black uppercase tracking-tight leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                 Surf Alerts
               </h1>
               <p className="text-xs sm:text-sm text-gray-500 uppercase tracking-wide sm:tracking-widest mt-2 sm:mt-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
@@ -1057,7 +1057,7 @@ export default function Members() {
                   <p className="text-xs text-gray-600 uppercase tracking-wide sm:tracking-widest mb-3 sm:mb-4" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                     Which break do you want alerts for?
                   </p>
-                  <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                     {spots?.filter(spot => !["Belmar", "Gilgo Beach", "Montauk"].includes(spot.name)).map((spot) => (
                       <button
                         key={spot.id}
@@ -1066,14 +1066,14 @@ export default function Members() {
                           // Single select: toggle between this spot and deselect
                           setAlertSpotId(alertSpotId === spot.id ? null : spot.id);
                         }}
-                        className={`p-4 sm:p-5 text-center transition-all min-h-[56px] sm:min-h-auto ${
+                        className={`p-3 sm:p-4 md:p-5 text-center transition-all min-h-[52px] sm:min-h-[56px] ${
                           alertSpotId === spot.id
                             ? "bg-black text-white border-black"
                             : "bg-white text-black border-black hover:bg-gray-50"
                         }`}
                         style={{ borderWidth: "2px" }}
                       >
-                        <span className="font-bold text-sm uppercase tracking-wide sm:tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        <span className="font-bold text-xs sm:text-sm uppercase tracking-wide sm:tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                           {spot.name.toUpperCase()}
                         </span>
                       </button>
@@ -1081,17 +1081,17 @@ export default function Members() {
                     <button
                       type="button"
                       onClick={() => setAlertSpotId(null)}
-                      className={`p-4 text-left transition-all min-h-[56px] sm:min-h-auto ${
+                      className={`p-3 sm:p-4 text-left transition-all min-h-[52px] sm:min-h-[56px] ${
                         alertSpotId === null
                           ? "bg-black text-white border-black"
                           : "bg-white text-black border-black hover:bg-gray-50"
                       }`}
                       style={{ borderWidth: "2px", borderStyle: "solid" }}
                     >
-                      <div className="font-bold text-sm uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      <div className="font-bold text-xs sm:text-sm uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                         BEST SPOT ONLY
                       </div>
-                      <div className={`text-[11px] mt-1 ${alertSpotId === null ? "text-gray-300" : "text-gray-500"}`}>
+                      <div className={`text-[10px] sm:text-[11px] mt-1 ${alertSpotId === null ? "text-gray-300" : "text-gray-500"}`}>
                         Alerts for whichever beach has the highest quality score
                       </div>
                     </button>
