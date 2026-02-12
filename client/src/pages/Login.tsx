@@ -11,6 +11,7 @@ export default function Login() {
   const [, setLocation] = useLocation();
   const search = useSearch();
   const [email, setEmail] = useState("");
+  const [isLocal, setIsLocal] = useState(false);
   const params = new URLSearchParams(search);
   const redirect = params.get("redirect");
 
@@ -97,6 +98,24 @@ export default function Login() {
               >
                 Founding Access • First 40+ NYC Locals
               </div>
+            </div>
+
+            {/* Local Verification Checkbox */}
+            <div className="mb-5">
+              <label className="flex items-center gap-2.5 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={isLocal}
+                  onChange={(e) => setIsLocal(e.target.checked)}
+                  className="w-5 h-5 border-2 border-black rounded-none cursor-pointer accent-black"
+                />
+                <span
+                  className="text-sm text-gray-700 select-none group-hover:text-black transition-colors"
+                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                >
+                  I'm a local and I'm not a kook.
+                </span>
+              </label>
             </div>
 
             {/* Google Sign In */}
