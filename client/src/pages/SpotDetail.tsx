@@ -1957,21 +1957,24 @@ export default function SpotDetail() {
 
               {/* Share Your Session - Full Width */}
               {isAuthenticated && (
-                <div className="border-t-2 border-gray-200 bg-white p-3 sm:p-4">
+                <div className="border-t-2 border-gray-200 bg-white p-2 sm:p-3 md:p-4">
                   <div className="border-2 border-black bg-white max-w-4xl mx-auto">
-                    <div className="px-4 py-2 border-b-2 border-black flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-black uppercase tracking-tight"
-                            style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
-                          Share Your Session
-                        </h3>
-                        <p className="text-[10px] text-gray-600 uppercase tracking-widest"
-                           style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                          Help the community with your report
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div>
+                    {/* Header */}
+                    <div className="px-3 py-2 sm:px-4 sm:py-2 border-b-2 border-black">
+                      <h3 className="text-base sm:text-lg font-black uppercase tracking-tight"
+                          style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+                        Share Your Session
+                      </h3>
+                      <p className="text-[9px] sm:text-[10px] text-gray-600 uppercase tracking-widest"
+                         style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        Help the community with your report
+                      </p>
+                    </div>
+
+                    {/* Form - Vertical on Mobile, Horizontal on Desktop */}
+                    <div className="p-3 sm:p-4">
+                      <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+                        <div className="flex-1">
                           <label className="block text-[9px] font-semibold uppercase tracking-widest text-gray-700 mb-1"
                                  style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                             Session Date
@@ -1983,7 +1986,7 @@ export default function SpotDetail() {
                         </div>
                         <Button
                           onClick={handleSubmitReport}
-                          className="bg-black text-white hover:bg-gray-800 border-2 border-black px-6 py-2 text-sm font-bold uppercase"
+                          className="w-full sm:w-auto bg-black text-white hover:bg-gray-800 border-2 border-black px-6 py-2 text-sm font-bold uppercase whitespace-nowrap"
                           style={{ fontFamily: "'Bebas Neue', sans-serif" }}
                         >
                           Submit Report →
