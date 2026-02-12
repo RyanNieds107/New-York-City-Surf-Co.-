@@ -167,7 +167,7 @@ export function getConfidenceBadgeText(confidence: ConfidenceLevel): string | nu
   }
 }
 
-const WAVE_HEIGHT_DISCREPANCY_THRESHOLD_FT = 1.0;
+const WAVE_HEIGHT_DISCREPANCY_THRESHOLD_FT = 2.0;
 const WAVE_HEIGHT_DISCREPANCY_WINDOW_HOURS = 48;
 
 /**
