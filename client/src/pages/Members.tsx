@@ -700,7 +700,7 @@ export default function Members() {
                     className="text-2xl sm:text-4xl md:text-6xl font-black text-black uppercase tracking-tight leading-none"
                     style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
                   >
-                    Founding Member Command Center
+                    NYC Surf Co. | Founding 40 Private Beta
                   </h1>
                   <p
                     className="text-[10px] sm:text-xs md:text-sm text-gray-700 uppercase tracking-wide sm:tracking-widest mt-1.5 sm:mt-2"
