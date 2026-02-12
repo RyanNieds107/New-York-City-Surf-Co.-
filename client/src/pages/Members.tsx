@@ -45,7 +45,8 @@ export default function Members() {
   });
 
   // Real-time alerts state
-  const [alertSpotId, setAlertSpotId] = useState<number | null>(null);
+  const [alertSpotIds, setAlertSpotIds] = useState<number[]>([]);
+  const [bestSpotOnly, setBestSpotOnly] = useState(false);
   const [daysAdvanceNotice, setDaysAdvanceNotice] = useState<number>(7);
   const [minQualityScore, setMinQualityScore] = useState<number>(70);
   const [alertFrequency, setAlertFrequency] = useState<string>("once");
@@ -110,7 +111,8 @@ export default function Members() {
       await utils.alerts.list.invalidate();
       await refetchAlerts();
       // Reset form state
-      setAlertSpotId(null);
+      setAlertSpotIds([]);
+      setBestSpotOnly(false);
       setDaysAdvanceNotice(7);
       setMinQualityScore(70);
       setAlertFrequency("once");
@@ -229,7 +231,7 @@ export default function Members() {
     return null;
   }
 
-  const handleCreateAlert = (e: React.FormEvent) => {
+  const handleCreateAlert = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Validate that at least one notification method is enabled
@@ -238,17 +240,41 @@ export default function Members() {
       return;
     }
 
-    createAlertMutation.mutate({
-      spotId: alertSpotId,
-      minQualityScore,
-      minWaveHeightFt: minWaveHeight ?? undefined,
-      minPeriodSec: minPeriod ?? undefined,
-      allowedDays,
-      emailEnabled,
-      smsEnabled: false, // SMS coming soon
-      hoursAdvanceNotice: daysAdvanceNotice * 24,
-      notificationFrequency: alertFrequency as "once" | "twice" | "threshold" | "realtime",
-    });
+    // Validate that at least one spot is selected or "Best Spot Only" is chosen
+    if (alertSpotIds.length === 0 && !bestSpotOnly) {
+      toast.error("Please select at least one spot or choose 'Best Spot Only'");
+      return;
+    }
+
+    // If "Best Spot Only" is selected, create a single alert with null spotId
+    if (bestSpotOnly) {
+      createAlertMutation.mutate({
+        spotId: null,
+        minQualityScore,
+        minWaveHeightFt: minWaveHeight ?? undefined,
+        minPeriodSec: minPeriod ?? undefined,
+        allowedDays,
+        emailEnabled,
+        smsEnabled: false,
+        hoursAdvanceNotice: daysAdvanceNotice * 24,
+        notificationFrequency: alertFrequency as "once" | "twice" | "threshold" | "realtime",
+      });
+    } else {
+      // Create an alert for each selected spot
+      for (const spotId of alertSpotIds) {
+        createAlertMutation.mutate({
+          spotId,
+          minQualityScore,
+          minWaveHeightFt: minWaveHeight ?? undefined,
+          minPeriodSec: minPeriod ?? undefined,
+          allowedDays,
+          emailEnabled,
+          smsEnabled: false,
+          hoursAdvanceNotice: daysAdvanceNotice * 24,
+          notificationFrequency: alertFrequency as "once" | "twice" | "threshold" | "realtime",
+        });
+      }
+    }
   };
 
   const handleSubmitCrowdReport = (e: React.FormEvent) => {
@@ -1055,7 +1081,7 @@ export default function Members() {
                     Spot
                   </h3>
                   <p className="text-xs text-gray-600 uppercase tracking-wide sm:tracking-widest mb-3 sm:mb-4" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    Which break do you want alerts for?
+                    Which breaks do you want alerts for? (Select multiple)
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                     {spots?.filter(spot => !["Belmar", "Gilgo Beach", "Montauk"].includes(spot.name)).map((spot) => (
@@ -1063,11 +1089,17 @@ export default function Members() {
                         key={spot.id}
                         type="button"
                         onClick={() => {
-                          // Single select: toggle between this spot and deselect
-                          setAlertSpotId(alertSpotId === spot.id ? null : spot.id);
+                          // Multi-select: toggle spot in/out of array
+                          // If selecting a spot, clear "Best Spot Only"
+                          setBestSpotOnly(false);
+                          if (alertSpotIds.includes(spot.id)) {
+                            setAlertSpotIds(alertSpotIds.filter(id => id !== spot.id));
+                          } else {
+                            setAlertSpotIds([...alertSpotIds, spot.id]);
+                          }
                         }}
                         className={`p-3 sm:p-4 md:p-5 text-center transition-all min-h-[52px] sm:min-h-[56px] ${
-                          alertSpotId === spot.id
+                          alertSpotIds.includes(spot.id)
                             ? "bg-black text-white border-black"
                             : "bg-white text-black border-black hover:bg-gray-50"
                         }`}
@@ -1080,9 +1112,15 @@ export default function Members() {
                     ))}
                     <button
                       type="button"
-                      onClick={() => setAlertSpotId(null)}
+                      onClick={() => {
+                        // Toggle "Best Spot Only" and clear individual selections
+                        setBestSpotOnly(!bestSpotOnly);
+                        if (!bestSpotOnly) {
+                          setAlertSpotIds([]);
+                        }
+                      }}
                       className={`p-3 sm:p-4 text-left transition-all min-h-[52px] sm:min-h-[56px] ${
-                        alertSpotId === null
+                        bestSpotOnly
                           ? "bg-black text-white border-black"
                           : "bg-white text-black border-black hover:bg-gray-50"
                       }`}
@@ -1091,7 +1129,7 @@ export default function Members() {
                       <div className="font-bold text-xs sm:text-sm uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                         BEST SPOT ONLY
                       </div>
-                      <div className={`text-[10px] sm:text-[11px] mt-1 ${alertSpotId === null ? "text-gray-300" : "text-gray-500"}`}>
+                      <div className={`text-[10px] sm:text-[11px] mt-1 ${bestSpotOnly ? "text-gray-300" : "text-gray-500"}`}>
                         Alerts for whichever beach has the highest quality score
                       </div>
                     </button>
