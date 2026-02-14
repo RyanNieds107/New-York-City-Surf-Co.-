@@ -1,4 +1,4 @@
-import { eq, desc, and, gte, lte, lt, isNull, or, sql } from "drizzle-orm";
+import { eq, desc, and, gte, lte, lt, isNull, isNotNull, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 import {
