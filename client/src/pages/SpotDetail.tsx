@@ -278,6 +278,10 @@ export default function SpotDetail() {
   const [showSurfPlanPopup, setShowSurfPlanPopup] = useState(false);
   const [popupCheckDone, setPopupCheckDone] = useState(false);
 
+  // Surf plan popup mutations (declared before useEffect that uses them)
+  const markPopupShownMutation = trpc.reports.markSurfPlanPopupShown.useMutation();
+  const recordResponseMutation = trpc.reports.recordSurfPlanResponse.useMutation();
+
   // Handle hash navigation (e.g., /spot/3#guide) or scroll to top
   useEffect(() => {
     const hash = window.location.hash;
@@ -358,10 +362,6 @@ export default function SpotDetail() {
     { spotId, daysBack: 30 },
     { refetchInterval }
   );
-
-  // Surf plan popup mutations
-  const markPopupShownMutation = trpc.reports.markSurfPlanPopupShown.useMutation();
-  const recordResponseMutation = trpc.reports.recordSurfPlanResponse.useMutation();
 
   // Handle surf plan popup response
   const handleSurfPlanResponse = async (response: 'yes' | 'no' | 'dismissed') => {
