@@ -77,8 +77,9 @@ export function calculateAngularDistance(deg1: number, deg2: number): number {
  * Logic:
  * 1. Check hard blocks first (deal breakers):
  *    - West Block (247.5° to 292.5°): Return -20 (Max Penalty)
- *    - East Wrap (< 105°): Return -15 (Major Penalty)
- * 2. Check tolerance (only if not blocked):
+ *    - East Wrap: Gradual penalty by band (matches breaking-height bands)
+ *      - 100-104°: -5, 95-99°: -8, 90-94°: -12, <90°: -15
+ * 2. Check tolerance (only if not in east wrap band):
  *    - If distance <= tolerance: Return 0 (No Penalty)
  *    - If distance > tolerance: Return -10 (Standard Drift Penalty)
  * 3. Null direction: Return 0 (neutral, no penalty)
@@ -115,12 +116,15 @@ export function scoreDirection(
     return -18; // Major Penalty - NW swells don't wrap properly to south-facing beaches
   }
 
-  // East Wrap (< 105°): Heavy wrap-around, lose power, often walled/inconsistent
+  // East Wrap: Gradual penalty by direction band (matches breaking-height bands)
   if (swellDirectionDeg < 105) {
-    return -15; // Major Penalty - East wraps lose significant power
+    if (swellDirectionDeg >= 100) return -5;   // 100-104°
+    if (swellDirectionDeg >= 95) return -8;   // 95-99°
+    if (swellDirectionDeg >= 90) return -12;  // 90-94°
+    return -15;                               // < 90°
   }
 
-  // CHECK TOLERANCE (Only if not blocked)
+  // CHECK TOLERANCE (only if not in east wrap band)
   const target = profile.swell_target_deg;
   const tolerance = profile.swell_tolerance_deg;
   const distance = calculateAngularDistance(swellDirectionDeg, target);
@@ -1105,16 +1109,24 @@ export function calculateQualityScoreWithProfile(
     }
   }
 
-  // Hard clamp for blocked swell directions: W/NW swells can't produce good surf on south-facing beaches
-  // If swell direction is in the blocked range, cap score at 35 ("Don't Bother")
+  // Direction-based score caps: W/NW = flat 35; East = gradual by band (matches breaking-height bands)
   const swellDir = forecastPoint.waveDirectionDeg;
   if (swellDir !== null) {
-    const isBlockedDirection = (swellDir >= 247.5 && swellDir <= 330) || swellDir < 105;
-    if (isBlockedDirection) {
+    let directionCap: number | null = null;
+    if (swellDir >= 247.5 && swellDir <= 330) {
+      directionCap = 35; // West/NW: Don't Bother max
+    } else if (swellDir < 105) {
+      // East wrap bands
+      if (swellDir >= 100) directionCap = 55;   // 100-104°: Worth a Look max
+      else if (swellDir >= 95) directionCap = 48;  // 95-99°
+      else if (swellDir >= 90) directionCap = 42;  // 90-94°
+      else directionCap = 35;                      // < 90°: Don't Bother max
+    }
+    if (directionCap !== null) {
       const beforeClamp = rawScore;
-      rawScore = Math.min(rawScore, 35); // Hard cap: blocked directions can't exceed "Don't Bother"
+      rawScore = Math.min(rawScore, directionCap);
       if (beforeClamp !== rawScore) {
-        console.log('🔍 [Quality Score Debug] Blocked direction clamp applied:', beforeClamp, '→', rawScore);
+        console.log('🔍 [Quality Score Debug] Direction cap applied:', beforeClamp, '→', rawScore, `(cap ${directionCap})`);
       }
     }
   }

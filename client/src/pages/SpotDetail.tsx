@@ -2802,8 +2802,8 @@ export default function SpotDetail() {
                         }
                         
                         // Calculate average quality rating for the day
-                        const avgQualityRating = getRatingLabel(avgScore);
-                        const verdictLabel = getVerdictLabel(avgQualityRating);
+                        let avgQualityRating = getRatingLabel(avgScore);
+                        let verdictLabel = getVerdictLabel(avgQualityRating);
                         
                         // Calculate surfable daylight hours for callout with quality differentiation
                         let surfableDaylightHoursCount = 0;
@@ -2849,7 +2849,17 @@ export default function SpotDetail() {
                           }
                         }
                         
-                        // Show callout if verdict is "Don't Bother" but there are surfable hours
+                        // Override day badge by surfable hours: 2-4 hr → Worth a Look, 5+ hr → Go Surf
+                        let displayScore = avgScore;
+                        if (surfableDaylightHoursCount >= 5) {
+                          verdictLabel = "GO SURF";
+                          displayScore = 65;
+                        } else if (surfableDaylightHoursCount >= 2) {
+                          verdictLabel = "WORTH A LOOK";
+                          displayScore = 50;
+                        }
+                        
+                        // Show callout if verdict is "Don't Bother" but there are surfable hours (1 hr only after override)
                         const showSurfableHoursCallout = verdictLabel === "DON'T BOTHER" && surfableDaylightHoursCount > 0;
                         
                         // Calculate wave height range (min-max) for AM and PM separately
@@ -2962,7 +2972,7 @@ export default function SpotDetail() {
                         const dayCard = (
                           <div
                             key={dayKey}
-                            className={`${showSurfableHoursCallout ? 'bg-white' : getCardBackgroundColor(avgScore)} border-l-4 ${getAccentColor(avgScore)} transition-all`}
+                            className={`${showSurfableHoursCallout ? 'bg-white' : getCardBackgroundColor(displayScore)} border-l-4 ${getAccentColor(displayScore)} transition-all`}
                           >
                             {/* Day Summary Card */}
                             <button
@@ -2984,8 +2994,8 @@ export default function SpotDetail() {
                                     <h4 className="text-lg md:text-2xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                                       {fullDayName}
                                     </h4>
-                                    <span className={`${getScoreBadgeColors(avgScore).bg} ${getScoreBadgeColors(avgScore).text} px-1.5 py-0.5 text-[7px] md:text-[9px] font-bold tracking-wider uppercase`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                                      {verdictLabel.toUpperCase()}
+                                    <span className={`${getScoreBadgeColors(displayScore).bg} ${getScoreBadgeColors(displayScore).text} px-1.5 py-0.5 text-[7px] md:text-[9px] font-bold tracking-wider uppercase`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                      {verdictLabel}
                                     </span>
                                   </div>
 
