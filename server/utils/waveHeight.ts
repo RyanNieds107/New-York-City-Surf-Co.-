@@ -127,20 +127,25 @@ export function isDirectionBlocked(directionDeg: number | null): boolean {
 }
 
 /**
- * Get directional penalty multiplier for a swell
+ * Get directional penalty multiplier for a swell (east wrap)
  *
- * East swells (< 105°) wrap around and lose energy, receiving a 0.7x penalty.
- * All other directions receive no penalty (1.0x).
+ * East swells (< 105°) wrap around and lose energy. Penalty is gradual by direction:
+ * - 100-105°: 5% drop (0.95x)
+ * - 95-99°: 10% drop (0.90x)
+ * - 90-94°: 20% drop (0.80x)
+ * - < 90°: 30% drop (0.70x)
+ * - ≥ 105°: no penalty (1.0x)
  *
  * @param directionDeg - Swell direction in degrees (0-360) or null
- * @returns Penalty multiplier (0.7 for east swells, 1.0 otherwise)
+ * @returns Penalty multiplier
  */
 export function getDirectionalPenalty(directionDeg: number | null): number {
   if (directionDeg === null || directionDeg === undefined) return 1.0;
-  if (directionDeg < 105) {
-    return 0.7; // East swell wrap penalty
-  }
-  return 1.0;
+  if (directionDeg >= 105) return 1.0;
+  if (directionDeg >= 100) return 0.95;  // 5% drop
+  if (directionDeg >= 95) return 0.90;   // 10% drop
+  if (directionDeg >= 90) return 0.80;   // 20% drop
+  return 0.70;                          // 30% drop (< 90°)
 }
 
 /**
@@ -183,9 +188,12 @@ export function getTideMultiplier(
     return 1.2; // 20% boost for rising tide conditions
   }
 
-  // High tide (>3.2ft): 30% reduction (applies to all spots)
+  // High tide (>3.2ft): spot-specific (Rockaway none, Lido 10%, Long Beach 20%, others none)
   if (tideHeightFt > 3.2) {
-    return 0.7;
+    if (spotName === "Rockaway Beach") return 1.0;   // No high-tide penalty
+    if (spotName === "Lido Beach") return 0.9;      // 10% reduction
+    if (spotName === "Long Beach") return 0.8;     // 20% reduction
+    return 1.0;                                    // No penalty for any other spot
   }
 
   // Mid-tide (2.1-3.2ft): Linear interpolation from 1.2 to 0.85
