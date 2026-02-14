@@ -1537,7 +1537,6 @@ export async function markSurfPlanPopupShown(
   if (!db) throw new Error("Database not available");
 
   const now = new Date();
-  const today = format(now, 'yyyy-MM-dd');
 
   // Upsert into forecastViews
   await db
@@ -1546,7 +1545,7 @@ export async function markSurfPlanPopupShown(
       userId,
       spotId,
       viewedAt: now,
-      viewedDate: today,
+      // viewedDate is auto-generated from viewedAt
       forecastTime: now, // Current time as forecast reference
       sessionDuration: 10, // Minimum to trigger popup
       surfPlanPopupShown: 1,
@@ -1572,7 +1571,6 @@ export async function recordSurfPlanResponse(
   if (!db) throw new Error("Database not available");
 
   const now = new Date();
-  const today = format(now, 'yyyy-MM-dd');
 
   await db
     .insert(forecastViews)
@@ -1580,7 +1578,7 @@ export async function recordSurfPlanResponse(
       userId,
       spotId,
       viewedAt: now,
-      viewedDate: today,
+      // viewedDate is auto-generated from viewedAt
       forecastTime: now,
       sessionDuration: 10,
       surfPlanPopupShown: 1,
