@@ -1447,7 +1447,7 @@ export async function getPendingReportPrompts(): Promise<ForecastView[]> {
   const startWindow = new Date(now.getTime() - 25 * 60 * 60 * 1000); // 25 hours ago
   const endWindow = new Date(now.getTime() - 23 * 60 * 60 * 1000); // 23 hours ago
 
-  // Get pending views with meaningful engagement
+  // Get pending views with meaningful engagement OR users who said yes to surfing
   const views = await db
     .select()
     .from(forecastViews)
@@ -1456,7 +1456,10 @@ export async function getPendingReportPrompts(): Promise<ForecastView[]> {
         eq(forecastViews.promptSent, 0),
         gte(forecastViews.viewedAt, startWindow),
         lte(forecastViews.viewedAt, endWindow),
-        gte(forecastViews.sessionDuration, 10) // Only meaningful engagement
+        or(
+          gte(forecastViews.sessionDuration, 10), // Original: meaningful engagement
+          eq(forecastViews.surfPlanResponse, 'yes') // NEW: User clicked "Yes" to surf plan popup
+        )
       )
     )
     .orderBy(forecastViews.viewedAt);
@@ -1479,6 +1482,118 @@ export async function markPromptSent(viewId: number): Promise<void> {
       promptSentAt: new Date()
     })
     .where(eq(forecastViews.id, viewId));
+}
+
+/**
+ * Check if surf plan popup should be shown for this user/spot.
+ * Returns true if:
+ * - No popup shown for this spot in last 7 days
+ * - User hasn't responded in last 7 days for this spot
+ */
+export async function shouldShowSurfPlanPopup(
+  userId: number,
+  spotId: number
+): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+  const recentView = await db
+    .select()
+    .from(forecastViews)
+    .where(
+      and(
+        eq(forecastViews.userId, userId),
+        eq(forecastViews.spotId, spotId),
+        or(
+          // Popup shown in last 7 days
+          and(
+            eq(forecastViews.surfPlanPopupShown, 1),
+            gte(forecastViews.surfPlanPopupShownAt, sevenDaysAgo)
+          ),
+          // User responded in last 7 days
+          and(
+            isNotNull(forecastViews.surfPlanResponse),
+            gte(forecastViews.surfPlanRespondedAt, sevenDaysAgo)
+          )
+        )
+      )
+    )
+    .limit(1);
+
+  // If no recent popup/response found, show popup
+  return recentView.length === 0;
+}
+
+/**
+ * Mark that popup was shown to user for this spot.
+ */
+export async function markSurfPlanPopupShown(
+  userId: number,
+  spotId: number
+): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const now = new Date();
+  const today = format(now, 'yyyy-MM-dd');
+
+  // Upsert into forecastViews
+  await db
+    .insert(forecastViews)
+    .values({
+      userId,
+      spotId,
+      viewedAt: now,
+      viewedDate: today,
+      forecastTime: now, // Current time as forecast reference
+      sessionDuration: 10, // Minimum to trigger popup
+      surfPlanPopupShown: 1,
+      surfPlanPopupShownAt: now,
+    })
+    .onDuplicateKeyUpdate({
+      set: {
+        surfPlanPopupShown: 1,
+        surfPlanPopupShownAt: now,
+      },
+    });
+}
+
+/**
+ * Record user's response to surf plan popup.
+ */
+export async function recordSurfPlanResponse(
+  userId: number,
+  spotId: number,
+  response: 'yes' | 'no' | 'dismissed'
+): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const now = new Date();
+  const today = format(now, 'yyyy-MM-dd');
+
+  await db
+    .insert(forecastViews)
+    .values({
+      userId,
+      spotId,
+      viewedAt: now,
+      viewedDate: today,
+      forecastTime: now,
+      sessionDuration: 10,
+      surfPlanPopupShown: 1,
+      surfPlanPopupShownAt: now,
+      surfPlanResponse: response,
+      surfPlanRespondedAt: now,
+    })
+    .onDuplicateKeyUpdate({
+      set: {
+        surfPlanResponse: response,
+        surfPlanRespondedAt: now,
+      },
+    });
 }
 
 

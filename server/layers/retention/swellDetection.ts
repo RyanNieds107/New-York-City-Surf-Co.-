@@ -6,6 +6,43 @@ import { getAverageCrowdLevel } from "../../db";
 import { getForecastTimeline } from "../../db";
 import { isDaylightHours, getLastLightForDate } from "../../utils/sunTimes";
 
+/**
+ * Converts degrees to compass direction (N, NE, E, SE, etc.)
+ */
+function degreesToCompass(degrees: number | null): string | null {
+  if (degrees === null) return null;
+  const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
+                      'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+  const index = Math.round(degrees / 22.5) % 16;
+  return directions[index];
+}
+
+/**
+ * Calculates the circular mean of an array of directions (in degrees).
+ * Handles the circular nature of directions (359° + 1° = 0°, not 180°).
+ */
+function averageDirectionDegrees(directions: (number | null)[]): number | null {
+  const validDirs = directions.filter((d): d is number => d !== null);
+  if (validDirs.length === 0) return null;
+
+  // Convert to radians and calculate mean angle
+  let sumSin = 0;
+  let sumCos = 0;
+  validDirs.forEach(deg => {
+    const rad = (deg * Math.PI) / 180;
+    sumSin += Math.sin(rad);
+    sumCos += Math.cos(rad);
+  });
+
+  const avgRad = Math.atan2(sumSin / validDirs.length, sumCos / validDirs.length);
+  let avgDeg = (avgRad * 180) / Math.PI;
+
+  // Normalize to 0-360
+  if (avgDeg < 0) avgDeg += 360;
+
+  return Math.round(avgDeg);
+}
+
 export interface DetectedSwell {
   alertId: number;
   userId: number;
@@ -16,6 +53,12 @@ export interface DetectedSwell {
   peakQualityScore: number;
   avgQualityScore: number;
   avgPeriodSec: number;
+  swellDirectionDeg: number | null;        // Average swell direction in degrees
+  swellDirectionCompass: string | null;    // Compass direction (e.g., "SE")
+  windDirectionDeg: number | null;         // Average wind direction in degrees
+  windDirectionCompass: string | null;     // Compass direction (e.g., "WSW")
+  windSpeedMph: number | null;             // Average sustained wind speed
+  windGustsMph: number | null;             // Average wind gust speed (for range display)
   conditions: Array<{
     timestamp: Date;
     waveHeight: number;
@@ -123,6 +166,12 @@ export async function detectUpcomingSwells(
         peakQualityScore: window.peakScore,
         avgQualityScore: window.avgScore,
         avgPeriodSec: window.avgPeriod,
+        swellDirectionDeg: window.swellDirectionDeg,
+        swellDirectionCompass: window.swellDirectionCompass,
+        windDirectionDeg: window.windDirectionDeg,
+        windDirectionCompass: window.windDirectionCompass,
+        windSpeedMph: window.windSpeedMph,
+        windGustsMph: window.windGustsMph,
         conditions: window.conditions,
       });
     }
@@ -138,6 +187,12 @@ interface SwellWindow {
   peakScore: number;
   avgScore: number;
   avgPeriod: number;
+  swellDirectionDeg: number | null;        // Average swell direction in degrees
+  swellDirectionCompass: string | null;    // Compass direction (e.g., "SE")
+  windDirectionDeg: number | null;         // Average wind direction in degrees
+  windDirectionCompass: string | null;     // Compass direction (e.g., "WSW")
+  windSpeedMph: number | null;             // Average sustained wind speed
+  windGustsMph: number | null;             // Average wind gust speed
   conditions: Array<{
     timestamp: Date;
     waveHeight: number;
@@ -330,6 +385,31 @@ function createWindowFromPoints(
   const avgPeriod = validPeriods > 0 ? Math.round(totalPeriod / validPeriods) : 0;
   const avgScore = conditions.length > 0 ? Math.round(totalScore / conditions.length) : 0;
 
+  // Extract direction and wind data
+  const swellDirections = points.map(p => p.dominantSwellDirectionDeg ?? p.waveDirectionDeg ?? null);
+  const windDirections = points.map(p => p.windDirectionDeg);
+  const windSpeeds = points.map(p => p.windSpeedMph);
+  const windGusts = points.map(p => p.windGustsMph);
+
+  // Calculate averages using circular mean for directions
+  const avgSwellDirectionDeg = averageDirectionDegrees(swellDirections);
+  const avgWindDirectionDeg = averageDirectionDegrees(windDirections);
+
+  // Convert to compass directions
+  const swellDirectionCompass = degreesToCompass(avgSwellDirectionDeg);
+  const windDirectionCompass = degreesToCompass(avgWindDirectionDeg);
+
+  // Calculate average wind speeds (regular arithmetic mean)
+  const validWindSpeeds = windSpeeds.filter((s): s is number => s !== null && s !== undefined);
+  const avgWindSpeedMph = validWindSpeeds.length > 0
+    ? Math.round(validWindSpeeds.reduce((sum, s) => sum + s, 0) / validWindSpeeds.length)
+    : null;
+
+  const validWindGusts = windGusts.filter((g): g is number => g !== null && g !== undefined);
+  const avgWindGustsMph = validWindGusts.length > 0
+    ? Math.round(validWindGusts.reduce((sum, g) => sum + g, 0) / validWindGusts.length)
+    : null;
+
   return {
     startTime: firstTime,
     endTime: lastTime,
@@ -337,6 +417,12 @@ function createWindowFromPoints(
     peakScore,
     avgScore,
     avgPeriod,
+    swellDirectionDeg: avgSwellDirectionDeg,
+    swellDirectionCompass,
+    windDirectionDeg: avgWindDirectionDeg,
+    windDirectionCompass,
+    windSpeedMph: avgWindSpeedMph,
+    windGustsMph: avgWindGustsMph,
     conditions,
   };
 }

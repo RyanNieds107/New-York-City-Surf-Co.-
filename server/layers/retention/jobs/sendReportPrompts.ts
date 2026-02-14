@@ -36,7 +36,11 @@ export async function sendReportPrompts(): Promise<void> {
         const baseUrl = process.env.BASE_URL || process.env.VITE_BASE_URL || "https://www.nycsurfco.com";
         const reportUrl = `${baseUrl}/report/submit?spotId=${spot.id}&sessionDate=${view.forecastTime.toISOString()}&viewId=${view.id}`;
 
-        const subject = `How was ${spot.name}?`;
+        // Customize subject line for users who said yes to surfing
+        const userSaidYes = view.surfPlanResponse === 'yes';
+        const subject = userSaidYes
+          ? `Ready to share how ${spot.name} was?`
+          : `How was ${spot.name}?`;
 
         const html = `
 <!DOCTYPE html>

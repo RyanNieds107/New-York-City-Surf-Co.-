@@ -56,6 +56,10 @@ export const forecastViews = mysqlTable(
     promptSent: int("promptSent").notNull().default(0), // 0 = not sent, 1 = sent
     promptSentAt: timestamp("promptSentAt"),
     sessionDuration: int("sessionDuration"), // Seconds user spent on page (nullable)
+    surfPlanPopupShown: int("surfPlanPopupShown").notNull().default(0), // 0 = not shown, 1 = shown
+    surfPlanPopupShownAt: timestamp("surfPlanPopupShownAt"),
+    surfPlanResponse: varchar("surfPlanResponse", { length: 20 }), // 'yes', 'no', 'dismissed', null
+    surfPlanRespondedAt: timestamp("surfPlanRespondedAt"),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
   },
   (table) => ({
@@ -63,6 +67,16 @@ export const forecastViews = mysqlTable(
     idx_viewed_at: index("idx_viewed_at").on(table.viewedAt),
     idx_prompt_pending: index("idx_prompt_pending").on(table.promptSent, table.viewedAt),
     idx_session_duration: index("idx_session_duration").on(table.sessionDuration),
+    idx_surf_plan_popup: index("idx_surf_plan_popup").on(
+      table.userId,
+      table.spotId,
+      table.surfPlanPopupShownAt
+    ),
+    idx_surf_plan_response: index("idx_surf_plan_response").on(
+      table.userId,
+      table.surfPlanResponse,
+      table.surfPlanRespondedAt
+    ),
     unique_user_spot_date: unique("unique_user_spot_date").on(
       table.userId,
       table.spotId,

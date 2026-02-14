@@ -1520,6 +1520,43 @@ export const appRouter = router({
       .query(async ({ input }) => {
         return getRecentReports(input.limit);
       }),
+
+    // Check if surf plan popup should be shown for this spot
+    shouldShowSurfPlanPopup: publicProcedure
+      .input(z.object({ spotId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        if (!ctx.user?.id) return false; // Only for authenticated users
+
+        const result = await shouldShowSurfPlanPopup(ctx.user.id, input.spotId);
+        return result;
+      }),
+
+    // Mark that popup was shown
+    markSurfPlanPopupShown: publicProcedure
+      .input(z.object({ spotId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.user?.id) return { success: false };
+
+        await markSurfPlanPopupShown(ctx.user.id, input.spotId);
+        return { success: true };
+      }),
+
+    // Record user's response (yes/no/dismissed)
+    recordSurfPlanResponse: publicProcedure
+      .input(z.object({
+        spotId: z.number(),
+        response: z.enum(['yes', 'no', 'dismissed']),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.user?.id) return { success: false };
+
+        await recordSurfPlanResponse(
+          ctx.user.id,
+          input.spotId,
+          input.response
+        );
+        return { success: true };
+      }),
   }),
 
   // ==================== CONDITIONS LOG ROUTER ====================

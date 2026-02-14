@@ -3,6 +3,13 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
 import { Arrow, TrendArrow, SwellArrow, WindArrowBadge, ExpandArrow } from "@/components/ui/arrow";
@@ -267,6 +274,10 @@ export default function SpotDetail() {
     chartPoint: AreaChartDataPoint | null;
   } | null>(null);
 
+  // Surf plan popup state
+  const [showSurfPlanPopup, setShowSurfPlanPopup] = useState(false);
+  const [popupCheckDone, setPopupCheckDone] = useState(false);
+
   // Handle hash navigation (e.g., /spot/3#guide) or scroll to top
   useEffect(() => {
     const hash = window.location.hash;
@@ -303,6 +314,32 @@ export default function SpotDetail() {
     };
   }, [extendedForecastTooltip]);
 
+  // Surf plan popup timer (show after 5 seconds of viewing)
+  useEffect(() => {
+    if (popupCheckDone || !isAuthenticated) return;
+
+    const timer = setTimeout(async () => {
+      try {
+        // Check if popup should be shown for this spot
+        const shouldShow = await trpc.reports.shouldShowSurfPlanPopup.query({
+          spotId
+        });
+
+        if (shouldShow) {
+          setShowSurfPlanPopup(true);
+          // Mark that popup was shown (fire-and-forget)
+          markPopupShownMutation.mutate({ spotId });
+        }
+        setPopupCheckDone(true);
+      } catch (error) {
+        console.error('Failed to check surf plan popup:', error);
+        setPopupCheckDone(true);
+      }
+    }, 5000); // 5 seconds
+
+    return () => clearTimeout(timer);
+  }, [spotId, popupCheckDone, isAuthenticated, markPopupShownMutation]);
+
   // Auto-refresh interval: 30 minutes
   const refetchInterval = 30 * 60 * 1000;
 
@@ -321,6 +358,30 @@ export default function SpotDetail() {
     { spotId, daysBack: 30 },
     { refetchInterval }
   );
+
+  // Surf plan popup mutations
+  const markPopupShownMutation = trpc.reports.markSurfPlanPopupShown.useMutation();
+  const recordResponseMutation = trpc.reports.recordSurfPlanResponse.useMutation();
+
+  // Handle surf plan popup response
+  const handleSurfPlanResponse = async (response: 'yes' | 'no' | 'dismissed') => {
+    try {
+      await recordResponseMutation.mutateAsync({
+        spotId,
+        response,
+      });
+
+      setShowSurfPlanPopup(false);
+
+      // Show success toast for "yes" response
+      if (response === 'yes') {
+        toast.success("Great! We'll send you a reminder to share how it went.");
+      }
+    } catch (error) {
+      console.error('Failed to record surf plan response:', error);
+      toast.error('Failed to save your response. Please try again.');
+    }
+  };
 
   // Group timeline by day
   const groupedTimeline = useMemo(() => {
@@ -4703,6 +4764,45 @@ export default function SpotDetail() {
       </main>
 
       <Footer />
+
+      {/* Surf Plan Popup */}
+      <Dialog
+        open={showSurfPlanPopup}
+        onOpenChange={(open) => {
+          if (!open && showSurfPlanPopup) {
+            // User dismissed by clicking outside or pressing Esc
+            handleSurfPlanResponse('dismissed');
+          }
+          setShowSurfPlanPopup(open);
+        }}
+      >
+        <DialogContent className="border-2 border-black max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-bebas text-2xl uppercase">
+              DO YOU PLAN ON SURFING THIS WEEK?
+            </DialogTitle>
+            <DialogDescription className="text-base">
+              We'll send you a reminder to share how the conditions were after your session.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex gap-3 mt-4">
+            <Button
+              onClick={() => handleSurfPlanResponse('yes')}
+              className="flex-1 bg-black text-white border-2 border-black hover:bg-gray-800"
+            >
+              YES
+            </Button>
+            <Button
+              onClick={() => handleSurfPlanResponse('no')}
+              variant="outline"
+              className="flex-1 border-2 border-black hover:bg-gray-100"
+            >
+              NO
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
