@@ -278,7 +278,8 @@ export default function SpotDetail() {
   const [showSurfPlanPopup, setShowSurfPlanPopup] = useState(false);
   const [popupCheckDone, setPopupCheckDone] = useState(false);
 
-  // Surf plan popup mutations (declared before useEffect that uses them)
+  // Surf plan popup: utils for imperative fetch, mutations for show/record
+  const utils = trpc.useUtils();
   const markPopupShownMutation = trpc.reports.markSurfPlanPopupShown.useMutation();
   const recordResponseMutation = trpc.reports.recordSurfPlanResponse.useMutation();
 
@@ -320,18 +321,13 @@ export default function SpotDetail() {
 
   // Surf plan popup timer (show after 5 seconds of viewing)
   useEffect(() => {
-    if (popupCheckDone || !isAuthenticated) return;
+    if (popupCheckDone || !isAuthenticated || !spotId) return;
 
     const timer = setTimeout(async () => {
       try {
-        // Check if popup should be shown for this spot
-        const shouldShow = await trpc.reports.shouldShowSurfPlanPopup.query({
-          spotId
-        });
-
+        const shouldShow = await utils.reports.shouldShowSurfPlanPopup.fetch({ spotId });
         if (shouldShow) {
           setShowSurfPlanPopup(true);
-          // Mark that popup was shown (fire-and-forget)
           markPopupShownMutation.mutate({ spotId });
         }
         setPopupCheckDone(true);
@@ -339,10 +335,10 @@ export default function SpotDetail() {
         console.error('Failed to check surf plan popup:', error);
         setPopupCheckDone(true);
       }
-    }, 5000); // 5 seconds
+    }, 5000);
 
     return () => clearTimeout(timer);
-  }, [spotId, popupCheckDone, isAuthenticated, markPopupShownMutation]);
+  }, [spotId, popupCheckDone, isAuthenticated, utils]);
 
   // Auto-refresh interval: 30 minutes
   const refetchInterval = 30 * 60 * 1000;

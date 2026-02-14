@@ -1562,21 +1562,21 @@ export default function LandingPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="center" className="w-48 bg-white border-2 border-black rounded-none shadow-lg">
                   <DropdownMenuItem
-                    onClick={() => setLocation("/spot/3")}
+                    onClick={() => setLocation(`/spot/${rockawayId}`)}
                     className="cursor-pointer px-4 py-3 text-sm font-bold text-gray-900 hover:bg-black hover:text-white focus:bg-black focus:text-white"
                     style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
                     Rockaway
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => setLocation("/spot/2")}
+                    onClick={() => setLocation(`/spot/${longBeachId}`)}
                     className="cursor-pointer px-4 py-3 text-sm font-bold text-gray-900 hover:bg-black hover:text-white focus:bg-black focus:text-white"
                     style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
                     Long Beach
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => setLocation("/spot/1")}
+                    onClick={() => setLocation(`/spot/${lidoId}`)}
                     className="cursor-pointer px-4 py-3 text-sm font-bold text-gray-900 hover:bg-black hover:text-white focus:bg-black focus:text-white"
                     style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
@@ -1599,21 +1599,21 @@ export default function LandingPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="center" className="w-48 bg-white border-2 border-black rounded-none shadow-lg">
                   <DropdownMenuItem
-                    onClick={() => setLocation("/spot/3#guide")}
+                    onClick={() => setLocation(`/spot/${rockawayId}#guide`)}
                     className="cursor-pointer px-4 py-3 text-sm font-bold text-gray-900 hover:bg-black hover:text-white focus:bg-black focus:text-white"
                     style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
                     Rockaway
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => setLocation("/spot/2#guide")}
+                    onClick={() => setLocation(`/spot/${longBeachId}#guide`)}
                     className="cursor-pointer px-4 py-3 text-sm font-bold text-gray-900 hover:bg-black hover:text-white focus:bg-black focus:text-white"
                     style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
                     Long Beach
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => setLocation("/spot/1#guide")}
+                    onClick={() => setLocation(`/spot/${lidoId}#guide`)}
                     className="cursor-pointer px-4 py-3 text-sm font-bold text-gray-900 hover:bg-black hover:text-white focus:bg-black focus:text-white"
                     style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >

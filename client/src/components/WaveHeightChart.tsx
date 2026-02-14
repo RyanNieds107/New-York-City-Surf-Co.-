@@ -137,13 +137,16 @@ export function WaveHeightChart({ data, selectedIndex, onPointSelect }: WaveHeig
     return padding.top + chartHeight - (value / chartData.yMax) * chartHeight;
   }, [config, chartData]);
 
-  // Generate colored segments for the area
+  // Generate colored segments with smooth cardinal-spline curves (Surf Captain–style rounded UI)
+  const CARDINAL_TENSION = 0.5;
   const generateColoredSegments = useCallback(() => {
     if (!chartData || chartData.points.length === 0) return [];
 
     const segments: { path: string; color: string }[] = [];
     const points = chartData.points;
     const baseY = yScale(0);
+    const getX = (idx: number) => xScale(idx);
+    const getY = (idx: number) => yScale(points[idx].waveHeight);
 
     let segmentStart = 0;
     let currentColor = COLORS[points[0].condition];
@@ -154,22 +157,27 @@ export function WaveHeightChart({ data, selectedIndex, onPointSelect }: WaveHeig
 
       if (isEnd || colorChanged) {
         const segmentEnd = isEnd ? i - 1 : i;
-        let path = `M ${xScale(segmentStart)} ${baseY}`;
+        let path = `M ${getX(segmentStart)} ${baseY}`;
+        path += ` L ${getX(segmentStart)} ${getY(segmentStart)}`;
 
-        path += ` L ${xScale(segmentStart)} ${yScale(points[segmentStart].waveHeight)}`;
-
-        for (let j = segmentStart; j < segmentEnd; j++) {
-          const x1 = xScale(j);
-          const y1 = yScale(points[j].waveHeight);
-          const x2 = xScale(j + 1);
-          const y2 = yScale(points[j + 1].waveHeight);
-
-          // Smooth bezier curve
-          const cpX = (x1 + x2) / 2;
-          path += ` C ${cpX} ${y1}, ${cpX} ${y2}, ${x2} ${y2}`;
+        // Cardinal spline through segment points for smooth, rounded peaks/valleys
+        const n = segmentEnd - segmentStart;
+        if (n >= 1) {
+          for (let j = segmentStart; j < segmentEnd; j++) {
+            const p0 = j - 1 < segmentStart ? j : j - 1;
+            const p1 = j;
+            const p2 = j + 1;
+            const p3 = j + 2 > segmentEnd ? j + 1 : j + 2;
+            const k = (1 - CARDINAL_TENSION) / 6;
+            const cp1x = getX(p1) + (getX(p2) - getX(p0)) * k;
+            const cp1y = getY(p1) + (getY(p2) - getY(p0)) * k;
+            const cp2x = getX(p2) - (getX(p3) - getX(p1)) * k;
+            const cp2y = getY(p2) - (getY(p3) - getY(p1)) * k;
+            path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${getX(p2)} ${getY(p2)}`;
+          }
         }
 
-        path += ` L ${xScale(segmentEnd)} ${baseY} Z`;
+        path += ` L ${getX(segmentEnd)} ${baseY} Z`;
         segments.push({ path, color: currentColor });
 
         if (!isEnd) {
@@ -389,13 +397,15 @@ export function WaveHeightChart({ data, selectedIndex, onPointSelect }: WaveHeig
           fill={COLORS.headerBg}
         />
 
-        {/* Day columns - alternating backgrounds */}
+        {/* Day columns - alternating backgrounds with subtle rounded corners */}
         {chartData.dayGroups.map((group, i) => {
           const startX = i === 0 ? padding.left : xScale(group.startIdx);
           const endX = i === chartData.dayGroups.length - 1
             ? padding.left + chartWidth
             : xScale(group.endIdx + 1);
           const width = endX - startX;
+          const rx = 4;
+          const ry = 4;
 
           return (
             <rect
@@ -404,6 +414,8 @@ export function WaveHeightChart({ data, selectedIndex, onPointSelect }: WaveHeig
               y={padding.top}
               width={width}
               height={chartHeight}
+              rx={rx}
+              ry={ry}
               fill={i % 2 === 0 ? COLORS.dayBandEven : COLORS.dayBandOdd}
             />
           );
@@ -419,7 +431,7 @@ export function WaveHeightChart({ data, selectedIndex, onPointSelect }: WaveHeig
 
           return (
             <g key={group.day}>
-              {/* Day divider line */}
+              {/* Day divider line - subtle */}
               {i > 0 && (
                 <line
                   x1={startX}
@@ -428,6 +440,7 @@ export function WaveHeightChart({ data, selectedIndex, onPointSelect }: WaveHeig
                   y2={padding.top + chartHeight}
                   stroke={COLORS.divider}
                   strokeWidth={1}
+                  strokeOpacity={0.5}
                 />
               )}
               {/* Day label - e.g., "WED 24" */}
@@ -464,7 +477,7 @@ export function WaveHeightChart({ data, selectedIndex, onPointSelect }: WaveHeig
           </text>
         ))}
 
-        {/* Horizontal grid lines */}
+        {/* Horizontal grid lines - subtle for rounded UI */}
         {chartData.yTicks.map(tick => (
           <line
             key={`grid-${tick}`}
@@ -474,6 +487,7 @@ export function WaveHeightChart({ data, selectedIndex, onPointSelect }: WaveHeig
             y2={yScale(tick)}
             stroke={COLORS.divider}
             strokeWidth={1}
+            strokeOpacity={0.45}
           />
         ))}
 
@@ -496,7 +510,7 @@ export function WaveHeightChart({ data, selectedIndex, onPointSelect }: WaveHeig
           );
         })}
 
-        {/* Baseline */}
+        {/* Baseline - subtle */}
         <line
           x1={padding.left}
           y1={yScale(0)}
@@ -504,6 +518,7 @@ export function WaveHeightChart({ data, selectedIndex, onPointSelect }: WaveHeig
           y2={yScale(0)}
           stroke={COLORS.divider}
           strokeWidth={1}
+          strokeOpacity={0.5}
         />
 
         {/* Current time indicator - vertical line */}
