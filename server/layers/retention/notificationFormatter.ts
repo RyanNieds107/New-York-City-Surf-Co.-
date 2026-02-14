@@ -76,8 +76,20 @@ export function formatSwellAlertNotification(
   alert: SwellAlert,
   spot: SurfSpot
 ): FormattedNotification {
-  const { peakWaveHeightFt, peakQualityScore, avgPeriodSec, swellStartTime, swellEndTime, conditions } =
-    detectedSwell;
+  const {
+    peakWaveHeightFt,
+    peakQualityScore,
+    avgPeriodSec,
+    swellStartTime,
+    swellEndTime,
+    swellDirectionDeg,
+    swellDirectionCompass,
+    windDirectionDeg,
+    windDirectionCompass,
+    windSpeedMph,
+    windGustsMph,
+    conditions
+  } = detectedSwell;
 
   // Get wind type from first condition (most relevant)
   const windType = conditions[0]?.windType || "variable";
@@ -170,11 +182,32 @@ export function formatSwellAlertNotification(
 
   // Subject line: SPOT - QUALITY TIME DAY DATE
   // Example: "LIDO BEACH - GOOD 2PM-5PM SATURDAY 2/1"
+  // For 5+ days out: "LIDO BEACH HEADS-UP: Possible swell THURSDAY (early look)"
   const timeWindow = formatAlertTimeWindow();
-  const subject = `${spot.name.toUpperCase()} - ${qualityLabel} ${timeWindow.toUpperCase()} ${dayOfWeek.toUpperCase()} ${dateFormatted}`;
+  let subject: string;
+  if (hoursUntil >= 120) { // 5+ days
+    subject = `${spot.name.toUpperCase()} HEADS-UP: Possible swell ${dayOfWeek.toUpperCase()} (early look)`;
+  } else {
+    subject = `${spot.name.toUpperCase()} - ${qualityLabel} ${timeWindow.toUpperCase()} ${dayOfWeek.toUpperCase()} ${dateFormatted}`;
+  }
 
-  // Hours out text
-  const hoursOutText = hoursUntil <= 1 ? "NOW" : `${hoursUntil}hrs out`;
+  // Format swell display with direction
+  const swellDisplay = swellDirectionCompass && swellDirectionDeg !== null
+    ? `${peakWaveHeightFt.toFixed(1)}ft @ ${avgPeriodSec}s ${swellDirectionCompass} ${swellDirectionDeg}°`
+    : `${peakWaveHeightFt.toFixed(1)}ft @ ${avgPeriodSec}s`;
+
+  // Format wind display with direction and speed
+  let windDisplay = windLabel;
+  if (windDirectionCompass && windDirectionDeg !== null) {
+    windDisplay += ` ${windDirectionCompass} ${windDirectionDeg}°`;
+  }
+  if (windSpeedMph !== null && windGustsMph !== null) {
+    // Show range with gusts
+    windDisplay += ` ${windSpeedMph}-${windGustsMph}mph`;
+  } else if (windSpeedMph !== null) {
+    // Show single speed value
+    windDisplay += ` ${windSpeedMph}mph`;
+  }
 
   // Quality color for badge
   const getQualityColor = (score: number): string => {
@@ -189,7 +222,7 @@ export function formatSwellAlertNotification(
   // SMS text (160 chars max)
   const smsText = `${spot.name.toUpperCase()} WILL BE ${qualityLabel}
 ${dayOfWeek} ${dateFormatted} - ${waveHeightRange} Waves
-${peakWaveHeightFt.toFixed(0)}ft @ ${avgPeriodSec}s | ${windLabel}
+${swellDisplay} | ${windDisplay}
 ${confidence.percent}% confidence`;
 
   // Email HTML - ruthlessly minimal
@@ -228,8 +261,8 @@ ${confidence.percent}% confidence`;
                 ${dayOfWeek} ${dateFormatted}: ${waveHeightRange} Waves <span class="badge">${qualityLabel}</span>
             </p>
             <div class="details">
-                <div class="detail-row"><span class="label">Swell:</span> ${peakWaveHeightFt.toFixed(0)}ft @ ${avgPeriodSec}s</div>
-                <div class="detail-row"><span class="label">Wind:</span> ${windLabel}, ${hoursOutText}</div>
+                <div class="detail-row"><span class="label">Swell:</span> ${swellDisplay}</div>
+                <div class="detail-row"><span class="label">Wind:</span> ${windDisplay}</div>
             </div>
             <div class="confidence">
                 <p class="confidence-header">${confidence.percent}% confidence</p>
@@ -251,8 +284,8 @@ ${spot.name.toUpperCase()}
 
 ${dayOfWeek} ${dateFormatted}: ${waveHeightRange} Waves (${qualityLabel})
 
-Swell: ${peakWaveHeightFt.toFixed(0)}ft @ ${avgPeriodSec}s
-Wind: ${windLabel}, ${hoursOutText}
+Swell: ${swellDisplay}
+Wind: ${windDisplay}
 
 ${confidence.percent}% confidence - ${confidence.message}
 

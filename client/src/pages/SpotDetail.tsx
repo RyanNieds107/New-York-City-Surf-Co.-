@@ -338,7 +338,7 @@ export default function SpotDetail() {
     }, 5000);
 
     return () => clearTimeout(timer);
-  }, [spotId, popupCheckDone, isAuthenticated, utils]);
+  }, [spotId, popupCheckDone, isAuthenticated]);
 
   // Auto-refresh interval: 30 minutes
   const refetchInterval = 30 * 60 * 1000;
