@@ -427,7 +427,7 @@ export function getDominantSwell(
  * period data from the buoy while still using Open-Meteo for wave height.
  *
  * Formula (in order):
- * 1. Period-adjusted base height: H × (T / 9)^0.5 - power function with 9s baseline
+ * 1. Period-adjusted base height: H × (T / 7)^0.5 - power function with 7s baseline
  * 2. Apply spot multiplier (Lido: 1.1x + 0.1 for >10s, Long Beach: 1.05x + 0.1 for >10s, Rockaway: 1.1x + 0.1 for >10s)
  * 3. Apply tide multiplier (special: Lido/Long Beach/Rockaway rising tide 1-2.1ft: 1.2x, mid-tide 2.1-3.2ft: interpolated 1.2x-0.85x, high tide >3.2ft: 0.7x)
  * 4. Apply directional kill switch (250-310° West) → 0
@@ -499,10 +499,10 @@ export function calculateBreakingWaveHeight(
   });
 
   // STEP 1: Calculate period-adjusted base height using power function
-  // Formula: H × (T / 9)^0.5 - power function with 9s baseline
-  // A 9s swell has multiplier of 1.0, 8s is ~0.94x, 14s+ tapers off smoothly
+  // Formula: H × (T / 7)^0.5 - power function with 7s baseline
+  // A 7s swell has multiplier of 1.0; 8s is ~1.07x, 14s is ~1.41x (longer period = bigger break)
   // Uses effectivePeriod (NOAA buoy period if available) for more accurate amplification
-  const periodBaseline = 9;
+  const periodBaseline = 7;
   const periodFactor = Math.pow(effectivePeriod / periodBaseline, 0.5);
   const periodAdjustedHeight = swellHeightFt * periodFactor;
   
