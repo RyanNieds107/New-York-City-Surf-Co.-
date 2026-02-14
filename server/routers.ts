@@ -67,7 +67,7 @@ import { addConfidenceToTimeline, getConfidenceSummary, getConfidenceBadgeText, 
 import { adminProcedure } from "./_core/trpc";
 import { sendBatchEmails, sendEmail } from "./services/email";
 import { sendSMS } from "./services/sms";
-import { formatSwellAlertNotification } from "./services/notificationFormatter";
+import { formatSwellAlertNotification } from "./layers/retention/notificationFormatter";
 
 // In-memory cache for distance results (keyed by rounded origin + mode)
 const distanceCache = new Map<string, {
