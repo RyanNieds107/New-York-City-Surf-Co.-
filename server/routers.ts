@@ -47,6 +47,9 @@ import {
   getAverageCrowdFromSurfReports,
   findConditionsForSession,
   createSurfReportValidation,
+  shouldShowSurfPlanPopup,
+  markSurfPlanPopupShown,
+  recordSurfPlanResponse,
 } from "./db";
 import { getCurrentTideInfo } from "./layers/environmental/clients/tides";
 import { getCurrentConditionsFromOpenMeteo } from "./layers/environmental/clients/openmeteo";
