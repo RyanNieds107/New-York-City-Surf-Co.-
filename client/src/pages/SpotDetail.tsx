@@ -319,26 +319,6 @@ export default function SpotDetail() {
     };
   }, [extendedForecastTooltip]);
 
-  // Surf plan popup timer (show after 5 seconds of viewing)
-  useEffect(() => {
-    if (popupCheckDone || !isAuthenticated || !spotId) return;
-
-    const timer = setTimeout(async () => {
-      try {
-        const shouldShow = await utils.reports.shouldShowSurfPlanPopup.fetch({ spotId });
-        if (shouldShow) {
-          setShowSurfPlanPopup(true);
-          markPopupShownMutation.mutate({ spotId });
-        }
-        setPopupCheckDone(true);
-      } catch (error) {
-        console.error('Failed to check surf plan popup:', error);
-        setPopupCheckDone(true);
-      }
-    }, 5000);
-
-    return () => clearTimeout(timer);
-  }, [spotId, popupCheckDone, isAuthenticated]);
 
   // Auto-refresh interval: 30 minutes
   const refetchInterval = 30 * 60 * 1000;
@@ -542,6 +522,27 @@ export default function SpotDetail() {
   const openMeteoPoint = forecastQuery.data?.openMeteoPoint;
   const isLoading = currentData.isLoading;
   const isError = currentData.error;
+
+  // Surf plan popup timer: start only after page has loaded, then show after 3 seconds of viewing
+  useEffect(() => {
+    if (popupCheckDone || !isAuthenticated || !spotId || isLoading) return;
+
+    const timer = setTimeout(async () => {
+      try {
+        const shouldShow = await utils.reports.shouldShowSurfPlanPopup.fetch({ spotId });
+        if (shouldShow) {
+          setShowSurfPlanPopup(true);
+          markPopupShownMutation.mutate({ spotId });
+        }
+        setPopupCheckDone(true);
+      } catch (error) {
+        console.error('Failed to check surf plan popup:', error);
+        setPopupCheckDone(true);
+      }
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [spotId, popupCheckDone, isAuthenticated, isLoading]);
 
   // Current conditions from unified hook (same logic as landing page)
   const currentConditions = currentData.currentPoint;
