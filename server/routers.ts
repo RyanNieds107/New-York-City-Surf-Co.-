@@ -650,12 +650,15 @@ export const appRouter = router({
                   const buoyWaveDirectionDeg = buoyData.dominantDirectionDeg ?? buoyData.waveDirection ?? currentPoint.dominantSwellDirectionDeg;
 
                   // Create a forecast point structure for quality calculation using buoy data
+                  // CRITICAL: Fall back to Open-Meteo wind data if buoy doesn't provide it
+                  // Otherwise onshore wind caps won't be applied!
                   const forecastPointLike = {
                     waveHeightFt: Math.round(buoyWaveHeightFt * 10), // Convert to tenths
                     wavePeriodSec: buoyPeriodS,
                     waveDirectionDeg: buoyWaveDirectionDeg,
-                    windSpeedKts: buoyData.windSpeedKts ?? null,
-                    windDirectionDeg: buoyData.windDirectionDeg ?? null,
+                    windSpeedKts: buoyData.windSpeedKts ?? (currentPoint.windSpeedMph ? currentPoint.windSpeedMph / 1.15078 : null),
+                    windDirectionDeg: buoyData.windDirectionDeg ?? currentPoint.windDirectionDeg,
+                    windGustsKts: buoyData.windGustsKts ?? (currentPoint.windGustsMph ? currentPoint.windGustsMph / 1.15078 : null),
                     secondarySwellHeightFt: null,
                     secondarySwellPeriodS: null,
                     secondarySwellDirectionDeg: null,
@@ -685,7 +688,10 @@ export const appRouter = router({
                   qualityScore = qualityResult.score;
                   breakingWaveHeightFt = buoyBreakingHeight;
 
-                  console.log(`[getCurrentConditionsForAll] ${spot.name}: Recalculated with buoy data (wave: ${buoyWaveHeightFt.toFixed(1)}ft @ ${buoyPeriodS}s, wind: ${buoyData.windDirectionDeg}° @ ${buoyData.windSpeedKts?.toFixed(1)}kts) → breaking: ${breakingWaveHeightFt.toFixed(1)}ft, score: ${qualityScore}`);
+                  const windSource = buoyData.windSpeedKts !== null ? 'buoy' : 'open-meteo';
+                  const windSpeedUsed = forecastPointLike.windSpeedKts;
+                  const windDirUsed = forecastPointLike.windDirectionDeg;
+                  console.log(`[getCurrentConditionsForAll] ${spot.name}: Recalculated with buoy wave data (${buoyWaveHeightFt.toFixed(1)}ft @ ${buoyPeriodS}s) + ${windSource} wind (${windDirUsed}° @ ${windSpeedUsed?.toFixed(1)}kts) → breaking: ${breakingWaveHeightFt.toFixed(1)}ft, score: ${qualityScore}`);
                 } catch (error) {
                   console.warn(`[getCurrentConditionsForAll] Failed to recalculate quality for ${spot.name}:`, error);
                 }
