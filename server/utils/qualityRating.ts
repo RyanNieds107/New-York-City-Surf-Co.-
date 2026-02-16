@@ -331,7 +331,7 @@ function isSideOnshore(windDir: number): boolean {
  * 6. Full Onshore (SE-SW 135-225°) - worst
  *
  * TIER 1 - Premium Offshore (330-30°): NNW, N, NNE
- *   ≤12kts: +25 points | ≤18kts: +20 | ≤25kts: +15 | >25kts: +5
+ *   ≤12kts: +20 points | ≤18kts: +15 | ≤25kts: +10 | >25kts: +5
  *
  * TIER 2 - Good Offshore (310-330°, 30-50°): NW, NE
  *   ≤12kts: +20 points | ≤18kts: +15 | >18kts: +10
@@ -353,7 +353,7 @@ function isSideOnshore(windDir: number): boolean {
  *
  * @param windSpeedKt - Wind speed in knots
  * @param windDirectionDeg - Wind direction in degrees (0-360)
- * @returns Score from -60 to +25
+ * @returns Score from -60 to +20
  */
 function getWindQualityForLido(windSpeedKt: number, windDirectionDeg: number): number {
   const normalized = ((windDirectionDeg % 360) + 360) % 360;
@@ -368,11 +368,11 @@ function getWindQualityForLido(windSpeedKt: number, windDirectionDeg: number): n
   if (isPremiumOffshore(normalized)) {
     let score: number;
     if (windSpeedKt <= 12) {
-      score = 25;
-    } else if (windSpeedKt <= 18) {
       score = 20;
-    } else if (windSpeedKt <= 25) {
+    } else if (windSpeedKt <= 18) {
       score = 15;
+    } else if (windSpeedKt <= 25) {
+      score = 10;
     } else {
       score = 5;
     }
@@ -1131,18 +1131,31 @@ export function calculateQualityScoreWithProfile(
     }
   }
 
-  // Hard clamp for onshore winds: SW winds >7mph (~6kts) cap score at 40 ("Don't Bother")
-  // This ensures Rockaway, Lido, and Long Beach never show "Go Surf" during significant SW wind events
+  // Hard clamp for onshore winds: Tiered penalty system
+  // - Light onshore (5-7mph): cap at 50 ("Worth a Look")
+  // - Strong onshore (>7mph): cap at 39 ("Don't Bother")
+  // This ensures surf quality reflects the nuance between light and strong onshore conditions
   const windDir = forecastPoint.windDirectionDeg;
   const windSpeed = forecastPoint.windSpeedKts;
   if (windDir !== null && windSpeed !== null) {
     const normalizedWindDir = ((windDir % 360) + 360) % 360;
     const isOnshoreWind = normalizedWindDir >= 135 && normalizedWindDir <= 225;
+
+    // Light onshore cap: 5-7mph (~4.3-6kts) winds cap at 50
+    if (isOnshoreWind && windSpeed >= 4.3 && windSpeed <= 6) {
+      const beforeClamp = rawScore;
+      rawScore = Math.min(rawScore, 50); // Cap at 50: "Worth a Look" for light onshore
+      if (beforeClamp !== rawScore) {
+        console.log('🔍 [Quality Score Debug] Light onshore wind cap (5-7mph) applied:', beforeClamp, '→', rawScore);
+      }
+    }
+
+    // Strong onshore cap: >7mph (~6kts) winds cap at 39
     if (isOnshoreWind && windSpeed > 6) {
       const beforeClamp = rawScore;
       rawScore = Math.min(rawScore, 39); // Hard cap: ensures "Don't Bother" rating with onshore >7mph
       if (beforeClamp !== rawScore) {
-        console.log('🔍 [Quality Score Debug] Onshore wind clamp applied:', beforeClamp, '→', rawScore);
+        console.log('🔍 [Quality Score Debug] Strong onshore wind cap (>7mph) applied:', beforeClamp, '→', rawScore);
       }
     }
 
