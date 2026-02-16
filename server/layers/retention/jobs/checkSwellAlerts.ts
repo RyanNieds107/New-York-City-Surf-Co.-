@@ -79,28 +79,24 @@ export async function checkSwellAlerts(): Promise<void> {
           });
 
           // Check if we already sent a notification for this swell (duplicate protection)
-          // Skip duplicate protection for realtime/immediate - they should send every time the job runs
+          // ALWAYS check for duplicates to prevent same-day duplicate emails
           const frequency = alert.notificationFrequency || "immediate";
-          const skipDuplicateCheck = frequency === "realtime" || frequency === "immediate";
+          const alreadySent = await checkIfAlertAlreadySent(
+            alert.id,
+            detectedSwell.spotId,
+            detectedSwell.swellStartTime,
+            detectedSwell.swellEndTime
+          );
 
-          if (!skipDuplicateCheck) {
-            const alreadySent = await checkIfAlertAlreadySent(
-              alert.id,
-              detectedSwell.spotId,
-              detectedSwell.swellStartTime,
-              detectedSwell.swellEndTime
-            );
-
-            if (alreadySent) {
-              const toleranceMs = detectedSwell.swellEndTime.getTime() - detectedSwell.swellStartTime.getTime();
-              console.log(`[Swell Alerts] Alert #${alert.id}: DUPLICATE blocked`, {
-                spotId: detectedSwell.spotId,
-                swellStart: detectedSwell.swellStartTime,
-                toleranceHours: toleranceMs / (60 * 60 * 1000),
-                frequency,
-              });
-              continue; // Skip if already notified for this exact swell window
-            }
+          if (alreadySent) {
+            const toleranceMs = detectedSwell.swellEndTime.getTime() - detectedSwell.swellStartTime.getTime();
+            console.log(`[Swell Alerts] Alert #${alert.id}: DUPLICATE blocked`, {
+              spotId: detectedSwell.spotId,
+              swellStart: detectedSwell.swellStartTime,
+              toleranceHours: toleranceMs / (60 * 60 * 1000),
+              frequency,
+            });
+            continue; // Skip if already notified for this exact swell window
           }
           console.log(`[Swell Alerts] Alert #${alert.id}: Sending notification`, {
             spotId: detectedSwell.spotId,
