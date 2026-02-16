@@ -49,6 +49,7 @@ import { GateOverlay } from "@/components/GateOverlay";
 import { getScoreBadgeColors } from "@/lib/ratingColors";
 import { isNighttime } from "@/lib/sunTimes";
 import { useCurrentConditions } from "@/hooks/useCurrentConditions";
+import { useDocumentMeta } from "@/hooks/useDocumentMeta";
 import { ModelConfidenceBadge } from "@/components/ModelConfidenceBadge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ReportDatePicker } from "@/components/ReportDatePicker";
@@ -338,6 +339,23 @@ export default function SpotDetail() {
     { spotId, daysBack: 30 },
     { refetchInterval }
   );
+
+  // Dynamic SEO meta tags for spot pages
+  useDocumentMeta({
+    title: spotQuery.data?.name
+      ? `${spotQuery.data.name} Surf Forecast - Live Conditions & Report | NYC Surf Co`
+      : "NYC Surf Co - Real-Time Surf Forecast for Rockaway, Lido & Long Beach",
+    description: spotQuery.data?.name
+      ? `Current ${spotQuery.data.name} surf forecast: live wave height, wind, tide, and conditions. Real-time surf report updated hourly. Best times to surf ${spotQuery.data.name} today.`
+      : "NYC Surf Co provides hyper-local surf forecasts for NYC and Long Island beaches. Get hourly surf conditions, swell data, wind, and tide forecasts.",
+    ogTitle: spotQuery.data?.name
+      ? `${spotQuery.data.name} Surf Forecast - NYC Surf Co`
+      : "NYC Surf Co - Real-Time Surf Forecast for Rockaway, Lido & Long Beach",
+    ogDescription: spotQuery.data?.name
+      ? `Live ${spotQuery.data.name} surf conditions: wave height, wind, tide, and quality rating updated hourly.`
+      : "NYC Surf Co provides hyper-local surf forecasts for NYC and Long Island beaches. Get hourly surf conditions, swell data, wind, and tide forecasts.",
+    ogImage: "https://www.nycsurfco.com/og-image.png",
+  });
 
   // Handle surf plan popup response
   const handleSurfPlanResponse = async (response: 'yes' | 'no' | 'dismissed') => {
