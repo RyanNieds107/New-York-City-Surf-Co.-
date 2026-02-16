@@ -541,26 +541,31 @@ export default function SpotDetail() {
   const isLoading = currentData.isLoading;
   const isError = currentData.error;
 
-  // Surf plan popup timer: start only after page has loaded, then show after 3 seconds of viewing
+  // Surf plan popup: check immediately on mount for authenticated users
   useEffect(() => {
-    if (popupCheckDone || !isAuthenticated || !spotId || isLoading) return;
+    console.log('[SurfPlanPopup] Effect fired:', { popupCheckDone, isAuthenticated, spotId });
+    if (popupCheckDone || !isAuthenticated || !spotId) return;
 
-    const timer = setTimeout(async () => {
+    let cancelled = false;
+
+    (async () => {
       try {
+        console.log('[SurfPlanPopup] Fetching shouldShow for spotId:', spotId);
         const shouldShow = await utils.reports.shouldShowSurfPlanPopup.fetch({ spotId });
-        if (shouldShow) {
+        console.log('[SurfPlanPopup] shouldShow result:', shouldShow);
+        if (!cancelled && shouldShow) {
           setShowSurfPlanPopup(true);
           markPopupShownMutation.mutate({ spotId });
         }
-        setPopupCheckDone(true);
       } catch (error) {
-        console.error('Failed to check surf plan popup:', error);
-        setPopupCheckDone(true);
+        console.error('[SurfPlanPopup] Failed to check surf plan popup:', error);
+      } finally {
+        if (!cancelled) setPopupCheckDone(true);
       }
-    }, 3000);
+    })();
 
-    return () => clearTimeout(timer);
-  }, [spotId, popupCheckDone, isAuthenticated, isLoading]);
+    return () => { cancelled = true; };
+  }, [spotId, isAuthenticated]);
 
   // Current conditions from unified hook (same logic as landing page)
   const currentConditions = currentData.currentPoint;
