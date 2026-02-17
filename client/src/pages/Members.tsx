@@ -16,6 +16,7 @@ import { LatestPhotos } from "@/components/LatestPhotos";
 import { AnnouncementsFeed } from "@/components/AnnouncementsFeed";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { WaveForecastChart } from "@/components/WaveForecastChart";
+import { TideSparkline } from "@/components/TideSparkline";
 
 export default function Members() {
   const [, setLocation] = useLocation();
@@ -886,6 +887,11 @@ export default function Members() {
                       </span>
                     </div>
                   )}
+                </div>
+
+                {/* Tide Sparkline */}
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <TideSparkline spotId={homeBreakSpotId} />
                 </div>
 
                 {/* View full forecast CTA */}

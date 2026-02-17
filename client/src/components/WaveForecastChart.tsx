@@ -52,7 +52,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   const d = payload[0]?.payload as DayData;
   return (
     <div
-      className="bg-white border-2 border-black p-2.5 text-[10px] uppercase tracking-wide shadow-sm"
+      className="bg-white border-2 border-black p-2.5 text-[10px] uppercase tracking-wide shadow-sm text-gray-900"
       style={{ fontFamily: "'JetBrains Mono', monospace" }}
     >
       <div className="font-bold mb-1">{label}</div>

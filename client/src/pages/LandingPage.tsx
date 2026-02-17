@@ -1857,9 +1857,6 @@ export default function LandingPage() {
       >
         {/* SEO Hero Section */}
         <div className="max-w-7xl mx-auto mb-6 sm:mb-8 text-center">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-black uppercase tracking-tighter leading-none mb-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.03em' }}>
-            NYC Surf Co
-          </h1>
           <p className="text-lg sm:text-xl md:text-2xl text-gray-700 font-semibold mb-4" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
             Real-Time Surf Forecasts for NYC & Long Island
           </p>
