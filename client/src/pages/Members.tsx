@@ -15,6 +15,7 @@ import { ReportDatePicker } from "@/components/ReportDatePicker";
 import { LatestPhotos } from "@/components/LatestPhotos";
 import { AnnouncementsFeed } from "@/components/AnnouncementsFeed";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { WaveForecastChart } from "@/components/WaveForecastChart";
 
 export default function Members() {
   const [, setLocation] = useLocation();
@@ -310,6 +311,7 @@ export default function Members() {
 
   const homeBreakEntry = currentConditionsQuery.data?.find((item) => item.spot?.name === dossierHomeBreak);
   const homeBreakCurrent = homeBreakEntry?.currentConditions;
+  const homeBreakSpotId = spots?.find((s) => s.name === dossierHomeBreak)?.id;
   const homeBreakScore = homeBreakCurrent?.qualityScore ?? homeBreakCurrent?.probabilityScore ?? 0;
   const homeBreakStatus = homeBreakScore >= 60 ? "GO" : "STANDBY";
   const waveHeightFt = homeBreakCurrent?.breakingWaveHeightFt ?? homeBreakCurrent?.dominantSwellHeightFt ?? 1.5;
@@ -324,7 +326,7 @@ export default function Members() {
   const windDirection = formatCardinal(homeBreakCurrent?.windDirectionDeg ?? null);
   const latestPhotoReport = recentReportsQuery.data?.find((report) => Boolean(report.photoUrl));
   const nextWindowHours = homeBreakStatus === "GO" ? 0 : Math.max(1, Math.round((70 - homeBreakScore) / 3));
-  const intensityPct = Math.max(8, Math.min(100, Math.round((homeBreakScore / 95) * 100)));
+  const intensityPct = Math.max(8, Math.min(100, Math.round(homeBreakScore)));
   const recentSessions = (recentReportsQuery.data || []).filter((report) => Boolean(report.photoUrl)).slice(0, 3);
   const qualityHeatMap = (currentConditionsQuery.data || [])
     .map((item) => ({
@@ -548,6 +550,15 @@ export default function Members() {
                     placeholder="Email"
                   />
                 </div>
+                <div>
+                  <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>Location</label>
+                  <input
+                    value={dossierLocation}
+                    onChange={(e) => setDossierLocation(e.target.value)}
+                    className={selectStyles}
+                    placeholder="Long Island, NY"
+                  />
+                </div>
               </div>
             </section>
 
@@ -693,238 +704,220 @@ export default function Members() {
 
           {/* Home Tab */}
           <TabsContent value="home" className="mt-0">
-            <div className="bg-white border-2 border-black p-3 sm:p-6 md:p-8">
-              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4 sm:mb-6">
+            {/* Identity Header Bar */}
+            <div className="bg-white border-2 border-black p-3 sm:p-5">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                   <h1
-                    className="text-2xl sm:text-4xl md:text-6xl font-black text-black uppercase tracking-tight leading-none"
+                    className="text-2xl sm:text-4xl font-black text-black uppercase tracking-tight leading-none"
                     style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
                   >
-                    NYC Surf Co. | Founding 40 Private Beta
+                    {dossierName || "SURFER"} · {dossierHomeBreak} · MEMBER 015/040
                   </h1>
                   <p
-                    className="text-[10px] sm:text-xs md:text-sm text-gray-700 uppercase tracking-wide sm:tracking-widest mt-1.5 sm:mt-2 max-w-3xl"
-                    style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
+                    className="text-[10px] text-gray-500 uppercase tracking-widest mt-1"
+                    style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
-                    High-fidelity intel for Lido, Long Beach, and Rockaway. Built by surfers for the first 40 locals. Backed by 20+ years of experience
+                    NYC Surf Co. · Private Beta · {dossierLocation || "Long Island, NY"}
                   </p>
                 </div>
-                <div
-                  className="self-start text-[10px] sm:text-xs text-gray-500 border border-black px-2.5 py-1 uppercase tracking-wider whitespace-nowrap"
-                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                >
-                  MEMBER: 15/40
-                </div>
-              </div>
-
-              <div className="mb-4 sm:mb-6 border-2 border-black bg-white">
-                <div className="border-b border-gray-300 px-3 sm:px-4 py-2.5">
-                  <h2
-                    className="text-xl sm:text-2xl font-black uppercase tracking-tight text-black"
-                    style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                  >
-                    Member Dossier
-                  </h2>
-                </div>
-                <form onSubmit={handleUpdateDossier} className="p-3 sm:p-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <section className="border border-gray-300 p-3">
-                      <div className="text-[10px] uppercase tracking-widest text-gray-700 mb-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                        Identity Intel
-                      </div>
-                      <div className="space-y-3">
-                        <div>
-                          <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>Name</label>
-                          <input value={dossierName} onChange={(e) => setDossierName(e.target.value)} className={selectStyles} />
-                        </div>
-                        <div>
-                          <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>Email</label>
-                          <input type="email" value={dossierEmail} onChange={(e) => setDossierEmail(e.target.value)} className={selectStyles} />
-                        </div>
-                        <div>
-                          <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>Location</label>
-                          <input
-                            value={dossierLocation}
-                            onChange={(e) => setDossierLocation(e.target.value)}
-                            className={selectStyles}
-                            placeholder="Long Island, NY"
-                          />
-                        </div>
-                        <div className="border border-black px-3 py-2 bg-gray-50">
-                          <div className="text-[10px] uppercase tracking-wider text-gray-700" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                            Service Record: MEMBER 015 / 040
-                          </div>
-                          <div className="text-[10px] uppercase tracking-wider text-gray-700 mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                            Local Status: VERIFIED
-                          </div>
-                        </div>
-                      </div>
-                    </section>
-
-                    <section className="border border-gray-300 p-3">
-                      <div className="text-[10px] uppercase tracking-widest text-gray-700 mb-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                        Operational Parameters
-                      </div>
-                      <div className="space-y-3">
-                        <div>
-                          <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>Home Break</label>
-                          <select
-                            value={dossierHomeBreak}
-                            onChange={(e) => setDossierHomeBreak(e.target.value as "Lido Beach" | "Long Beach" | "Rockaway Beach")}
-                            className={selectStyles}
-                          >
-                            <option value="Lido Beach">Lido</option>
-                            <option value="Long Beach">Long Beach</option>
-                            <option value="Rockaway Beach">Rockaway</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>Experience (Years)</label>
-                          <input
-                            type="number"
-                            min={0}
-                            max={80}
-                            value={dossierExperienceYears}
-                            onChange={(e) => setDossierExperienceYears(Number(e.target.value) || 0)}
-                            className={selectStyles}
-                          />
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div>
-                            <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>Primary Board</label>
-                            <input value={dossierPrimaryBoard} onChange={(e) => setDossierPrimaryBoard(e.target.value)} className={selectStyles} />
-                          </div>
-                          <div>
-                            <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>Volume (L)</label>
-                            <input value={dossierVolumeL} onChange={(e) => setDossierVolumeL(e.target.value)} className={selectStyles} />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div>
-                            <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>Min Wave Height (ft)</label>
-                            <input
-                              type="number"
-                              step="0.5"
-                              min={0}
-                              max={12}
-                              value={dossierMinWaveHeight}
-                              onChange={(e) => setDossierMinWaveHeight(Number(e.target.value) || 0)}
-                              className={selectStyles}
-                            />
-                          </div>
-                          <div>
-                            <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>Preferred Wind Directions</label>
-                            <input value={dossierWindPreference} onChange={(e) => setDossierWindPreference(e.target.value)} className={selectStyles} placeholder="OFFSHORE, WNW" />
-                          </div>
-                        </div>
-                      </div>
-                    </section>
-                  </div>
-
-                  <div className="mt-4">
-                    <Button
-                      type="submit"
-                      disabled={updateProfileMutation.isPending || updateAlertMutation.isPending || createAlertMutation.isPending}
-                      className="w-full bg-black text-white hover:bg-gray-800 border border-black uppercase tracking-widest"
-                      style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                    >
-                      {updateProfileMutation.isPending || updateAlertMutation.isPending || createAlertMutation.isPending ? "UPDATING" : "UPDATE DOSSIER"}
-                    </Button>
-                    <p className="text-[10px] text-gray-600 uppercase tracking-wide text-center mt-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      Precision in data leads to certainty in the water.
-                    </p>
-                  </div>
-                </form>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 items-stretch">
-                <div className="space-y-3 sm:space-y-4">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   <button
                     type="button"
-                    onClick={() => setLocation("/spot/1")}
-                    className="w-full border-2 border-black p-3 sm:p-4 text-left hover:bg-gray-50 transition-colors min-h-[300px]"
+                    onClick={() => setIsDossierOpen(true)}
+                    className="border border-black px-3 py-1.5 text-[10px] uppercase tracking-wider hover:bg-black hover:text-white transition-colors"
+                    style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
-                    <div className="text-[10px] uppercase tracking-widest text-gray-600 mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      The {dossierHomeBreak} Verdict
-                    </div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className={`h-2 w-2 rounded-full ${homeBreakStatus === "GO" ? "bg-emerald-500" : "bg-gray-500"}`} />
-                      <span className="text-[10px] uppercase tracking-wider text-gray-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                        Live
-                      </span>
-                    </div>
-                    <div
-                      className={`text-4xl sm:text-5xl font-black uppercase leading-none ${homeBreakStatus === "GO" ? "text-emerald-600" : "text-orange-700"}`}
-                      style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                    >
-                      {homeBreakStatus}
-                    </div>
-                    <p className="mt-1.5 text-[11px] sm:text-xs uppercase tracking-wide text-gray-700" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      {homeBreakStatus === "GO" ? "Window is active now. Strike at first light." : `Turns FAIR in ${nextWindowHours} hours.`}
-                    </p>
-                    <div className="mt-2.5">
-                      <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-gray-500 mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                        <span>Intensity Meter</span>
-                        <span>{Math.round(homeBreakScore)} / 95</span>
-                      </div>
-                      <div className="h-2 border border-black bg-gray-200">
-                        <div
-                          className={`h-full ${homeBreakStatus === "GO" ? "bg-emerald-600" : "bg-orange-600"}`}
-                          style={{ width: `${intensityPct}%` }}
-                        />
-                      </div>
-                    </div>
-                    <div className="mt-2.5 grid grid-cols-2 gap-2">
-                      <div>
-                        <div className="text-[10px] uppercase tracking-wider text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                          Wave Height
-                        </div>
-                        <div className="text-lg sm:text-xl md:text-2xl font-black uppercase leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                          {homeBreakWaveLabel}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] uppercase tracking-wider text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                          Wind
-                        </div>
-                        <div className="text-base sm:text-lg md:text-2xl font-black uppercase leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                          {homeBreakWindSpeed}MPH {windDirection}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-3">
-                      <Button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigateToTab("alerts");
-                        }}
-                        className="bg-black text-white hover:bg-gray-800 border border-black uppercase tracking-wider text-xs"
-                        style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                      >
-                        Open Alerts
-                      </Button>
-                    </div>
+                    Edit Dossier
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigateToTab("alerts")}
+                    className="border border-black px-3 py-1.5 text-[10px] uppercase tracking-wider hover:bg-black hover:text-white transition-colors flex items-center gap-1"
+                    style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                  >
+                    <Bell className="h-3 w-3" />
+                    Alerts
                   </button>
                 </div>
+              </div>
+            </div>
 
-                <div className="border-2 border-black p-3 sm:p-4 bg-white min-h-[300px] flex flex-col justify-center">
-                  <div className="text-[10px] uppercase tracking-widest text-gray-600 mb-2 text-center" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    Surf Cams
+            {/* Two-Column Financial Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] border-2 border-t-0 border-black bg-white">
+
+              {/* LEFT: Main Content */}
+              <div className="p-4 sm:p-6 lg:border-r-2 lg:border-black">
+
+                {/* Hero: GO/STANDBY + Score (like price + change) */}
+                <div className="pb-4 border-b border-gray-200 mb-4">
+                  <div className="flex items-end gap-4 flex-wrap">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`h-2 w-2 rounded-full ${homeBreakStatus === "GO" ? "bg-emerald-500 animate-pulse" : "bg-gray-400"}`} />
+                        <span className="text-[10px] uppercase tracking-wider text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                          Live · {homeBreakStatus === "GO" ? "Active window" : `Est. +${nextWindowHours}h`}
+                        </span>
+                      </div>
+                      <div
+                        className={`text-5xl sm:text-7xl font-black uppercase leading-none ${homeBreakStatus === "GO" ? "text-emerald-600" : "text-orange-700"}`}
+                        style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
+                      >
+                        {homeBreakStatus}
+                      </div>
+                    </div>
+                    <div className="pb-1">
+                      <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Wave Height</div>
+                      <div className="text-3xl sm:text-4xl font-black leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                        {homeBreakWaveLabel}
+                      </div>
+                    </div>
+                    <div className="ml-auto pb-1 text-right">
+                      <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Score</div>
+                      <div className="text-3xl sm:text-4xl font-black leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                        {Math.round(homeBreakScore)}
+                      </div>
+                      <div className="text-[10px] text-gray-400 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>/ 100</div>
+                    </div>
                   </div>
-                  <div
-                    className="text-4xl sm:text-5xl font-black uppercase leading-none text-center text-gray-300"
-                    style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                  >
-                    Coming Soon
+                  {/* Intensity bar */}
+                  <div className="mt-3">
+                    <div className="h-1.5 bg-gray-200 border border-black">
+                      <div
+                        className={`h-full transition-all ${homeBreakStatus === "GO" ? "bg-emerald-500" : "bg-orange-500"}`}
+                        style={{ width: `${intensityPct}%` }}
+                      />
+                    </div>
+                    <div className="text-[9px] uppercase tracking-wider text-gray-400 mt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      Intensity: {Math.round(homeBreakScore)}/100
+                    </div>
                   </div>
-                  <p className="mt-3 text-[11px] sm:text-xs uppercase tracking-wide text-gray-500 text-center" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    Live camera feeds for your home break will be available here.
-                  </p>
                 </div>
+
+                {/* 7-Day Wave Forecast Chart */}
+                <WaveForecastChart spotId={homeBreakSpotId} />
+
+                {/* Conditions Grid (like financial stats row) */}
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <div className="text-[9px] uppercase tracking-widest text-gray-400 mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    Current Conditions · {homeBreakCurrent ? "Live data" : "Awaiting data"}
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {[
+                      ["Wave Height", homeBreakWaveLabel],
+                      ["Period", homeBreakCurrent?.dominantSwellPeriodS ? `${homeBreakCurrent.dominantSwellPeriodS}s` : "—"],
+                      ["Swell Dir", homeBreakCurrent?.dominantSwellDirectionDeg != null
+                        ? `${homeBreakCurrent.dominantSwellDirectionDeg}° ${formatCardinal(homeBreakCurrent.dominantSwellDirectionDeg)}`
+                        : "—"],
+                      ["Wind", `${homeBreakWindSpeed}MPH ${windDirection}`],
+                      ["Tide", homeBreakCurrent?.tidePhase ? homeBreakCurrent.tidePhase.toUpperCase() : "—"],
+                      ["Wind Type", homeBreakCurrent?.windType ? homeBreakCurrent.windType.replace("-", " ").toUpperCase() : "—"],
+                    ].map(([label, value]) => (
+                      <div key={label} className="border border-gray-200 p-2.5">
+                        <div className="text-[9px] uppercase tracking-widest text-gray-500 mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                          {label}
+                        </div>
+                        <div className="text-base sm:text-lg font-black leading-none uppercase text-gray-800" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                          {value}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
               </div>
 
-              <div className="mt-3 sm:mt-4 border-2 border-black bg-white">
+              {/* RIGHT: Member Dossier Sidebar */}
+              <div className="p-4 border-t-2 border-black lg:border-t-0">
+                <div className="text-[9px] uppercase tracking-widest text-gray-400 mb-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  Member Profile
+                </div>
+                <div className="space-y-0">
+                  {([
+                    ["Symbol", "MEMBER 015/040"],
+                    ["Location", dossierLocation || "—"],
+                    ["Home Break", dossierHomeBreak],
+                    ["Experience", `${dossierExperienceYears} yrs`],
+                    ["Primary Board", dossierPrimaryBoard || "—"],
+                    ["Volume", dossierVolumeL ? `${dossierVolumeL}L` : "—"],
+                    ["Min Height", `${dossierMinWaveHeight}ft`],
+                    ["Wind Pref", dossierWindPreference || "—"],
+                  ] as [string, string][]).map(([label, value]) => (
+                    <div key={label} className="flex justify-between items-baseline py-2 border-b border-gray-100">
+                      <span className="text-[10px] text-gray-500 uppercase tracking-wide" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        {label}
+                      </span>
+                      <span className="text-[10px] font-bold text-right max-w-[130px] truncate" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        {value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Conditions Rating (like Analyst Consensus) */}
+                <div className="mt-5 pt-4 border-t-2 border-black">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-[9px] uppercase tracking-widest text-gray-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      Conditions Rating
+                    </div>
+                  </div>
+                  <div
+                    className={`text-2xl font-black uppercase leading-none ${homeBreakStatus === "GO" ? "text-emerald-600" : "text-orange-700"}`}
+                    style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
+                  >
+                    {getTier(homeBreakScore)}
+                  </div>
+                  <div className="text-[10px] text-gray-500 uppercase tracking-wide mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    {homeBreakStatus === "GO" ? "Active surf window" : `Next window ~${nextWindowHours}h`}
+                  </div>
+                  {homeBreakCurrent?.windType && (
+                    <div className="mt-2">
+                      <span
+                        className={`text-[9px] uppercase tracking-wider px-2 py-0.5 border ${
+                          homeBreakCurrent.windType === "offshore" || homeBreakCurrent.windType === "side-offshore"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                            : homeBreakCurrent.windType === "cross"
+                            ? "bg-amber-50 text-amber-700 border-amber-300"
+                            : "bg-red-50 text-red-700 border-red-300"
+                        }`}
+                        style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                      >
+                        {homeBreakCurrent.windType.replace("-", " ")} winds
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* View full forecast CTA */}
+                <button
+                  onClick={() => setLocation("/spot/1")}
+                  className="mt-4 w-full border border-black px-3 py-2 text-[10px] uppercase tracking-wider hover:bg-black hover:text-white transition-colors flex items-center justify-center gap-1"
+                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                >
+                  Full Forecast
+                  <ChevronRight className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
+
+            {/* Surf Cams + Local Media Board — below the fold */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 items-stretch mt-4">
+              <div className="border-2 border-black p-3 sm:p-4 bg-white min-h-[200px] flex flex-col justify-center">
+                <div className="text-[10px] uppercase tracking-widest text-gray-600 mb-2 text-center" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  Surf Cams
+                </div>
+                <div
+                  className="text-4xl sm:text-5xl font-black uppercase leading-none text-center text-gray-300"
+                  style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
+                >
+                  Coming Soon
+                </div>
+                <p className="mt-3 text-[11px] sm:text-xs uppercase tracking-wide text-gray-500 text-center" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  Live camera feeds for your home break will be available here.
+                </p>
+              </div>
+
+              <div className="border-2 border-black bg-white">
                   <div className="p-3 sm:p-4 border-b border-gray-300">
                     <div className="text-[10px] uppercase tracking-widest text-gray-600 mb-1.5 sm:mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                       Local Media Board
