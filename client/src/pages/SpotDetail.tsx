@@ -2994,78 +2994,57 @@ export default function SpotDetail() {
             {/* Tabbed Content Interface */}
             {spot && (spot.name === "Lido Beach" || spot.name === "Rockaway Beach" || spot.name === "Long Beach") && (
               <div id="guide" className="mt-8 sm:mt-12">
-                {/* Tab Navigation */}
-                <div className="bg-gray-50 border-2 border-black mb-4 sm:mb-8">
-                  <div className="px-3 py-2 sm:p-4 border-b-2 border-black">
-                    <h2 className="text-2xl sm:text-3xl font-bold text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                      SPOT GUIDE
-                    </h2>
+
+                {/* Unified nav: header + tab strip. border-b-0 so content below shares the border line */}
+                <div className="border-2 border-b-0 border-black">
+
+                  {/* Black header strip */}
+                  <div className="bg-black px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between border-b border-white/10">
+                    <div className="flex items-center gap-3">
+                      <span className="text-white/40 text-[10px] tracking-[0.25em] uppercase hidden sm:inline" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        LOCAL INTEL /
+                      </span>
+                      <h2 className="text-white text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                        SPOT GUIDE
+                      </h2>
+                    </div>
+                    <span className="text-white/30 text-[10px] tracking-widest uppercase hidden sm:block" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      {spot.name}
+                    </span>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5 sm:gap-2 p-2 sm:p-4">
-                    <button
-                      onClick={() => setActiveTab("ideal-conditions")}
-                      className={cn(
-                        "px-2 py-2.5 sm:px-4 sm:py-3 text-[11px] sm:text-sm font-bold uppercase tracking-wide transition-all duration-200 border-2",
-                        activeTab === "ideal-conditions"
-                          ? "bg-black text-white border-black"
-                          : "bg-white text-black border-black hover:bg-gray-100"
-                      )}
-                      style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                    >
-                      Ideal Conditions
-                    </button>
-                    <button
-                      onClick={() => setActiveTab("when-to-go")}
-                      className={cn(
-                        "px-2 py-2.5 sm:px-4 sm:py-3 text-[11px] sm:text-sm font-bold uppercase tracking-wide transition-all duration-200 border-2",
-                        activeTab === "when-to-go"
-                          ? "bg-black text-white border-black"
-                          : "bg-white text-black border-black hover:bg-gray-100"
-                      )}
-                      style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                    >
-                      When to Go
-                    </button>
-                    <button
-                      onClick={() => setActiveTab(spot.name === "Lido Beach" ? "offshore-bathymetry" : spot.name === "Rockaway Beach" || spot.name === "Long Beach" ? "getting-there" : "location")}
-                      className={cn(
-                        "px-2 py-2.5 sm:px-4 sm:py-3 text-[11px] sm:text-sm font-bold uppercase tracking-wide transition-all duration-200 border-2",
-                        (spot.name === "Lido Beach" ? activeTab === "offshore-bathymetry" : spot.name === "Rockaway Beach" || spot.name === "Long Beach" ? activeTab === "getting-there" : activeTab === "location")
-                          ? "bg-black text-white border-black"
-                          : "bg-white text-black border-black hover:bg-gray-100"
-                      )}
-                      style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                    >
-                      {spot.name === "Lido Beach" ? "Bathymetry" : spot.name === "Rockaway Beach" || spot.name === "Long Beach" ? "Getting There" : "Location"}
-                    </button>
-                    <button
-                      onClick={() => setActiveTab("wave-mechanics")}
-                      className={cn(
-                        "px-2 py-2.5 sm:px-4 sm:py-3 text-[11px] sm:text-sm font-bold uppercase tracking-wide transition-all duration-200 border-2",
-                        activeTab === "wave-mechanics"
-                          ? "bg-black text-white border-black"
-                          : "bg-white text-black border-black hover:bg-gray-100"
-                      )}
-                      style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                    >
-                      Wave Mechanics
-                    </button>
-                    <button
-                      onClick={() => setActiveTab("surf-culture")}
-                      className={cn(
-                        "col-span-2 sm:col-span-1 px-2 py-2.5 sm:px-4 sm:py-3 text-[11px] sm:text-sm font-bold uppercase tracking-wide transition-all duration-200 border-2",
-                        activeTab === "surf-culture"
-                          ? "bg-black text-white border-black"
-                          : "bg-white text-black border-black hover:bg-gray-100"
-                      )}
-                      style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                    >
-                      {spot.name === "Lido Beach" ? "Culture & Etiquette" : "Surf Culture"}
-                    </button>
+
+                  {/* Tab strip — scrollable on mobile, no bottom border (content provides it) */}
+                  <div className="flex overflow-x-auto scrollbar-none bg-white">
+                    {[
+                      { id: "ideal-conditions", label: "Ideal Conditions" },
+                      { id: "when-to-go", label: "When to Go" },
+                      {
+                        id: spot.name === "Lido Beach" ? "offshore-bathymetry" : "getting-there",
+                        label: spot.name === "Lido Beach" ? "Bathymetry" : "Getting There",
+                      },
+                      { id: "wave-mechanics", label: "Wave Mechanics" },
+                      { id: "surf-culture", label: spot.name === "Lido Beach" ? "Culture & Etiquette" : "Surf Culture" },
+                    ].map((tab, i, arr) => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={cn(
+                          "flex-1 min-w-[100px] sm:min-w-[120px] px-3 py-3 sm:px-5 sm:py-3.5 text-[9px] sm:text-[11px] font-bold uppercase tracking-[0.1em] transition-colors duration-150 whitespace-nowrap border-b-2 border-black",
+                          i < arr.length - 1 ? "border-r-2 border-black" : "",
+                          activeTab === tab.id
+                            ? "bg-black text-white border-b-black"
+                            : "bg-white text-gray-600 hover:text-black hover:bg-gray-50"
+                        )}
+                        style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
                   </div>
+
                 </div>
 
-                {/* Tab Content */}
+                {/* Tab Content — each component already has border-2 border-black; connects with nav's border-b-0 */}
                 <GateOverlay
                   locked={showGuideIntelGate}
                   title="Member-Only Intel: Access local sandbar data and wind-block guides."
@@ -3075,22 +3054,16 @@ export default function SpotDetail() {
                   cardClassName="max-w-2xl"
                   overlayClassName="items-start pt-4 sm:pt-6"
                 >
-                <div className="min-h-[400px]">
-                  {/* Ideal Conditions Tab */}
-                  {activeTab === "ideal-conditions" && spot && (
-                    <SpotIdealConditions spotName={spot.name} />
-                  )}
-
-                  {/* Lido Beach Tabs */}
-                  {spot.name === "Lido Beach" && <LidoBeachTabs activeTab={activeTab} />}
-
-                  {/* Rockaway Beach Tabs */}
-                  {spot.name === "Rockaway Beach" && <RockawayBeachTabs activeTab={activeTab} />}
-
-                  {/* Long Beach Tabs */}
-                  {spot.name === "Long Beach" && <LongBeachTabs activeTab={activeTab} />}
-                </div>
+                  <div className="min-h-[400px]">
+                    {activeTab === "ideal-conditions" && spot && (
+                      <SpotIdealConditions spotName={spot.name} />
+                    )}
+                    {spot.name === "Lido Beach" && <LidoBeachTabs activeTab={activeTab} />}
+                    {spot.name === "Rockaway Beach" && <RockawayBeachTabs activeTab={activeTab} />}
+                    {spot.name === "Long Beach" && <LongBeachTabs activeTab={activeTab} />}
+                  </div>
                 </GateOverlay>
+
               </div>
             )}
 
