@@ -247,31 +247,40 @@ export function scoreTide(tideFt: number, breakingHeightFt: number, spotName?: s
 }
 
 // ============================================================================
-// LIDO BEACH SPECIFIC WIND SCORING
+// WIND DIRECTION TIER HELPER FUNCTIONS (8-Tier System)
+// Shared by all spot scoring functions and capping logic.
+// All south-facing Long Island beaches (Lido, Long Beach, Rockaway) face ~180°.
 // ============================================================================
 
 /**
- * Check if wind direction is Premium Offshore (330-30°): NNW, N, NNE
- * Handles 360° wrap-around
+ * Tier 1 — Premium Offshore (330–20°): N, NNW, NNE (core)
+ * Best possible wind for south-facing beaches.
  */
 function isPremiumOffshore(windDir: number): boolean {
   const normalized = ((windDir % 360) + 360) % 360;
-  return normalized >= 330 || normalized <= 30;
+  return normalized >= 330 || normalized <= 20;
 }
 
 /**
- * Check if wind direction is Good Offshore (310-50°): NW, NE
- * Excludes premium offshore range
+ * Tier 2 — Solid Offshore NW (310–329°, plus 21–34° NNE transition): NW + NNE fringe
+ * Very good offshore, slightly off the ideal N axis.
  */
-function isGoodOffshore(windDir: number): boolean {
+function isSolidOffshoreNW(windDir: number): boolean {
   const normalized = ((windDir % 360) + 360) % 360;
-  // Good offshore is 310-330 (NW) or 30-50 (NE), excluding premium range
-  return (normalized >= 310 && normalized < 330) || (normalized > 30 && normalized <= 50);
+  return (normalized >= 310 && normalized < 330) || (normalized >= 21 && normalized <= 34);
 }
 
 /**
- * Check if wind direction is any offshore (310-50°)
- * Includes both premium and good offshore
+ * Tier 3 — Okay Offshore NE (35–50°): NE
+ * Decent offshore but notably weaker than NW, especially on small swells (<4ft).
+ */
+function isOkayOffshoreNE(windDir: number): boolean {
+  const normalized = ((windDir % 360) + 360) % 360;
+  return normalized >= 35 && normalized <= 50;
+}
+
+/**
+ * Any offshore direction (Tiers 1–3, 310–50°): for bonus/cap logic
  */
 function isAnyOffshore(windDir: number): boolean {
   const normalized = ((windDir % 360) + 360) % 360;
@@ -279,207 +288,169 @@ function isAnyOffshore(windDir: number): boolean {
 }
 
 /**
- * Check if wind direction is Side-Offshore (295-315° WNW, 50-70° ENE)
- * Excludes premium and good offshore ranges
- * Updated: WNW 295-315° creates buffer zone with Cross-Shore
+ * Tier 4 — Solid Side-Offshore WNW (290–309°): WNW
+ * Best non-offshore wind for Rockaway; acceptable for Lido/Long Beach at low speeds.
  */
-function isSideOffshore(windDir: number): boolean {
+function isSolidSideOffshoreWNW(windDir: number): boolean {
   const normalized = ((windDir % 360) + 360) % 360;
-  // Side-offshore is 295-315 (WNW) or 50-70 (ENE)
-  return (normalized >= 295 && normalized < 315) || (normalized > 50 && normalized <= 70);
+  return normalized >= 290 && normalized < 310;
 }
 
 /**
- * Check if wind direction is Pure Cross-Shore: W, E
- * - Western: 260-294° (W, before WNW side-offshore at 295°)
- * - Eastern: 71-109° (E, after ENE)
- * WSW and ESE are "Side-Onshore" - worse than pure cross
- * Updated: 260-295° creates buffer zone with Side-Offshore
+ * Tier 5 — BAD Side-Offshore ENE (51–70°): ENE
+ * Poor for all south-facing beaches — angle creates chop with no cleanup benefit.
  */
-function isCrossShore(windDir: number): boolean {
+function isBadSideOffshoreENE(windDir: number): boolean {
   const normalized = ((windDir % 360) + 360) % 360;
-  // Pure cross-shore (best of the non-offshore winds):
-  // - W: 260-295° (before it becomes WNW side-offshore at 295°)
-  // - E: 70-110° (after ENE side-offshore)
-  return (normalized >= 260 && normalized < 295) || (normalized > 70 && normalized <= 110);
+  return normalized > 50 && normalized <= 70;
 }
 
 /**
- * Check if wind direction is Side-Onshore: WSW, ESE
- * Worse than pure cross-shore, better than full onshore
- * - Western: 225-259° (WSW - has onshore component)
- * - Eastern: 111-134° (ESE - has onshore component)
+ * Tier 6 — Not-great Side-Shore E (71–110°): E
+ * Cross-shore from the east; adds chop, no offshore component.
  */
-function isSideOnshore(windDir: number): boolean {
+function isNotGreatSideShoreE(windDir: number): boolean {
   const normalized = ((windDir % 360) + 360) % 360;
-  // Side-onshore (transition zone between cross and full onshore):
-  // - WSW: 225-260° (after SW onshore, before W cross)
-  // - ESE: 110-135° (after E cross, before SE onshore)
-  return (normalized >= 225 && normalized < 260) || (normalized > 110 && normalized < 135);
+  return normalized > 70 && normalized <= 110;
 }
 
 /**
- * Lido Beach-specific wind scoring with 6 tiers
+ * Tier 7 — Better Side-Shore W (260–289°): W
+ * Cross-shore from the west; less problematic than E, best side-shore for Rockaway.
+ */
+function isBetterSideShoreW(windDir: number): boolean {
+  const normalized = ((windDir % 360) + 360) % 360;
+  return normalized >= 260 && normalized < 290;
+}
+
+// Tier 8 — Onshore ALL BAD (111–259°): ESE through WSW
+// No helper needed — it's the else/fallthrough case in scoring functions.
+// Range expanded from old 135–225° to include ESE (110°) and WSW (225–259°).
+
+/**
+ * Lido Beach-specific wind scoring — 8-Tier System
  *
  * Hierarchy for south-facing beach (best to worst):
- * 1. Premium Offshore (N) - best
- * 2. Good Offshore (NW, NE)
- * 3. Side-Offshore (WNW, ENE)
- * 4. Cross-Shore W (260-290°) - W is better than E (no onshore component)
- * 4b. Cross-Shore E (70-110°) - E can have slight wrap effect
- * 5. Side-Onshore (WSW 225-260°, ESE 110-135°) - transition zone
- * 6. Full Onshore (SE-SW 135-225°) - worst
+ * 1. Premium Offshore (330–34°): N, NNE, NNW — best
+ * 2. Solid Offshore NW (310–329°): NW
+ * 3. Okay Offshore NE (35–50°): NE — weaker, wave-size dependent
+ * 4. Solid Side-Offshore WNW (290–309°): WNW
+ * 5. BAD Side-Offshore ENE (51–70°): ENE
+ * 6. Not-great Side-Shore E (71–110°): E
+ * 7. Better Side-Shore W (260–289°): W
+ * 8. Onshore ALL BAD (111–259°): ESE through WSW
  *
- * TIER 1 - Premium Offshore (330-30°): NNW, N, NNE
- *   ≤12kts: +20 points | ≤18kts: +15 | ≤25kts: +10 | >25kts: +5
- *
- * TIER 2 - Good Offshore (310-330°, 30-50°): NW, NE
- *   ≤12kts: +20 points | ≤18kts: +15 | >18kts: +10
- *
- * TIER 3 - Side-Offshore (290-310°, 50-70°): WNW, ENE
- *   ≤12kts: +5 points | 12-18kts: 0 | >18kts: -15 (strong WNW creates choppy conditions)
- *
- * TIER 4a - Cross-Shore West (260-290°): W
- *   ≤10kts: -3 points | ≤18kts: -8 | >18kts: -15
- *
- * TIER 4b - Cross-Shore East (70-110°): E
- *   ≤10kts: -5 points | ≤18kts: -12 | >18kts: -20
- *
- * TIER 5 - Side-Onshore (225-260°, 110-135°): WSW, ESE
- *   ≤10kts: -15 points | ≤15kts: -25 | >15kts: -35
- *
- * TIER 6 - Full Onshore (135-225°): SE through SW
- *   ≤6kts: -10 points | ≤10kts: -45 | >10kts: -60
+ * TIER 1 — Premium Offshore (330–34°): +20 | +15 | +10 | +5 (>25kts)
+ * TIER 2 — Solid Offshore NW (310–329°): +18 | +12 | +8
+ * TIER 3 — Okay Offshore NE (35–50°): wave-size dependent
+ *   ≥4ft: +8 | +4 | 0    <4ft: +3 | 0 | -5
+ * TIER 4 — Solid Side-Offshore WNW (290–309°): +5 | 0 | -15 | -30
+ * TIER 5 — BAD Side-Offshore ENE (51–70°): -5 | -20 | -40 | -55
+ * TIER 6 — Not-great Side-Shore E (71–110°): -12 | -25 | -45
+ * TIER 7 — Better Side-Shore W (260–289°): -8 | -20 | -40
+ * TIER 8 — Onshore ALL BAD (111–259°): -10 | -45 | -60
  *
  * @param windSpeedKt - Wind speed in knots
  * @param windDirectionDeg - Wind direction in degrees (0-360)
+ * @param breakingHeightFt - Breaking wave height in feet (for NE wave-size logic)
  * @returns Score from -60 to +20
  */
-function getWindQualityForLido(windSpeedKt: number, windDirectionDeg: number): number {
+function getWindQualityForLido(windSpeedKt: number, windDirectionDeg: number, breakingHeightFt: number = 0): number {
   const normalized = ((windDirectionDeg % 360) + 360) % 360;
 
-  console.log('🔍 [getWindQualityForLido] Lido-specific wind scoring:', {
+  console.log('🔍 [getWindQualityForLido] Lido wind scoring:', {
     windSpeedKt: windSpeedKt.toFixed(1),
     windDirectionDeg,
     normalized: normalized.toFixed(1),
+    breakingHeightFt: breakingHeightFt.toFixed(2),
   });
 
-  // TIER 1 - Premium Offshore (330-30°): NNW, N, NNE
+  // TIER 1 — Premium Offshore (330–34°): N, NNE, NNW
   if (isPremiumOffshore(normalized)) {
     let score: number;
-    if (windSpeedKt <= 12) {
-      score = 20;
-    } else if (windSpeedKt <= 18) {
-      score = 15;
-    } else if (windSpeedKt <= 25) {
-      score = 10;
-    } else {
-      score = 5;
-    }
+    if (windSpeedKt <= 12) score = 20;
+    else if (windSpeedKt <= 18) score = 15;
+    else if (windSpeedKt <= 25) score = 10;
+    else score = 5;
     console.log('🔍 [getWindQualityForLido] TIER 1 Premium Offshore:', score);
     return score;
   }
 
-  // NE 35–45°: treat same as Side-Offshore (not ideal at Lido)
-  if (normalized >= 35 && normalized <= 45) {
+  // TIER 2 — Solid Offshore NW (310–329°): NW
+  if (isSolidOffshoreNW(normalized)) {
     let score: number;
-    if (windSpeedKt < 10) score = 5;
-    else if (windSpeedKt < 15) score = -5;
-    else if (windSpeedKt < 20) score = -30;
-    else score = -50;
-    console.log('🔍 [getWindQualityForLido] NE 35–45° (side-offshore):', score);
+    if (windSpeedKt <= 12) score = 18;
+    else if (windSpeedKt <= 18) score = 12;
+    else score = 8;
+    console.log('🔍 [getWindQualityForLido] TIER 2 Solid Offshore NW:', score);
     return score;
   }
 
-  // TIER 2 - Good Offshore (310-330°, 30-34° and 46-50° NE): NW, narrow NE
-  if (isGoodOffshore(normalized)) {
+  // TIER 3 — Okay Offshore NE (35–50°): wave-size dependent
+  if (isOkayOffshoreNE(normalized)) {
+    const isBigWave = breakingHeightFt >= 4.0;
     let score: number;
-    if (windSpeedKt <= 12) {
-      score = 20;
-    } else if (windSpeedKt <= 18) {
-      score = 15;
+    if (isBigWave) {
+      if (windSpeedKt <= 12) score = 8;
+      else if (windSpeedKt <= 18) score = 4;
+      else score = 0;
     } else {
-      score = 10;
+      if (windSpeedKt <= 12) score = 3;
+      else if (windSpeedKt <= 18) score = 0;
+      else score = -5;
     }
-    console.log('🔍 [getWindQualityForLido] TIER 2 Good Offshore:', score);
+    console.log('🔍 [getWindQualityForLido] TIER 3 Okay Offshore NE:', score, `(wave: ${isBigWave ? '≥4ft' : '<4ft'})`);
     return score;
   }
 
-  // TIER 3 - Side-Offshore (295-315° WNW, 50-70° ENE)
-  if (isSideOffshore(normalized)) {
+  // TIER 4 — Solid Side-Offshore WNW (290–309°)
+  if (isSolidSideOffshoreWNW(normalized)) {
     let score: number;
-    if (windSpeedKt < 10) {
-      score = 5; // Light side-offshore still somewhat favorable
-    } else if (windSpeedKt < 15) {
-      score = -5; // Moderate side-offshore
-    } else if (windSpeedKt < 20) {
-      score = -30; // Strong side-offshore creates choppy conditions
-    } else {
-      score = -50; // Very strong side-offshore - messy conditions
-    }
-    console.log('🔍 [getWindQualityForLido] TIER 3 Side-Offshore:', score);
+    if (windSpeedKt <= 10) score = 5;
+    else if (windSpeedKt < 15) score = 0;
+    else if (windSpeedKt < 20) score = -15;
+    else score = -30;
+    console.log('🔍 [getWindQualityForLido] TIER 4 Solid Side-Offshore WNW:', score);
     return score;
   }
 
-  // TIER 4a - Cross-Shore West (260-295°): W - better than E
-  // Calm WNW/W winds (≤10kt) should not be penalized - they're actually quite good
-  const isWestCross = normalized >= 260 && normalized < 295;
-  if (isWestCross) {
+  // TIER 5 — BAD Side-Offshore ENE (51–70°)
+  if (isBadSideOffshoreENE(normalized)) {
     let score: number;
-    if (windSpeedKt <= 10) {
-      score = 0; // No penalty for calm WNW/W winds
-    } else if (windSpeedKt < 15) {
-      score = -15;
-    } else if (windSpeedKt < 20) {
-      score = -35;
-    } else {
-      score = -55;
-    }
-    console.log('🔍 [getWindQualityForLido] TIER 4a Cross-Shore West:', score);
+    if (windSpeedKt <= 10) score = -5;
+    else if (windSpeedKt < 15) score = -20;
+    else if (windSpeedKt < 20) score = -40;
+    else score = -55;
+    console.log('🔍 [getWindQualityForLido] TIER 5 BAD Side-Offshore ENE:', score);
     return score;
   }
 
-  // TIER 4b - Cross-Shore East (70-110°): E - slightly worse than W
-  const isEastCross = normalized > 70 && normalized <= 110;
-  if (isEastCross) {
+  // TIER 6 — Not-great Side-Shore E (71–110°)
+  if (isNotGreatSideShoreE(normalized)) {
     let score: number;
-    if (windSpeedKt < 10) {
-      score = -12;
-    } else if (windSpeedKt < 15) {
-      score = -25;
-    } else if (windSpeedKt < 20) {
-      score = -40;
-    } else {
-      score = -60;
-    }
-    console.log('🔍 [getWindQualityForLido] TIER 4b Cross-Shore East:', score);
+    if (windSpeedKt <= 10) score = -12;
+    else if (windSpeedKt <= 18) score = -25;
+    else score = -45;
+    console.log('🔍 [getWindQualityForLido] TIER 6 Not-great Side-Shore E:', score);
     return score;
   }
 
-  // TIER 5 - Side-Onshore (225-260°, 110-135°): WSW, ESE
-  if (isSideOnshore(normalized)) {
+  // TIER 7 — Better Side-Shore W (260–289°)
+  if (isBetterSideShoreW(normalized)) {
     let score: number;
-    if (windSpeedKt <= 10) {
-      score = -15;
-    } else if (windSpeedKt <= 15) {
-      score = -25;
-    } else {
-      score = -35;
-    }
-    console.log('🔍 [getWindQualityForLido] TIER 5 Side-Onshore:', score);
+    if (windSpeedKt <= 10) score = -8;
+    else if (windSpeedKt < 15) score = -20;
+    else score = -40;
+    console.log('🔍 [getWindQualityForLido] TIER 7 Better Side-Shore W:', score);
     return score;
   }
 
-  // TIER 6 - Full Onshore (135-225°): SE through SW
+  // TIER 8 — Onshore ALL BAD (111–259°): ESE through WSW
   let score: number;
-  if (windSpeedKt <= 6) {
-    score = -10;
-  } else if (windSpeedKt <= 10) {
-    score = -45;
-  } else {
-    score = -60;
-  }
-  console.log('🔍 [getWindQualityForLido] TIER 6 Full Onshore:', score);
+  if (windSpeedKt <= 6) score = -10;
+  else if (windSpeedKt <= 10) score = -45;
+  else score = -60;
+  console.log('🔍 [getWindQualityForLido] TIER 8 Onshore ALL BAD:', score);
   return score;
 }
 
@@ -531,182 +502,151 @@ function getOffshoreSmallWaveBonus(
     return 15;
   }
 
-  // Good offshore (310-50°) + period ≥ 8s: +10 points
-  if (isGoodOffshore(normalized)) {
-    console.log('🔍 [getOffshoreSmallWaveBonus] Good offshore small wave bonus: +10');
+  // Solid Offshore NW (310–329°) + period ≥ 8s: +10 points
+  if (isSolidOffshoreNW(normalized)) {
+    console.log('🔍 [getOffshoreSmallWaveBonus] Solid Offshore NW small wave bonus: +10');
     return 10;
   }
 
-  // Any other offshore (side-offshore) + period ≥ 8s: +5 points
-  if (isSideOffshore(normalized)) {
-    console.log('🔍 [getOffshoreSmallWaveBonus] Side-offshore small wave bonus: +5');
+  // Okay Offshore NE (35–50°) + period ≥ 8s: +5 points (NE less effective on small days)
+  if (isOkayOffshoreNE(normalized)) {
+    console.log('🔍 [getOffshoreSmallWaveBonus] Okay Offshore NE small wave bonus: +5');
     return 5;
+  }
+
+  // Solid Side-Offshore WNW (290–309°) + period ≥ 8s: +3 points
+  if (isSolidSideOffshoreWNW(normalized)) {
+    console.log('🔍 [getOffshoreSmallWaveBonus] Solid Side-Offshore WNW small wave bonus: +3');
+    return 3;
   }
 
   return 0;
 }
 
 /**
- * Score wind quality for Long Island south shore beaches
+ * Score wind quality for Long Island south shore beaches (Long Beach, Rockaway)
  *
- * Long Island south shore beaches (Lido, Long Beach, Rockaway) face approximately 180° (South).
+ * Uses the 8-tier wind direction system. Lido Beach is handled by getWindQualityForLido().
  *
- * Wind classifications:
- * - Offshore (good): Winds from N, NW, NE (315-45°) = +10 to +20 points
- * - Cross-shore/Sideshore (marginal): Winds from E or W (60-120°, 240-300°) = -5 to -20 points
- * - Onshore (bad): Winds from S, SE, SW (135-225°) = -10 to -60 points
- *   - ≤6kts: -10 (light, tolerable)
- *   - >6kts (>7mph): -45 (harsh penalty)
- *   - >10kts (>12mph): -60 (blown out, ensures Poor rating)
+ * TIER 1 — Premium Offshore (330–34°): +20 | +15 | +10
+ * TIER 2 — Solid Offshore NW (310–329°): +18 | +12 | +8
+ * TIER 3 — Okay Offshore NE (35–50°): wave-size dependent
+ *   ≥4ft: +8 | +4 | 0    <4ft: +3 | 0 | -5
+ * TIER 4 — Solid Side-Offshore WNW (290–309°):
+ *   Rockaway: +12 | +6 | -8 | -20    General: +5 | 0 | -15 | -30
+ * TIER 5 — BAD Side-Offshore ENE (51–70°): -5 | -20 | -40 | -55
+ * TIER 6 — Not-great Side-Shore E (71–110°): -12 | -25 | -45
+ * TIER 7 — Better Side-Shore W (260–289°):
+ *   Rockaway: -3 | -12 | -30    General: -8 | -20 | -40
+ * TIER 8 — Onshore ALL BAD (111–259°): -10 | -45 | -60
  *
  * @param windSpeedKt - Wind speed in knots or null
  * @param windDirectionDeg - Wind direction in degrees (0-360) or null
- * @param profile - Spot profile (not used for wind, but kept for interface consistency)
+ * @param profile - Spot profile (used for Rockaway-specific logic)
+ * @param breakingHeightFt - Breaking wave height in feet (for NE wave-size scoring)
  * @returns Score from -60 to +20
  */
 export function scoreWind(
   windSpeedKt: number | null,
   windDirectionDeg: number | null,
-  profile: SpotProfile
+  profile: SpotProfile,
+  breakingHeightFt: number = 0
 ): number {
   if (windSpeedKt === null || windDirectionDeg === null) {
     console.log('🔍 [scoreWind] Missing wind data:', { windSpeedKt, windDirectionDeg });
-    return 0; // neutral when no wind data
+    return 0;
   }
 
   // Use Lido-specific wind scoring for Lido Beach
   if (profile.name === "Lido Beach") {
-    return getWindQualityForLido(windSpeedKt, windDirectionDeg);
+    return getWindQualityForLido(windSpeedKt, windDirectionDeg, breakingHeightFt);
   }
 
-  // Rockaway faces slightly more SE, so W winds are even better there
   const isRockaway = profile.name === "Rockaway Beach";
-
-  // Long Island south shore faces ~180° (south)
-  // Normalize wind direction to 0-360
   const normalized = ((windDirectionDeg % 360) + 360) % 360;
-
-  // Wind hierarchy (best to worst):
-  // 1. Offshore (315-45°): N, NW, NE
-  // 2. Side-Offshore (295-315° WNW, 45-70° ENE)
-  // 3. Cross-Shore W (260-295°): W - better than E
-  // 4. Cross-Shore E (70-110°): E
-  // 5. Side-Onshore (225-260°, 110-135°): WSW, ESE
-  // 6. Full Onshore (135-225°): SE through SW
-
-  const isOffshore = normalized >= 315 || normalized <= 45;
-  const isSideOff = (normalized >= 295 && normalized < 315) || (normalized > 45 && normalized <= 70);
-  const isWestCross = normalized >= 260 && normalized < 295;
-  const isEastCross = normalized > 70 && normalized <= 110;
-  const isSideOn = (normalized >= 225 && normalized < 260) || (normalized > 110 && normalized < 135);
-  const isOnshore = normalized >= 135 && normalized <= 225;
 
   console.log('🔍 [scoreWind] Wind calculation:', {
     windSpeedKt: windSpeedKt.toFixed(1),
     windDirectionDeg,
     normalized: normalized.toFixed(1),
-    isOffshore,
-    isSideOff,
-    isWestCross,
-    isEastCross,
-    isSideOn,
-    isOnshore,
+    spot: profile.name,
   });
 
-  // All spots: NE 35–45° typically isn't great; treat same as Side-Offshore (46–70°)
-  if (normalized >= 35 && normalized <= 45) {
-    if (isRockaway) {
-      if (windSpeedKt < 10) return 10;
-      if (windSpeedKt < 15) return 5;
-      if (windSpeedKt < 20) return -20;
-      return -40;
+  // TIER 1 — Premium Offshore (330–34°): N, NNE, NNW
+  if (isPremiumOffshore(normalized)) {
+    if (windSpeedKt <= 12) return 20;
+    if (windSpeedKt <= 18) return 15;
+    return 10;
+  }
+
+  // TIER 2 — Solid Offshore NW (310–329°): NW
+  if (isSolidOffshoreNW(normalized)) {
+    if (windSpeedKt <= 12) return 18;
+    if (windSpeedKt <= 18) return 12;
+    return 8;
+  }
+
+  // TIER 3 — Okay Offshore NE (35–50°): wave-size dependent
+  if (isOkayOffshoreNE(normalized)) {
+    const isBigWave = breakingHeightFt >= 4.0;
+    if (isBigWave) {
+      if (windSpeedKt <= 12) return 8;
+      if (windSpeedKt <= 18) return 4;
+      return 0;
     } else {
-      // Long Beach (same as Lido side-offshore)
-      if (windSpeedKt < 10) return 5;
-      if (windSpeedKt < 15) return -5;
-      if (windSpeedKt < 20) return -30;
-      return -50;
+      if (windSpeedKt <= 12) return 3;
+      if (windSpeedKt <= 18) return 0;
+      return -5;
     }
   }
 
-  if (isOffshore) {
-    // Offshore winds = GOOD
-    if (windSpeedKt <= 12) {
-      return 20; // Perfect offshore
-    } else if (windSpeedKt <= 18) {
-      return 15; // Good offshore
-    } else {
-      return 10; // Strong offshore (harder to paddle)
-    }
-  } else if (isSideOff) {
-    // Side-offshore = DECENT (WNW, ENE) - Spot-specific handling
-    // Rockaway handles WNW better, Lido/Long Beach struggle with strong WNW
-    // All spots get penalties for strong side-offshore (choppy, messy conditions)
+  // TIER 4 — Solid Side-Offshore WNW (290–309°): Rockaway handles WNW much better
+  if (isSolidSideOffshoreWNW(normalized)) {
     if (isRockaway) {
-      // Rockaway: Handles WNW better than other spots
-      if (windSpeedKt < 10) {
-        return 10;
-      } else if (windSpeedKt < 15) {
-        return 5;
-      } else if (windSpeedKt < 20) {
-        return -20; // Strong side-offshore creates choppy conditions even at Rockaway
-      } else {
-        return -40; // Very strong side-offshore
-      }
+      if (windSpeedKt <= 10) return 12;
+      if (windSpeedKt < 15) return 6;
+      if (windSpeedKt < 20) return -8;
+      return -20;
     } else {
-      // Long Beach: Same aggressive scaling as Lido
-      if (windSpeedKt < 10) {
-        return 5;
-      } else if (windSpeedKt < 15) {
-        return -5;
-      } else if (windSpeedKt < 20) {
-        return -30; // Strong side-offshore creates choppy conditions
-      } else {
-        return -50; // Very strong side-offshore - messy conditions
-      }
-    }
-  } else if (isWestCross) {
-    // Cross-shore W (includes WNW) - Calm winds ≤10mph should not be penalized
-    // WNW winds at 9-10mph are actually quite good for all Long Island spots
-    if (windSpeedKt <= 10) {
-      return 0; // No penalty for calm WNW/W winds
-    } else if (windSpeedKt < 15) {
-      return -15;
-    } else if (windSpeedKt < 20) {
-      return -35;
-    } else {
-      return -55;
-    }
-  } else if (isEastCross) {
-    // Cross-shore E = MARGINAL
-    if (windSpeedKt < 10) {
-      return -12;
-    } else if (windSpeedKt < 15) {
-      return -25;
-    } else if (windSpeedKt < 20) {
-      return -40;
-    } else {
-      return -60;
-    }
-  } else if (isSideOn) {
-    // Side-onshore (WSW, ESE) = BAD but not as bad as full onshore
-    if (windSpeedKt <= 10) {
-      return -15;
-    } else if (windSpeedKt <= 15) {
-      return -25;
-    } else {
-      return -35;
-    }
-  } else {
-    // Full Onshore (SE-SW) = WORST
-    if (windSpeedKt <= 6) {
-      return -10; // Light onshore (tolerable)
-    } else if (windSpeedKt <= 10) {
-      return -45; // Moderate onshore
-    } else {
-      return -60; // Strong onshore - blown out
+      if (windSpeedKt <= 10) return 5;
+      if (windSpeedKt < 15) return 0;
+      if (windSpeedKt < 20) return -15;
+      return -30;
     }
   }
+
+  // TIER 5 — BAD Side-Offshore ENE (51–70°): poor for all spots
+  if (isBadSideOffshoreENE(normalized)) {
+    if (windSpeedKt <= 10) return -5;
+    if (windSpeedKt < 15) return -20;
+    if (windSpeedKt < 20) return -40;
+    return -55;
+  }
+
+  // TIER 6 — Not-great Side-Shore E (71–110°)
+  if (isNotGreatSideShoreE(normalized)) {
+    if (windSpeedKt <= 10) return -12;
+    if (windSpeedKt <= 18) return -25;
+    return -45;
+  }
+
+  // TIER 7 — Better Side-Shore W (260–289°): Rockaway handles W better
+  if (isBetterSideShoreW(normalized)) {
+    if (isRockaway) {
+      if (windSpeedKt <= 10) return -3;
+      if (windSpeedKt < 15) return -12;
+      return -30;
+    } else {
+      if (windSpeedKt <= 10) return -8;
+      if (windSpeedKt < 15) return -20;
+      return -40;
+    }
+  }
+
+  // TIER 8 — Onshore ALL BAD (111–259°): ESE through WSW
+  if (windSpeedKt <= 6) return -10;
+  if (windSpeedKt <= 10) return -45;
+  return -60;
 }
 
 /**
@@ -937,7 +877,8 @@ export function calculateQualityScoreWithProfile(
   const wind = scoreWind(
     forecastPoint.windSpeedKts ?? null,
     forecastPoint.windDirectionDeg ?? null,
-    profile
+    profile,
+    breakingHeightFt
   );
   // Wind Gusts: 0 to -20 points (penalty only for strong onshore/cross-shore gusts)
   const gustPenalty = scoreWindGusts(
@@ -1067,28 +1008,34 @@ export function calculateQualityScoreWithProfile(
     const beforeClamp = rawScore;
 
     if (windDir !== null && breakingHeightFt >= 1.0 && periodS >= 6) {
-      // Check for premium, good, or side offshore conditions
+      // Check wind tier and apply appropriate small-wave cap
       if (isPremiumOffshore(windDir)) {
-        // Premium offshore (330-30°) + period ≥ 6s + height ≥ 1.0ft: cap at 60 ("Worth a Look")
+        // Tier 1 Premium Offshore (330–34°): cap at 60
         rawScore = Math.min(rawScore, 60);
         if (beforeClamp !== rawScore) {
           console.log('🔍 [Quality Score Debug] Premium offshore small wave clamp:', beforeClamp, '→', rawScore);
         }
-      } else if (isGoodOffshore(windDir)) {
-        // Good offshore (310-50°) + period ≥ 6s + height ≥ 1.0ft: cap at 50 ("Worth a Look")
-        rawScore = Math.min(rawScore, 50);
+      } else if (isSolidOffshoreNW(windDir)) {
+        // Tier 2 Solid Offshore NW (310–329°): cap at 55
+        rawScore = Math.min(rawScore, 55);
         if (beforeClamp !== rawScore) {
-          console.log('🔍 [Quality Score Debug] Good offshore small wave clamp:', beforeClamp, '→', rawScore);
+          console.log('🔍 [Quality Score Debug] Solid Offshore NW small wave clamp:', beforeClamp, '→', rawScore);
         }
-      } else if (isSideOffshore(windDir)) {
-        // Side-offshore (295-315° WNW, 50-70° ENE): cap at 42 ("Worth a Look")
+      } else if (isOkayOffshoreNE(windDir)) {
+        // Tier 3 Okay Offshore NE (35–50°): cap at 45 (NE less useful on small days)
+        rawScore = Math.min(rawScore, 45);
+        if (beforeClamp !== rawScore) {
+          console.log('🔍 [Quality Score Debug] Okay Offshore NE small wave clamp:', beforeClamp, '→', rawScore);
+        }
+      } else if (isSolidSideOffshoreWNW(windDir)) {
+        // Tier 4 Solid Side-Offshore WNW (290–309°): cap at 42
         rawScore = Math.min(rawScore, 42);
         if (beforeClamp !== rawScore) {
-          console.log('🔍 [Quality Score Debug] Side-offshore small wave clamp:', beforeClamp, '→', rawScore);
+          console.log('🔍 [Quality Score Debug] Solid Side-Offshore WNW small wave clamp:', beforeClamp, '→', rawScore);
         }
       } else {
-        // Other conditions (non-offshore): cap at 35 ("Don't Bother" but less harsh)
-        rawScore = Math.min(rawScore, 35);
+        // All other non-offshore directions: cap at 30
+        rawScore = Math.min(rawScore, 30);
         if (beforeClamp !== rawScore) {
           console.log('🔍 [Quality Score Debug] Small wave clamp (no offshore):', beforeClamp, '→', rawScore);
         }
@@ -1139,7 +1086,8 @@ export function calculateQualityScoreWithProfile(
   const windSpeed = forecastPoint.windSpeedKts;
   if (windDir !== null && windSpeed !== null) {
     const normalizedWindDir = ((windDir % 360) + 360) % 360;
-    const isOnshoreWind = normalizedWindDir >= 135 && normalizedWindDir <= 225;
+    // Onshore ALL BAD range now spans 110–259° (ESE through WSW)
+    const isOnshoreWind = normalizedWindDir >= 110 && normalizedWindDir <= 259;
 
     // Light onshore cap: 5-7mph (~4.3-6kts) winds cap at 50
     if (isOnshoreWind && windSpeed >= 4.3 && windSpeed <= 6) {
