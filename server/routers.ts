@@ -275,15 +275,24 @@ export const appRouter = router({
         const baseUrl = process.env.BASE_URL || process.env.PUBLIC_URL || "https://www.nycsurfco.com";
         const magicLinkUrl = `${baseUrl}/auth/verify?token=${token}`;
 
+        // Debug logging
+        console.log(`[Magic Link] Attempting to send to: ${email}`);
+        console.log(`[Magic Link] Base URL: ${baseUrl}`);
+        console.log(`[Magic Link] Magic link URL: ${magicLinkUrl}`);
+
         // Send the email
         const emailSent = await sendMagicLinkEmail({
           to: email,
           magicLinkUrl,
         });
 
+        console.log(`[Magic Link] Email send result: ${emailSent}`);
+
         if (!emailSent) {
-          console.warn(`[Magic Link] Failed to send email to ${email}`);
+          console.error(`[Magic Link] ❌ FAILED to send email to ${email}`);
           // Don't reveal if email failed - just say we sent it
+        } else {
+          console.log(`[Magic Link] ✓ Email sent successfully to ${email}`);
         }
 
         console.log(`[Magic Link] Token generated for ${email}, expires at ${expires.toISOString()}`);

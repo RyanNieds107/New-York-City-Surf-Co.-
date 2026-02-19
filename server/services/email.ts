@@ -25,6 +25,8 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
 
   const apiKey = process.env.RESEND_API_KEY || ENV.resendApiKey;
 
+  console.log(`[Email] API key present: ${!!apiKey}`);
+
   if (!apiKey) {
     console.warn("[Email] Resend API key not configured. Email sending disabled.");
     return false;
@@ -32,6 +34,12 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
 
   // Resend API endpoint
   try {
+    const fromAddress = process.env.EMAIL_FROM || "NYC Surf Co. <notifications@nycsurfco.com>";
+
+    console.log(`[Email] Sending to: ${to}`);
+    console.log(`[Email] From: ${fromAddress}`);
+    console.log(`[Email] Subject: ${subject}`);
+
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -39,7 +47,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: process.env.EMAIL_FROM || "NYC Surf Co. <notifications@nycsurfco.com>",
+        from: fromAddress,
         to: [to],
         subject,
         html,
@@ -47,8 +55,11 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
       }),
     });
 
+    console.log(`[Email] Resend response status: ${response.status}`);
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      console.error(`[Email] ❌ Resend error:`, errorData);
       console.warn(
         `[Email] Failed to send email (${response.status}): ${JSON.stringify(errorData)}`
       );
@@ -56,6 +67,8 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     }
 
     const data = await response.json().catch(() => ({}));
+    console.log(`[Email] ✓ Resend success, ID: ${data.id || "unknown"}`);
+    console.log(`[Email] Track at: https://resend.com/emails/${data.id}`);
     console.log(`[Email] Successfully sent email to ${to} (ID: ${data.id || "unknown"})`);
     return true;
   } catch (error: any) {
