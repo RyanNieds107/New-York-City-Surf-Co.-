@@ -59,7 +59,7 @@ import { getSpotProfile, getSpotKey, SPOT_PROFILES } from "./utils/spotProfiles"
 import { getDominantSwell, calculateBreakingWaveHeight, calculateBuoyBreakingWaveHeight, formatWaveHeight, calculateSwellEnergy } from "./utils/waveHeight";
 import { generateForecastOutput } from "./utils/forecastOutput";
 import { forecastPoints, conditionsLog, users, verificationTokens, type User } from "../drizzle/schema";
-import { eq, desc, and, gt } from "drizzle-orm";
+import { eq, desc, and, gt, sql } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { getDb } from "./db";
 import { fetchBuoy44065Cached, clearBuoyCache } from "./layers/environmental/clients/buoy44065";
@@ -85,6 +85,12 @@ export const appRouter = router({
 
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
+    memberCount: publicProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return { count: 0 };
+      const result = await db.select({ count: sql<number>`COUNT(*)` }).from(users);
+      return { count: Number(result[0]?.count ?? 0) };
+    }),
     updateProfile: protectedProcedure
       .input(
         z.object({

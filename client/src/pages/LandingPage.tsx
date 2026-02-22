@@ -1394,6 +1394,7 @@ export default function LandingPage() {
 
   // Fetch count of surfers with active alerts (for social proof / waitlist counter)
   const surferCountQuery = trpc.alerts.count.useQuery();
+  const memberCountQuery = trpc.auth.memberCount.useQuery();
 
   // Carousel slides: images
   const slides = [
@@ -1641,10 +1642,10 @@ export default function LandingPage() {
                     </p>
                     <div className="space-y-1">
                       <div className="h-2 w-full border border-black bg-gray-100">
-                        <div className="h-full bg-black" style={{ width: "37.5%" }} />
+                        <div className="h-full bg-black" style={{ width: `${Math.min(((memberCountQuery.data?.count ?? 15) / 40) * 100, 100)}%` }} />
                       </div>
                       <p className="text-[10px] uppercase tracking-wider text-gray-700" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                        15/40 spots filled
+                        {memberCountQuery.data?.count ?? 15}/40 spots filled
                       </p>
                     </div>
                     <Button
@@ -1829,7 +1830,7 @@ export default function LandingPage() {
           <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white mb-4 sm:mb-6 md:mb-8 uppercase tracking-tighter sm:tracking-tight leading-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
             Know if it's worth the commute in 5 seconds
           </h1>
-          <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-white font-light mb-6 sm:mb-8 md:mb-10">
+          <p className="text-lg sm:text-xl md:text-xl lg:text-2xl text-white font-light mb-6 sm:mb-8 md:mb-10">
             Score more. Commute less. Limited free founding member spots available now — apply today.
           </p>
           <div className="flex flex-col items-center">

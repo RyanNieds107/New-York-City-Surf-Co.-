@@ -36,6 +36,7 @@ export default function Members() {
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   // Query hooks
   const { data: spots } = trpc.spots.list.useQuery();
+  const { data: memberCountData } = trpc.auth.memberCount.useQuery();
   const { data: alerts, refetch: refetchAlerts } = trpc.alerts.list.useQuery(undefined, {
     enabled: !!user,
   });
@@ -103,6 +104,10 @@ export default function Members() {
   const [dossierVolumeL, setDossierVolumeL] = useState("");
   const [dossierMinWaveHeight, setDossierMinWaveHeight] = useState<number>(2);
   const [dossierWindPreference, setDossierWindPreference] = useState("OFFSHORE");
+
+  const memberLabel = user
+    ? `${String(user.id).padStart(3, '0')}/${String(memberCountData?.count ?? 40).padStart(3, '0')}`
+    : "015/040";
 
   const dossierStorageKey = user ? `member_dossier_${user.id}` : null;
 
@@ -522,7 +527,7 @@ export default function Members() {
               className="text-xl font-black uppercase tracking-tight text-black"
               style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
             >
-              MEMBER DOSSIER [015/040]
+              MEMBER DOSSIER [{memberLabel}]
             </SheetTitle>
           </SheetHeader>
 
@@ -713,7 +718,7 @@ export default function Members() {
                     className="text-2xl sm:text-4xl font-black text-black uppercase tracking-tight leading-none"
                     style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
                   >
-                    {dossierName || "SURFER"} · {dossierHomeBreak} · MEMBER 015/040
+                    {dossierName || "SURFER"} · {dossierHomeBreak} · MEMBER {memberLabel}
                   </h1>
                   <p
                     className="text-[10px] text-gray-500 uppercase tracking-widest mt-1"
@@ -835,7 +840,7 @@ export default function Members() {
                 </div>
                 <div className="space-y-0">
                   {([
-                    ["Symbol", "MEMBER 015/040"],
+                    ["Symbol", `MEMBER ${memberLabel}`],
                     ["Location", dossierLocation || "—"],
                     ["Home Break", dossierHomeBreak],
                     ["Experience", `${dossierExperienceYears} yrs`],
