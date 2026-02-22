@@ -1122,7 +1122,9 @@ export function calculateQualityScoreWithProfile(
     }
 
     // Cap 2: If wind >20kts AND direction >30° off optimal → cap at 39 ("Don't Bother")
-    if (windSpeed > 20 && angleOffOptimal > 30) {
+    // Guard: skip for beneficial offshore/side-offshore directions (Tiers 1–4: NW, WNW, N, NE)
+    const isBeneficialWindDir = isAnyOffshore(normalizedWindDir) || isSolidSideOffshoreWNW(normalizedWindDir);
+    if (windSpeed > 20 && angleOffOptimal > 30 && !isBeneficialWindDir) {
       const beforeClamp = rawScore;
       rawScore = Math.min(rawScore, 39);
       if (beforeClamp !== rawScore) {

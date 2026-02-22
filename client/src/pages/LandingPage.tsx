@@ -1830,7 +1830,7 @@ export default function LandingPage() {
             Know if it's worth the commute in 5 seconds
           </h1>
           <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-white font-light mb-6 sm:mb-8 md:mb-10">
-            Score more. Commute less. Join the first 40+ members for free.
+            Score more. Commute less. Limited free founding member spots available now — apply today.
           </p>
           <div className="flex flex-col items-center">
             <button
