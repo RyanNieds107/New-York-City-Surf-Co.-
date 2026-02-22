@@ -77,10 +77,14 @@ export function WaveForecastChart({ spotId }: WaveForecastChartProps) {
     if (!data?.timeline?.length) return [];
 
     if (period === "1D") {
-      // Hourly for today: group into 3-hour buckets
+      // Hourly for today: group into 3-hour buckets relative to current time
       const buckets: DayData[] = [];
+      const now = Date.now();
       for (let h = 0; h < 24; h += 3) {
-        const slice = data.timeline.filter((pt) => pt.hoursOut >= h && pt.hoursOut < h + 3);
+        const slice = data.timeline.filter((pt) => {
+          const hoursFromNow = (new Date(pt.forecastTimestamp).getTime() - now) / (1000 * 60 * 60);
+          return hoursFromNow >= (h === 0 ? -1 : h) && hoursFromNow < h + 3;
+        });
         if (!slice.length) continue;
         const best = slice.reduce((a, b) =>
           (b.quality_score ?? 0) > (a.quality_score ?? 0) ? b : a

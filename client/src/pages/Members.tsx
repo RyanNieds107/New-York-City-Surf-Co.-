@@ -36,7 +36,7 @@ export default function Members() {
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   // Query hooks
   const { data: spots } = trpc.spots.list.useQuery();
-  const { data: memberCountData } = trpc.auth.memberCount.useQuery();
+  const { data: memberInfo } = trpc.auth.memberInfo.useQuery();
   const { data: alerts, refetch: refetchAlerts } = trpc.alerts.list.useQuery(undefined, {
     enabled: !!user,
   });
@@ -106,7 +106,7 @@ export default function Members() {
   const [dossierWindPreference, setDossierWindPreference] = useState("OFFSHORE");
 
   const memberLabel = user
-    ? `${String(user.id).padStart(3, '0')}/${String(memberCountData?.count ?? 40).padStart(3, '0')}`
+    ? `${String(memberInfo?.memberNumber ?? 0).padStart(3, '0')}/${String(memberInfo?.totalCount ?? 40).padStart(3, '0')}`
     : "015/040";
 
   const dossierStorageKey = user ? `member_dossier_${user.id}` : null;
@@ -761,7 +761,7 @@ export default function Members() {
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         <span className={`h-2 w-2 rounded-full ${homeBreakStatus === "GO" ? "bg-emerald-500 animate-pulse" : "bg-gray-400"}`} />
-                        <span className="text-[10px] uppercase tracking-wider text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        <span className="text-[10px] uppercase tracking-wider text-gray-700" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                           Live · {homeBreakStatus === "GO" ? "Active window" : `Est. +${nextWindowHours}h`}
                         </span>
                       </div>
@@ -773,17 +773,17 @@ export default function Members() {
                       </div>
                     </div>
                     <div className="pb-1">
-                      <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Wave Height</div>
+                      <div className="text-[10px] uppercase tracking-wider text-gray-700 mb-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Wave Height</div>
                       <div className="text-3xl sm:text-4xl font-black leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                         {homeBreakWaveLabel}
                       </div>
                     </div>
                     <div className="ml-auto pb-1 text-right">
-                      <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Score</div>
+                      <div className="text-[10px] uppercase tracking-wider text-gray-700 mb-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Score</div>
                       <div className="text-3xl sm:text-4xl font-black leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                         {Math.round(homeBreakScore)}
                       </div>
-                      <div className="text-[10px] text-gray-400 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>/ 100</div>
+                      <div className="text-[10px] text-gray-600 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>/ 100</div>
                     </div>
                   </div>
                   {/* Intensity bar */}
@@ -794,7 +794,7 @@ export default function Members() {
                         style={{ width: `${intensityPct}%` }}
                       />
                     </div>
-                    <div className="text-[9px] uppercase tracking-wider text-gray-400 mt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    <div className="text-[9px] uppercase tracking-wider text-gray-600 mt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                       Intensity: {Math.round(homeBreakScore)}/100
                     </div>
                   </div>
@@ -805,7 +805,7 @@ export default function Members() {
 
                 {/* Conditions Grid (like financial stats row) */}
                 <div className="mt-4 pt-4 border-t border-gray-200">
-                  <div className="text-[9px] uppercase tracking-widest text-gray-400 mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  <div className="text-[9px] uppercase tracking-widest text-gray-600 mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                     Current Conditions · {homeBreakCurrent ? "Live data" : "Awaiting data"}
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -820,7 +820,7 @@ export default function Members() {
                       ["Wind Type", homeBreakCurrent?.windType ? homeBreakCurrent.windType.replace("-", " ").toUpperCase() : "—"],
                     ].map(([label, value]) => (
                       <div key={label} className="border border-gray-200 p-2.5">
-                        <div className="text-[9px] uppercase tracking-widest text-gray-500 mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        <div className="text-[9px] uppercase tracking-widest text-gray-700 mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                           {label}
                         </div>
                         <div className="text-base sm:text-lg font-black leading-none uppercase text-gray-800" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
@@ -835,7 +835,7 @@ export default function Members() {
 
               {/* RIGHT: Member Dossier Sidebar */}
               <div className="p-4 border-t-2 border-black lg:border-t-0">
-                <div className="text-[9px] uppercase tracking-widest text-gray-400 mb-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                <div className="text-[9px] uppercase tracking-widest text-gray-600 mb-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                   Member Profile
                 </div>
                 <div className="space-y-0">
@@ -850,10 +850,10 @@ export default function Members() {
                     ["Wind Pref", dossierWindPreference || "—"],
                   ] as [string, string][]).map(([label, value]) => (
                     <div key={label} className="flex justify-between items-baseline py-2 border-b border-gray-100">
-                      <span className="text-[10px] text-gray-500 uppercase tracking-wide" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      <span className="text-[10px] text-gray-700 uppercase tracking-wide" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                         {label}
                       </span>
-                      <span className="text-[10px] font-bold text-right max-w-[130px] truncate" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      <span className="text-[10px] font-bold text-right max-w-[130px] truncate text-gray-900" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                         {value}
                       </span>
                     </div>
@@ -863,7 +863,7 @@ export default function Members() {
                 {/* Conditions Rating (like Analyst Consensus) */}
                 <div className="mt-5 pt-4 border-t-2 border-black">
                   <div className="flex items-center justify-between mb-2">
-                    <div className="text-[9px] uppercase tracking-widest text-gray-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    <div className="text-[9px] uppercase tracking-widest text-gray-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                       Conditions Rating
                     </div>
                   </div>
@@ -873,7 +873,7 @@ export default function Members() {
                   >
                     {getTier(homeBreakScore)}
                   </div>
-                  <div className="text-[10px] text-gray-500 uppercase tracking-wide mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  <div className="text-[10px] text-gray-700 uppercase tracking-wide mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                     {homeBreakStatus === "GO" ? "Active surf window" : `Next window ~${nextWindowHours}h`}
                   </div>
                   {homeBreakCurrent?.windType && (

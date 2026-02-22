@@ -59,7 +59,7 @@ import { getSpotProfile, getSpotKey, SPOT_PROFILES } from "./utils/spotProfiles"
 import { getDominantSwell, calculateBreakingWaveHeight, calculateBuoyBreakingWaveHeight, formatWaveHeight, calculateSwellEnergy } from "./utils/waveHeight";
 import { generateForecastOutput } from "./utils/forecastOutput";
 import { forecastPoints, conditionsLog, users, verificationTokens, type User } from "../drizzle/schema";
-import { eq, desc, and, gt, sql } from "drizzle-orm";
+import { eq, desc, and, gt, lte, sql } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { getDb } from "./db";
 import { fetchBuoy44065Cached, clearBuoyCache } from "./layers/environmental/clients/buoy44065";
@@ -90,6 +90,18 @@ export const appRouter = router({
       if (!db) return { count: 0 };
       const result = await db.select({ count: sql<number>`COUNT(*)` }).from(users);
       return { count: Number(result[0]?.count ?? 0) };
+    }),
+    memberInfo: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) return { memberNumber: 0, totalCount: 0 };
+      const [rankResult, countResult] = await Promise.all([
+        db.select({ rank: sql<number>`COUNT(*)` }).from(users).where(lte(users.id, ctx.user.id)),
+        db.select({ count: sql<number>`COUNT(*)` }).from(users),
+      ]);
+      return {
+        memberNumber: Number(rankResult[0]?.rank ?? 0),
+        totalCount: Number(countResult[0]?.count ?? 0),
+      };
     }),
     updateProfile: protectedProcedure
       .input(
