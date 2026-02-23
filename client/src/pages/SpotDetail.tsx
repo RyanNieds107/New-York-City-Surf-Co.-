@@ -38,14 +38,13 @@ import {
 import { Link, useParams } from "wouter";
 import { toast } from "sonner";
 import { useState, useMemo, useEffect } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Bell } from "lucide-react";
 import { getLoginUrl } from "@/const";
 import { cn } from "@/lib/utils";
 import { Footer } from "@/components/Footer";
 import { CURRENT_CONDITIONS_MAX_AGE_MS, formatSurfHeight } from "@/lib/forecastUtils";
 import { WaveForecastChart } from "@/components/WaveForecastChart";
 import { SpotContextHeader, SPOT_CONTEXT } from "@/components/SpotContextHeader";
-import { AlertsPromo } from "@/components/AlertsPromo";
 import { GateOverlay } from "@/components/GateOverlay";
 import { getScoreBadgeColors } from "@/lib/ratingColors";
 import { isNighttime } from "@/lib/sunTimes";
@@ -2490,6 +2489,17 @@ export default function SpotDetail() {
                                 </div>
 
                                 <div className="flex items-center gap-2 flex-shrink-0">
+                                  {verdictLabel === "GO SURF" && dayIndex >= 2 && (
+                                    <a
+                                      href="/members"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="flex items-center gap-1 px-2 py-1 text-[9px] uppercase tracking-wider border border-black text-black bg-white hover:bg-black hover:text-white transition-colors whitespace-nowrap"
+                                      style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                                    >
+                                      <Bell className="h-2.5 w-2.5" />
+                                      Set up an alert
+                                    </a>
+                                  )}
                                   <ChevronDown className={`h-5 w-5 md:h-6 md:w-6 text-gray-400 transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
                                 </div>
                               </div>
@@ -3015,11 +3025,6 @@ export default function SpotDetail() {
                 </p>
               </div>
             )}
-
-            {/* Surf Alerts Promo */}
-            <div className="mt-6">
-              <AlertsPromo spotName={spot?.name} />
-            </div>
 
             {/* Tabbed Content Interface */}
             {spot && (spot.name === "Lido Beach" || spot.name === "Rockaway Beach" || spot.name === "Long Beach") && (
