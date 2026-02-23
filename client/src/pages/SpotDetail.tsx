@@ -2292,10 +2292,16 @@ export default function SpotDetail() {
                         }
                         
                         // Override day badge by surfable hours: 2-4 hr → Worth a Look, 5+ hr → Go Surf
+                        // Cap at best single-hour rating — can't show "Go Surf" if no hour actually hits 60
                         let displayScore = avgScore;
                         if (surfableDaylightHoursCount >= 5) {
-                          verdictLabel = "GO SURF";
-                          displayScore = 65;
+                          if (bestScore >= 60) {
+                            verdictLabel = "GO SURF";
+                            displayScore = 65;
+                          } else {
+                            verdictLabel = "WORTH A LOOK";
+                            displayScore = 50;
+                          }
                         } else if (surfableDaylightHoursCount >= 2) {
                           verdictLabel = "WORTH A LOOK";
                           displayScore = 50;
