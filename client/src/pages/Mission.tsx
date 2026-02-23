@@ -5,7 +5,7 @@ import { useEffect } from "react";
 
 export default function Mission() {
   const [, setLocation] = useLocation();
-  
+
   // Scroll to top when component mounts
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -74,7 +74,7 @@ export default function Mission() {
           </p>
 
           <p className="text-gray-800 leading-relaxed font-medium">
-            Slot Allocation: 15 / 40 Provisioned. Access the proprietary models for free and stop guessing.
+            Access the proprietary models for free and stop guessing.
           </p>
         </div>
       </div>

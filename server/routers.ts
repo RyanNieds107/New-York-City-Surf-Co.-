@@ -259,6 +259,7 @@ export const appRouter = router({
       .input(
         z.object({
           email: z.string().email(),
+          redirect: z.string().optional(),
         })
       )
       .mutation(async ({ input }) => {
@@ -291,7 +292,8 @@ export const appRouter = router({
 
         // Build the magic link URL
         const baseUrl = process.env.BASE_URL || process.env.PUBLIC_URL || "https://www.nycsurfco.com";
-        const magicLinkUrl = `${baseUrl}/auth/verify?token=${token}`;
+        const redirectParam = input.redirect ? `&redirect=${encodeURIComponent(input.redirect)}` : "";
+        const magicLinkUrl = `${baseUrl}/auth/verify?token=${token}${redirectParam}`;
 
         // Debug logging
         console.log(`[Magic Link] Attempting to send to: ${email}`);

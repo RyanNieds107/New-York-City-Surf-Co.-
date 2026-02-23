@@ -13,15 +13,18 @@ export default function VerifyMagicLink() {
   const [errorMessage, setErrorMessage] = useState("");
   const hasVerifiedRef = useRef(false); // Prevent multiple verification attempts
 
-  // Extract token from URL
+  // Extract token and optional redirect destination from URL
   const params = new URLSearchParams(search);
   const token = params.get("token");
+  const urlRedirect = params.get("redirect");
 
   const verifyMutation = trpc.auth.verifyMagicLink.useMutation({
     onSuccess: async () => {
       setVerificationState("success");
       // Invalidate auth state to refresh user info
       await utils.auth.me.invalidate();
+      // URL param takes priority (survives new-tab email opens),
+      // fall back to sessionStorage (same-tab flows), then members portal.
       const storedRedirect =
         typeof window === "undefined"
           ? null
@@ -31,9 +34,11 @@ export default function VerifyMagicLink() {
         sessionStorage.removeItem("postLoginRedirect");
       }
 
+      const destination = urlRedirect || storedRedirect || "/members";
+
       // Redirect after a brief delay
       setTimeout(() => {
-        setLocation(storedRedirect || "/members");
+        setLocation(destination);
       }, 1500);
     },
     onError: (error) => {

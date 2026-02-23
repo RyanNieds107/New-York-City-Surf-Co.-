@@ -68,6 +68,7 @@ export default function Login() {
 
     sendMagicLinkMutation.mutate({
       email: email.trim().toLowerCase(),
+      redirect: redirect ?? undefined,
     });
   };
 
