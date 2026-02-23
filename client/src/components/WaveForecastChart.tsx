@@ -12,6 +12,7 @@ import {
   Cell,
 } from "recharts";
 import { format, startOfDay, isSameDay } from "date-fns";
+import { formatSurfHeight } from "@/lib/forecastUtils";
 
 interface WaveForecastChartProps {
   spotId: number | undefined;
@@ -26,6 +27,7 @@ interface DayData {
   period: number | null;
   windSpeed: number | null;
   windDir: string;
+  ecmwfWaveHeightFt: number | null;
 }
 
 const PERIOD_HOURS: Record<Period, number> = {
@@ -57,6 +59,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     >
       <div className="font-bold mb-1">{label}</div>
       <div>Height: {d.waveHeight > 0 ? `${d.waveHeight.toFixed(1)}ft` : "—"}</div>
+      {d.ecmwfWaveHeightFt != null && <div className="text-blue-400">Euro: {formatSurfHeight(d.ecmwfWaveHeightFt)}</div>}
       {d.period && <div>Period: {d.period}s</div>}
       {d.windSpeed != null && <div>Wind: {Math.round(d.windSpeed)}mph {d.windDir}</div>}
       <div>Score: {Math.round(d.qualityScore)}</div>
@@ -89,6 +92,7 @@ export function WaveForecastChart({ spotId }: WaveForecastChartProps) {
         const best = slice.reduce((a, b) =>
           (b.quality_score ?? 0) > (a.quality_score ?? 0) ? b : a
         );
+        const sliceEcmwf = slice.map((p) => p.ecmwfWaveHeightFt).filter((v) => v != null) as number[];
         buckets.push({
           label: `${h === 0 ? "Now" : `+${h}h`}`,
           waveHeight: best.breakingWaveHeightFt ?? best.dominantSwellHeightFt ?? 0,
@@ -96,6 +100,7 @@ export function WaveForecastChart({ spotId }: WaveForecastChartProps) {
           period: best.dominantSwellPeriodS ?? null,
           windSpeed: best.windSpeedMph ?? null,
           windDir: formatCardinal(best.windDirectionDeg),
+          ecmwfWaveHeightFt: sliceEcmwf.length > 0 ? sliceEcmwf.reduce((a, b) => a + b, 0) / sliceEcmwf.length : null,
         });
       }
       return buckets;
@@ -115,6 +120,7 @@ export function WaveForecastChart({ spotId }: WaveForecastChartProps) {
       const best = pts.reduce((a, b) =>
         (b.quality_score ?? 0) > (a.quality_score ?? 0) ? b : a
       );
+      const dayEcmwf = pts.map((p) => p.ecmwfWaveHeightFt).filter((v) => v != null) as number[];
       return {
         label: isSameDay(dayDate, today) ? "Today" : format(dayDate, "EEE"),
         waveHeight: Math.max(...pts.map((p) => p.breakingWaveHeightFt ?? p.dominantSwellHeightFt ?? 0)),
@@ -122,6 +128,7 @@ export function WaveForecastChart({ spotId }: WaveForecastChartProps) {
         period: best.dominantSwellPeriodS ?? null,
         windSpeed: best.windSpeedMph ?? null,
         windDir: formatCardinal(best.windDirectionDeg),
+        ecmwfWaveHeightFt: dayEcmwf.length > 0 ? dayEcmwf.reduce((a, b) => a + b, 0) / dayEcmwf.length : null,
       };
     });
   })();

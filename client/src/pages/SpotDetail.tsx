@@ -214,13 +214,13 @@ export default function SpotDetail() {
   const [showScoreBreakdown, setShowScoreBreakdown] = useState(false);
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   const [extendedForecastTooltip, setExtendedForecastTooltip] = useState<string | null>(null);
-  const [modelSplitTooltip, setModelSplitTooltip] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("ideal-conditions");
   const [forecastView, setForecastView] = useState<"timeline" | "chart">("timeline");
 
   // Surf plan popup state
   const [showSurfPlanPopup, setShowSurfPlanPopup] = useState(false);
   const [popupCheckDone, setPopupCheckDone] = useState(false);
+  const [hourlyModel, setHourlyModel] = useState<'euro' | 'om'>('euro');
 
   // Surf plan popup: utils for imperative fetch, mutations for show/record
   const utils = trpc.useUtils();
@@ -2372,19 +2372,6 @@ export default function SpotDetail() {
                           return 'border-l-red-400';
                         };
 
-                        // Model discrepancy for this day (GFS/Open-Meteo vs Euro/Stormglass) — only show when diff > 1.0 ft
-                        const byDay = timelineQuery.data?.waveHeightDiscrepancyByDay;
-                        const firstPointDateForKey = points.length > 0 ? new Date(points[0].forecastTimestamp) : null;
-                        const easternDayKey = firstPointDateForKey
-                          ? (() => {
-                              const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(firstPointDateForKey);
-                              const getPart = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
-                              return `${getPart("year")}-${getPart("month")}-${getPart("day")}`;
-                            })()
-                          : "";
-                        const dayDiscrepancy = byDay?.[easternDayKey];
-                        const showModelSplit = Boolean(dayDiscrepancy?.hasLargeDiscrepancy);
-                        const maxDiffFt: number | null = dayDiscrepancy?.maxDiffFt ?? null;
                         const dayNeedsGate = !isAuthenticated && dayIndex >= 2;
 
                         const dayCard = (
@@ -2468,53 +2455,9 @@ export default function SpotDetail() {
                                     </span>
                                   </div>
 
-                                  {/* Model Split warning - Mobile only (stacked below stats) */}
-                                  {showModelSplit && (
-                                    <div className="mt-1 block md:hidden relative group">
-                                      <span
-                                        className="inline-flex items-center gap-1 text-[8px] font-bold tracking-wide text-blue-800 bg-blue-100 px-1.5 py-1 rounded border border-blue-300 whitespace-nowrap cursor-help"
-                                        style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setModelSplitTooltip(modelSplitTooltip === dayKey ? null : dayKey);
-                                        }}
-                                      >
-                                        ⚠️ Model Split: GFS/Euro Divergence
-                                      </span>
-                                      {/* Tooltip on hover (desktop) or tap (mobile) */}
-                                      <div className={cn(
-                                        "absolute left-0 bottom-full mb-1 z-50 w-64 p-2.5 text-xs bg-gray-900 text-white rounded shadow-lg leading-snug",
-                                        modelSplitTooltip === dayKey ? "block" : "hidden group-hover:block"
-                                      )}>
-                                        Model variance: GFS and Euro models currently show a discrepancy of up to {maxDiffFt != null ? `${maxDiffFt.toFixed(1)}` : "1.0"}ft. Use as a general trend indicator rather than a precise height.
-                                      </div>
-                                    </div>
-                                  )}
                                 </div>
 
                                 <div className="flex items-center gap-2 flex-shrink-0">
-                                  {/* Model Split warning - Desktop only (in header with chevron) */}
-                                  {showModelSplit && (
-                                    <div className="hidden md:block relative group">
-                                      <span
-                                        className="inline-flex items-center gap-1 text-[10px] font-bold tracking-wide text-blue-800 bg-blue-100 px-1.5 py-1 rounded border border-blue-300 whitespace-nowrap cursor-help"
-                                        style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setModelSplitTooltip(modelSplitTooltip === dayKey ? null : dayKey);
-                                        }}
-                                      >
-                                        ⚠️ Model Split: GFS/Euro Divergence
-                                      </span>
-                                      {/* Tooltip on hover (desktop) or tap (mobile) */}
-                                      <div className={cn(
-                                        "absolute right-0 bottom-full mb-1 z-50 w-64 p-2.5 text-xs bg-gray-900 text-white rounded shadow-lg leading-snug",
-                                        modelSplitTooltip === dayKey ? "block" : "hidden group-hover:block"
-                                      )}>
-                                        Model variance: GFS and Euro models currently show a discrepancy of up to {maxDiffFt != null ? `${maxDiffFt.toFixed(1)}` : "1.0"}ft. Use as a general trend indicator rather than a precise height.
-                                      </div>
-                                    </div>
-                                  )}
                                   <ChevronDown className={`h-5 w-5 md:h-6 md:w-6 text-gray-400 transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
                                 </div>
                               </div>
@@ -2601,21 +2544,44 @@ export default function SpotDetail() {
 
                                 {/* Hourly Breakdown Section */}
                                 <div className="bg-white border-2 border-black">
-                                  <div className="px-4 py-3 md:px-6 md:py-4 border-b-2 border-black">
+                                  <div className="px-4 py-3 md:px-6 md:py-4 border-b-2 border-black flex items-center justify-between">
                                     <span className="text-[9px] md:text-[11px] font-bold tracking-wide text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>HOURLY BREAKDOWN</span>
+                                    {/* Model toggle */}
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[8px] text-gray-400 uppercase tracking-wide hidden md:block" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Surf Heights:</span>
+                                      <div className="flex border border-black overflow-hidden" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                        <button
+                                          onClick={() => setHourlyModel('euro')}
+                                          className={`px-2.5 py-1 text-[8px] md:text-[9px] font-bold tracking-wider uppercase transition-colors ${hourlyModel === 'euro' ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+                                        >
+                                          Euro
+                                        </button>
+                                        <button
+                                          onClick={() => setHourlyModel('om')}
+                                          className={`px-2.5 py-1 text-[8px] md:text-[9px] font-bold tracking-wider uppercase transition-colors border-l border-black ${hourlyModel === 'om' ? 'bg-black text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+                                        >
+                                          OM
+                                        </button>
+                                      </div>
+                                    </div>
                                   </div>
 
                                   {/* Scrollable wrapper for mobile */}
                                   <div className="overflow-x-auto md:overflow-x-visible">
                                   {/* Table Header */}
                                   <div
-                                      className="grid px-2 md:px-4 py-2 md:py-3 bg-gray-50 border-b border-gray-200 text-[8px] md:text-[10px] font-bold tracking-wide text-gray-500 uppercase"
-                                      style={{ gridTemplateColumns: '6% 9% 22% 22% 15% 15% 11%', width: '100%', minWidth: '640px', fontFamily: "'JetBrains Mono', monospace" }}
+                                      className="grid gap-x-3 px-2 md:px-4 py-2 md:py-3 bg-gray-50 border-b border-gray-200 text-[8px] md:text-[10px] font-bold tracking-wide text-gray-500 uppercase"
+                                      style={{ gridTemplateColumns: '52px 88px 1.6fr 1.2fr 1.1fr 1.2fr 56px', width: '100%', minWidth: '600px', fontFamily: "'JetBrains Mono', monospace" }}
                                   >
                                     <div></div>
-                                    <div>Surf</div>
+                                    <div className="flex items-center gap-1.5">
+                                      Surf
+                                      <span className={`text-[7px] px-1 py-0.5 font-bold rounded ${hourlyModel === 'euro' ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-500'}`}>
+                                        {hourlyModel === 'euro' ? 'EURO' : 'OM'}
+                                      </span>
+                                    </div>
                                     <div>Primary Swell</div>
-                                    <div>Secondary Swell</div>
+                                    <div>Secondary</div>
                                     <div>Wind</div>
                                     <div>Tide</div>
                                     <div className="text-right">Quality</div>
@@ -2797,73 +2763,110 @@ export default function SpotDetail() {
                                         const windType = point.windType ?? null;
                                         const windColor = windType === 'offshore' ? '#059669' : windType === 'onshore' ? '#ef4444' : windType === 'side-offshore' ? '#6b7280' : '#64748b';
 
+                                        // Quality score color for pill
+                                        const getScorePillStyle = (score: number) => {
+                                          const s = Math.round(score);
+                                          if (s > 90) return { bg: 'bg-emerald-600', text: 'text-white' };
+                                          if (s >= 76) return { bg: 'bg-green-600', text: 'text-white' };
+                                          if (s >= 60) return { bg: 'bg-lime-500', text: 'text-white' };
+                                          if (s >= 40) return { bg: 'bg-yellow-400', text: 'text-gray-900' };
+                                          return { bg: 'bg-red-400', text: 'text-white' };
+                                        };
+                                        const scorePill = getScorePillStyle(qualityScore);
+
                                         return (
                                           <div
                                             key={`${point.forecastTimestamp}-${index}`}
                                             className={cn(
-                                              "grid px-2 md:px-4 py-2 md:py-3.5 border-b border-gray-100 relative transition-colors items-center",
+                                              "grid gap-x-3 px-2 md:px-4 py-2.5 border-b border-gray-100 relative transition-colors items-center",
                                               isNight ? "bg-gray-100 hover:bg-gray-200" : "hover:bg-gray-50"
                                             )}
-                                            style={{ gridTemplateColumns: '6% 9% 22% 22% 15% 15% 11%', width: '100%', minWidth: '640px' }}
+                                            style={{ gridTemplateColumns: '52px 88px 1.6fr 1.2fr 1.1fr 1.2fr 56px', width: '100%', minWidth: '600px' }}
                                           >
                                             {/* Quality indicator left border */}
-                                            <div className={`absolute left-0 top-0 bottom-0 w-[2px] md:w-[3px] ${getQualityBorderColor(qualityScore)}`} />
+                                            <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${getQualityBorderColor(qualityScore)}`} />
 
                                             {/* Time */}
-                                            <div className="flex items-center">
-                                              <span className="text-xs md:text-sm font-bold text-gray-800">{hour12}{period}</span>
+                                            <div>
+                                              <span className="text-[11px] md:text-[13px] font-bold text-gray-700" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{hour12}<span className="text-gray-400 font-medium">{period}</span></span>
                                             </div>
 
                                             {/* Surf Height Pill */}
-                                            <div className="flex">
-                                              <div className="bg-gray-100 rounded-lg px-1.5 md:px-2.5 py-0.5 md:py-1 text-center">
-                                                <span className="text-xs md:text-sm font-bold text-gray-900">
-                                                  {formatSurfRange(surfHeight)}
-                                                </span>
-                                              </div>
-                                            </div>
+                                            {(() => {
+                                              const euroAvailable = point.ecmwfWaveHeightFt != null;
+                                              const showEuro = hourlyModel === 'euro' && euroAvailable;
+                                              const displayHeight = showEuro
+                                                ? formatSurfHeight(Number(point.ecmwfWaveHeightFt))
+                                                : formatSurfRange(surfHeight);
+                                              return (
+                                                <div className="flex">
+                                                  <div className={`rounded-lg px-1.5 md:px-2.5 py-0.5 md:py-1 text-center ${showEuro ? 'bg-blue-50 ring-1 ring-blue-200' : 'bg-gray-100'}`}>
+                                                    <span className={`text-xs md:text-sm font-bold ${showEuro ? 'text-blue-900' : 'text-gray-900'}`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                                      {displayHeight}
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                              );
+                                            })()}
 
-                                            {/* Primary Swell with SVG arrow */}
-                                            <div className="flex items-center gap-1 md:gap-2">
-                                              <span className="text-xs md:text-sm font-bold text-gray-900 min-w-[32px] md:min-w-[42px]">
-                                                {primarySwellHeight !== null ? `${primarySwellHeight.toFixed(1)}ft` : '—'}
-                                              </span>
-                                              <span className="text-[10px] md:text-[13px] font-semibold text-gray-600">
-                                                {primarySwellPeriod !== null ? `${Math.round(primarySwellPeriod)}s` : ''}
-                                              </span>
-                                              {primarySwellDeg !== null && (
-                                                <SwellArrow directionDeg={primarySwellDeg} size={14} />
+                                            {/* Primary Swell — stacked */}
+                                            <div className="flex flex-col gap-0.5">
+                                              <div className="flex items-baseline gap-1.5">
+                                                <span className="text-[13px] md:text-[14px] font-bold text-gray-900" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                                  {primarySwellHeight !== null ? `${primarySwellHeight.toFixed(1)}ft` : '—'}
+                                                </span>
+                                                {primarySwellPeriod !== null && (
+                                                  <span className="text-[10px] md:text-[11px] font-medium text-gray-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                                    {Math.round(primarySwellPeriod)}s
+                                                  </span>
+                                                )}
+                                              </div>
+                                              {primarySwellDir !== null && (
+                                                <div className="flex items-center gap-1">
+                                                  {primarySwellDeg !== null && <SwellArrow directionDeg={primarySwellDeg} size={11} />}
+                                                  <span className="text-[9px] text-gray-400 font-medium" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{primarySwellDir?.cardinal}</span>
+                                                </div>
                                               )}
                                             </div>
 
-                                            {/* Secondary Swell with lighter styling */}
-                                            <div className="flex items-center gap-1 md:gap-2">
+                                            {/* Secondary Swell — stacked, muted */}
+                                            <div className="flex flex-col gap-0.5">
                                               {secondaryHeight !== null && secondaryHeight > 0 ? (
                                                 <>
-                                                  <span className="text-xs md:text-sm font-semibold text-gray-500 min-w-[32px] md:min-w-[42px]">
-                                                    {secondaryHeight.toFixed(1)}ft
-                                                  </span>
-                                                  <span className="text-[10px] md:text-[13px] font-medium text-gray-400">
-                                                    {secondaryPeriod !== null ? `${Math.round(secondaryPeriod)}s` : ''}
-                                                  </span>
-                                                  {secondaryDeg !== null && (
-                                                    <SwellArrow directionDeg={secondaryDeg} size={12} secondary />
+                                                  <div className="flex items-baseline gap-1.5">
+                                                    <span className="text-[12px] md:text-[13px] font-semibold text-gray-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                                      {secondaryHeight.toFixed(1)}ft
+                                                    </span>
+                                                    {secondaryPeriod !== null && (
+                                                      <span className="text-[9px] md:text-[10px] font-medium text-gray-300" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                                        {Math.round(secondaryPeriod)}s
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                  {secondaryDir !== null && (
+                                                    <div className="flex items-center gap-1">
+                                                      {secondaryDeg !== null && <SwellArrow directionDeg={secondaryDeg} size={10} secondary />}
+                                                      <span className="text-[9px] text-gray-300 font-medium" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{secondaryDir?.cardinal}</span>
+                                                    </div>
                                                   )}
                                                 </>
                                               ) : (
-                                                <span className="text-[10px] md:text-[13px] text-gray-300">—</span>
+                                                <span className="text-[11px] text-gray-200">—</span>
                                               )}
                                             </div>
 
-                                            {/* Wind with styled arrow box */}
-                                            <div className="flex items-center gap-1 md:gap-2">
-                                              <span className="text-xs md:text-sm font-bold text-gray-900">
-                                                {windSpeed !== null ? `${windSpeed}` : '—'}
-                                                {windGust !== null && windSpeed !== null && windGust > windSpeed && (
-                                                  <sup className="text-[8px] md:text-[10px] font-bold ml-0.5">{windGust}</sup>
-                                                )}
-                                                <span className="text-[9px] md:text-[11px] font-medium text-gray-500">mph</span>
-                                              </span>
+                                            {/* Wind */}
+                                            <div className="flex items-center gap-1.5">
+                                              <div className="flex flex-col">
+                                                <span className="text-[12px] md:text-[13px] font-bold text-gray-900 leading-none" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                                  {windSpeed !== null ? windSpeed : '—'}
+                                                  {windGust !== null && windSpeed !== null && windGust > windSpeed && (
+                                                    <sup className="text-[8px] font-bold text-gray-500 ml-0.5">{windGust}</sup>
+                                                  )}
+                                                  <span className="text-[9px] font-medium text-gray-400 ml-0.5">mph</span>
+                                                </span>
+                                                {windDir && <span className="text-[8px] text-gray-400 font-medium" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{windDir?.cardinal}</span>}
+                                              </div>
                                               {point.windDirectionDeg !== null && (
                                                 <WindArrowBadge
                                                   directionDeg={point.windDirectionDeg}
@@ -2873,34 +2876,29 @@ export default function SpotDetail() {
                                             </div>
 
                                             {/* Tide */}
-                                            <div className="flex items-center">
+                                            <div className="flex flex-col gap-0.5">
                                               {tideInfo.height !== null && tideInfo.state && (
-                                                <span className={`text-[10px] md:text-[13px] inline-flex items-center gap-0.5 ${
-                                                  tideInfo.state === 'high' || tideInfo.state === 'low'
-                                                    ? 'font-bold text-[#1e293b]'
-                                                    : 'font-semibold text-[#64748b]'
-                                                }`}>
-                                                  {tideInfo.height.toFixed(1)}ft
-                                                  {tideInfo.state === 'high' ? ' HIGH' :
-                                                   tideInfo.state === 'low' ? ' LOW' :
-                                                   (tideInfo.state === 'rising' || tideInfo.state === 'dropping') && (
-                                                     <TrendArrow rising={tideInfo.state === 'rising'} size={10} />
-                                                   )}
-                                                </span>
+                                                <>
+                                                  <span className="text-[12px] md:text-[13px] font-bold text-gray-900 leading-none" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                                    {tideInfo.height.toFixed(1)}ft
+                                                  </span>
+                                                  <span className={`text-[8px] md:text-[9px] font-bold uppercase tracking-wider leading-none ${
+                                                    tideInfo.state === 'high' ? 'text-blue-600' :
+                                                    tideInfo.state === 'low' ? 'text-orange-500' :
+                                                    'text-gray-400'
+                                                  }`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                                    {tideInfo.state === 'high' ? 'HIGH' :
+                                                     tideInfo.state === 'low' ? 'LOW' :
+                                                     tideInfo.state === 'rising' ? '↑ rising' : '↓ falling'}
+                                                  </span>
+                                                </>
                                               )}
                                             </div>
 
-                                            {/* Quality - stars */}
+                                            {/* Quality — score pill */}
                                             <div className="flex items-center justify-end">
-                                              <div className="flex gap-0.5">
-                                                {[1, 2, 3, 4, 5].map((star) => (
-                                                  <span
-                                                    key={star}
-                                                    className={`text-xs md:text-sm ${star <= starCount ? 'text-gray-900' : 'text-gray-200'}`}
-                                                  >
-                                                    ★
-                                                  </span>
-                                                ))}
+                                              <div className={`${scorePill.bg} ${scorePill.text} rounded px-1.5 py-0.5 text-[11px] md:text-[12px] font-black tabular-nums leading-none`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                                {Math.round(qualityScore)}
                                               </div>
                                             </div>
                                           </div>

@@ -45,7 +45,7 @@ export interface ForecastWithConfidence extends ForecastTimelineResult {
 
 /**
  * Add confidence levels to a forecast timeline by comparing with Stormglass data.
- * Only adds confidence for the next 24 hours (where we have ECMWF verification data).
+ * Covers the full 7-day forecast window using Eastern-time hour keys for matching.
  */
 export async function addConfidenceToTimeline(
   spotId: number,
@@ -57,7 +57,7 @@ export async function addConfidenceToTimeline(
 
   // Get the time range from the timeline
   const now = new Date();
-  const endTime = new Date(now.getTime() + 24 * 60 * 60 * 1000); // Next 24 hours
+  const endTime = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // Next 7 days
 
   // Fetch Stormglass verification data for this time range
   const verificationData = await getStormglassVerification(spotId, now, endTime);
@@ -65,23 +65,22 @@ export async function addConfidenceToTimeline(
   // Create a map of verification data by hour for O(1) lookup
   const verificationMap = new Map<string, StormglassVerification>();
   for (const v of verificationData) {
-    // Key by hour (YYYY-MM-DDTHH)
-    const key = v.forecastTimestamp.toISOString().slice(0, 13);
+    const key = buildEasternHourKey(v.forecastTimestamp);
     verificationMap.set(key, v);
   }
 
   // Add confidence to each timeline point
   return timeline.map((point) => {
     const pointTime = new Date(point.forecastTimestamp);
-    const key = pointTime.toISOString().slice(0, 13);
+    const key = buildEasternHourKey(pointTime);
     const verification = verificationMap.get(key);
 
     // Get Open-Meteo wave height (use breaking height or dominant swell height)
     const openMeteoHeight = point.breakingWaveHeightFt ?? point.dominantSwellHeightFt ?? null;
 
-    // Get ECMWF wave height from verification data
-    const ecmwfHeight = verification?.swellHeightFt // Use swellHeight (not waveHeight) - Open-Meteo shows swell
-      ? parseFloat(verification.swellHeightFt)
+    // Get ECMWF wave height from verification data (waveHeightFt is populated; swellHeightFt is NULL)
+    const ecmwfHeight = verification?.waveHeightFt
+      ? parseFloat(verification.waveHeightFt)
       : null;
 
     // Calculate confidence

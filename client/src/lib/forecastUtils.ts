@@ -177,6 +177,8 @@ export interface ExtendedTimelinePoint {
   // Temperature data
   waterTempF?: number | null;
   airTempF?: number | null;
+  // ECMWF model data
+  ecmwfWaveHeightFt?: number | null;
 }
 
 /**
