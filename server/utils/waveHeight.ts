@@ -544,9 +544,11 @@ export function calculateBreakingWaveHeight(
     tidePhase ?? null,
     profile.name
   );
-  adjustedHeight = adjustedHeight * tideMultiplier;
+  // Suppress tide penalty on big surf (>3ft): high tide won't flatten it at Lido/Long Beach
+  const effectiveTideMultiplier = adjustedHeight > 3.0 ? Math.max(1.0, tideMultiplier) : tideMultiplier;
+  adjustedHeight = adjustedHeight * effectiveTideMultiplier;
   console.log('🌊 [Tide Multiplier]:', adjustedHeight.toFixed(2),
-    `ft (tide: ${tideHeightFt?.toFixed(1) ?? 'N/A'}ft ${tidePhase ?? ''} → ${tideMultiplier.toFixed(2)}x)`);
+    `ft (tide: ${tideHeightFt?.toFixed(1) ?? 'N/A'}ft ${tidePhase ?? ''} → effective: ${effectiveTideMultiplier.toFixed(2)}x${adjustedHeight > 3.0 && tideMultiplier < 1.0 ? ' [penalty suppressed: big surf]' : ''})`);
 
   // STEP 4: Check Directional Kill Switch (250° - 310°)
   // Western Long Island is shadowed by NJ/land - no surf from west
@@ -627,7 +629,9 @@ export function calculateBuoyBreakingWaveHeight(
   // Rockaway excluded: its bathymetry handles high tide better (no penalty) and doesn't need low tide boost
   if (spotName === "Lido Beach" || spotName === "Long Beach") {
     const tideMultiplier = getTideMultiplier(tideHeightFt ?? null, tidePhase, spotName);
-    breakingHeight = breakingHeight * tideMultiplier;
+    // Suppress tide penalty on big surf (>3ft): high tide won't flatten it
+    const effectiveTideMultiplier = breakingHeight > 3.0 ? Math.max(1.0, tideMultiplier) : tideMultiplier;
+    breakingHeight = breakingHeight * effectiveTideMultiplier;
   }
 
   return Math.round(breakingHeight * 10) / 10;
