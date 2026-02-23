@@ -203,7 +203,18 @@ const getLandingCardPrimarySwell = (
     : (currentPoint?.secondarySwellDirectionDeg ? formatSwellDirection(currentPoint.secondarySwellDirectionDeg) : null);
   const swellDirectionDeg = buoyData?.swellDirectionDeg ?? currentPoint?.secondarySwellDirectionDeg ?? null;
 
-  const isSwellPrimary = swellHeight >= windWaveHeight;
+  // Energy-weighted comparison: H² × T × qualityFactor
+  // North-facing swells (315–45°) are offshore on south-facing LI beaches → energy = 0
+  const getSwellEnergy = (heightFt: number, periodS: number | null, dirDeg: number | null): number => {
+    if (!heightFt || !periodS || periodS <= 0) return 0;
+    const isOffshore = dirDeg !== null && (dirDeg >= 315 || dirDeg <= 45);
+    if (isOffshore) return 0;
+    const quality = periodS < 5 ? 0.0 : periodS < 7 ? 0.3 : 1.0;
+    return heightFt * heightFt * periodS * quality;
+  };
+  const swellEnergy = getSwellEnergy(swellHeight, swellPeriod, swellDirectionDeg);
+  const windWaveEnergy = getSwellEnergy(windWaveHeight, windWavePeriod, windWaveDirectionDeg);
+  const isSwellPrimary = swellEnergy >= windWaveEnergy;
 
   return {
     primaryHeight: isSwellPrimary ? swellHeight : windWaveHeight,
