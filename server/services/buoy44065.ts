@@ -9,6 +9,7 @@
  */
 
 import axios from "axios";
+import { calculateSwellEnergy } from '../utils/waveHeight';
 
 export interface BuoyReading {
   waveHeight: number;        // in feet (converted from meters) - SWELL height (SwH), not combined WVHT
@@ -185,10 +186,13 @@ export async function fetchBuoy44065(): Promise<BuoyReading | null> {
         const swellHeightFeet = swH * 3.28084;
         const windWaveHeightFeet = wwH !== null ? wwH * 3.28084 : null;
 
-        // Determine dominant component using energy comparison: H² × T
+        // Determine dominant component using energy comparison with period-quality discount
         // Compare SwH (swell) vs WWH (wind waves) to pick the dominant source
-        const swellEnergy = swH * swH * swP;
-        const windWaveEnergy = wwH !== null && wwP !== null ? (wwH * wwH * wwP) : 0;
+        // Uses calculateSwellEnergy (feet, H²×T×qualityFactor) — matches Open-Meteo logic
+        const swellEnergy = calculateSwellEnergy(swellHeightFeet, swP);
+        const windWaveEnergy = windWaveHeightFeet !== null && wwP !== null
+          ? calculateSwellEnergy(windWaveHeightFeet, wwP)
+          : 0;
         const windWavesDominate = windWaveEnergy > swellEnergy;
 
         // Use same dominant source for height, period, and direction
