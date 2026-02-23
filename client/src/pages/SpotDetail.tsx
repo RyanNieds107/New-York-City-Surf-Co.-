@@ -221,6 +221,7 @@ export default function SpotDetail() {
   const [showSurfPlanPopup, setShowSurfPlanPopup] = useState(false);
   const [popupCheckDone, setPopupCheckDone] = useState(false);
   const [hourlyModel, setHourlyModel] = useState<'euro' | 'om'>('euro');
+  const [dayCardModel, setDayCardModel] = useState<'euro' | 'om'>('euro');
 
   // Surf plan popup: utils for imperative fetch, mutations for show/record
   const utils = trpc.useUtils();
@@ -2015,6 +2016,23 @@ export default function SpotDetail() {
                       Quality scores and conditions for the next 7 days
                     </p>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[8px] text-gray-400 uppercase tracking-wide hidden md:block" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Wave Heights:</span>
+                    <div className="flex border border-black overflow-hidden" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      <button
+                        onClick={() => setDayCardModel('euro')}
+                        className={`px-2 py-1 text-[9px] uppercase tracking-wider transition-colors ${dayCardModel === 'euro' ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+                      >
+                        Euro
+                      </button>
+                      <button
+                        onClick={() => setDayCardModel('om')}
+                        className={`px-2 py-1 text-[9px] uppercase tracking-wider transition-colors ${dayCardModel === 'om' ? 'bg-black text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+                      >
+                        OM
+                      </button>
+                    </div>
+                  </div>
                   {(!timelineQuery.data?.timeline || timelineQuery.data.timeline.length === 0) && (
                     <Button
                       onClick={() => refreshTimelineMutation.mutate({ spotId })}
@@ -2171,6 +2189,12 @@ export default function SpotDetail() {
                           ? validHeights.reduce((a, b) => a + b, 0) / validHeights.length
                           : null;
                         const heightRange = avgHeight !== null ? `${avgHeight.toFixed(1)}ft` : "N/A";
+
+                        // Euro avg height for day card toggle
+                        const euroHeights = points.map(p => p.ecmwfWaveHeightFt != null ? Number(p.ecmwfWaveHeightFt) : null).filter(h => h !== null) as number[];
+                        const avgEuroHeight = euroHeights.length > 0
+                          ? euroHeights.reduce((a, b) => a + b, 0) / euroHeights.length
+                          : null;
 
                         const validPeriods = points.map(p => p.dominantSwellPeriodS ?? p.wavePeriodSec).filter(p => p !== null && p > 0) as number[];
                         const avgPeriod = validPeriods.length > 0
@@ -2360,8 +2384,10 @@ export default function SpotDetail() {
                         const bestWindows = analyzeBestWindows(points);
                         const avoidWindows = findAvoidWindows(points);
 
-                        // Format average height for display
-                        const displayAvgHeight = avgHeight !== null ? formatSurfHeight(avgHeight) : "N/A";
+                        // Format average height for display (Euro or OM based on toggle)
+                        const displayAvgHeight = dayCardModel === 'euro' && avgEuroHeight !== null
+                          ? formatSurfHeight(avgEuroHeight)
+                          : (avgHeight !== null ? formatSurfHeight(avgHeight) : "N/A");
 
                         // Get accent color based on score
                         const getAccentColor = (score: number) => {
