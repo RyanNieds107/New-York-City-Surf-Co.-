@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, AlertTriangle } from "lucide-react";
+import { CheckCircle } from "lucide-react";
 
 export type ModelConfidenceLevel = "HIGH" | "MED" | "LOW" | null;
 
@@ -41,18 +41,6 @@ export function ModelConfidenceBadge({
     );
   }
 
-  if (confidence === "LOW") {
-    return (
-      <Badge
-        variant="default"
-        className={`bg-yellow-500 hover:bg-yellow-600 text-black ${sizeClasses} inline-flex items-center gap-1`}
-      >
-        {showIcon && <AlertTriangle className={iconSize} />}
-        Forecast Uncertain
-      </Badge>
-    );
-  }
-
   return null;
 }
 
@@ -65,25 +53,13 @@ export function ModelConfidenceIndicator({
 }: {
   confidence: ModelConfidenceLevel;
 }) {
-  if (confidence === "MED" || confidence === null) {
+  if (confidence !== "HIGH") {
     return null;
   }
 
-  if (confidence === "HIGH") {
-    return (
-      <span className="inline-flex items-center text-green-600" title="High Confidence - Models agree">
-        <CheckCircle className="h-3 w-3" />
-      </span>
-    );
-  }
-
-  if (confidence === "LOW") {
-    return (
-      <span className="inline-flex items-center text-yellow-600" title="Forecast Uncertain - Models disagree">
-        <AlertTriangle className="h-3 w-3" />
-      </span>
-    );
-  }
-
-  return null;
+  return (
+    <span className="inline-flex items-center text-green-600" title="High Confidence - Models agree">
+      <CheckCircle className="h-3 w-3" />
+    </span>
+  );
 }
