@@ -483,14 +483,7 @@ export const appRouter = router({
     getForSpot: publicProcedure.input(z.object({ spotId: z.number() })).query(async ({ input }) => {
       const forecast = await getLatestForecastForSpot(input.spotId);
       const spot = await getSpotById(input.spotId);
-      
-      // Get current conditions from Open-Meteo for period and direction data
-      let openMeteoPoint = null;
-      if (spot) {
-        openMeteoPoint = await getCurrentConditionsFromOpenMeteo(spot);
-      }
-      
-      return { forecast, spot, openMeteoPoint };
+      return { forecast, spot, openMeteoPoint: null };
     }),
 
     // Get all latest forecasts (one per spot)
