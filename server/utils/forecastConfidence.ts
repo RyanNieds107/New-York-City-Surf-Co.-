@@ -206,6 +206,64 @@ export async function getConfidenceSummary(
 /**
  * Get confidence badge text for display.
  */
+/**
+ * Result of auto-selecting the most accurate forecast model based on buoy validation.
+ */
+export interface RecommendedModelResult {
+  model: 'euro' | 'om';
+  reason: string;
+  buoyHeightFt: number;
+  omDiffFt: number;
+  euroDiffFt: number | null;
+}
+
+/**
+ * Compare buoy observation against both models' current-hour wave height.
+ * Whichever model is closer to the buoy becomes the recommended default.
+ * Returns null if buoy is stale/unavailable or OM data is unavailable.
+ * Tie goes to Euro.
+ */
+export function selectRecommendedModel(
+  buoyWaveHeightFt: number | null,
+  buoyIsStale: boolean,
+  omWaveHeightFt: number | null,
+  ecmwfWaveHeightFt: number | null,
+): RecommendedModelResult | null {
+  // Can't compare without buoy ground truth or OM data
+  if (buoyWaveHeightFt === null || buoyIsStale || omWaveHeightFt === null) {
+    return null;
+  }
+
+  const omDiff = Math.abs(omWaveHeightFt - buoyWaveHeightFt);
+
+  // If ECMWF unavailable, recommend OM by default
+  if (ecmwfWaveHeightFt === null) {
+    return {
+      model: 'om',
+      reason: 'ECMWF data unavailable, using Open-Meteo',
+      buoyHeightFt: buoyWaveHeightFt,
+      omDiffFt: omDiff,
+      euroDiffFt: null,
+    };
+  }
+
+  const euroDiff = Math.abs(ecmwfWaveHeightFt - buoyWaveHeightFt);
+
+  // Tie goes to Euro
+  const model = euroDiff <= omDiff ? 'euro' : 'om';
+  const reason = model === 'euro'
+    ? `Euro closer to buoy (${euroDiff.toFixed(1)}ft vs ${omDiff.toFixed(1)}ft diff)`
+    : `OM closer to buoy (${omDiff.toFixed(1)}ft vs ${euroDiff.toFixed(1)}ft diff)`;
+
+  return {
+    model,
+    reason,
+    buoyHeightFt: buoyWaveHeightFt,
+    omDiffFt: omDiff,
+    euroDiffFt: euroDiff,
+  };
+}
+
 export function getConfidenceBadgeText(confidence: ConfidenceLevel): string | null {
   switch (confidence) {
     case "HIGH":

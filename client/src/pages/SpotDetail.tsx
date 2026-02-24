@@ -37,7 +37,7 @@ import {
 } from "lucide-react";
 import { Link, useParams } from "wouter";
 import { toast } from "sonner";
-import { useState, useMemo, useEffect, Fragment } from "react";
+import { useState, useMemo, useEffect, useRef, Fragment } from "react";
 import { ChevronDown, ChevronUp, Bell } from "lucide-react";
 import { getLoginUrl } from "@/const";
 import { cn } from "@/lib/utils";
@@ -219,8 +219,9 @@ export default function SpotDetail() {
   // Surf plan popup state
   const [showSurfPlanPopup, setShowSurfPlanPopup] = useState(false);
   const [popupCheckDone, setPopupCheckDone] = useState(false);
-  const [hourlyModel, setHourlyModel] = useState<'euro' | 'om'>('euro');
-  const [dayCardModel, setDayCardModel] = useState<'euro' | 'om'>('euro');
+  const [hourlyModel, setHourlyModel] = useState<'euro' | 'om'>('om');
+  const [dayCardModel, setDayCardModel] = useState<'euro' | 'om'>('om');
+  const hasUserToggledModel = useRef(false);
 
   // Surf plan popup: utils for imperative fetch, mutations for show/record
   const utils = trpc.useUtils();
@@ -276,6 +277,15 @@ export default function SpotDetail() {
   const forecastQuery = currentData.queries.forecast;
   const buoyQuery = currentData.queries.buoy;
   const buoyBreakingHeightsQuery = currentData.queries.buoyBreakingHeights;
+
+  // Auto-select best forecast model based on buoy validation
+  const recommendedModel = timelineQuery.data?.recommendedModel;
+  useEffect(() => {
+    if (recommendedModel && !hasUserToggledModel.current) {
+      setHourlyModel(recommendedModel.model);
+      setDayCardModel(recommendedModel.model);
+    }
+  }, [recommendedModel]);
 
   // Crowd from surf reports (post-session reports that included crowd level)
   const crowdFromSurfReportsQuery = trpc.reports.getCrowdFromSurfReports.useQuery(
@@ -2037,18 +2047,23 @@ export default function SpotDetail() {
                     <span className="text-[8px] text-gray-400 uppercase tracking-wide hidden md:block" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Wave Heights:</span>
                     <div className="flex border border-black overflow-hidden" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                       <button
-                        onClick={() => setDayCardModel('euro')}
+                        onClick={() => { hasUserToggledModel.current = true; setDayCardModel('euro'); }}
                         className={`px-2 py-1 text-[9px] uppercase tracking-wider transition-colors ${dayCardModel === 'euro' ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
                       >
                         Euro
                       </button>
                       <button
-                        onClick={() => setDayCardModel('om')}
+                        onClick={() => { hasUserToggledModel.current = true; setDayCardModel('om'); }}
                         className={`px-2 py-1 text-[9px] uppercase tracking-wider transition-colors ${dayCardModel === 'om' ? 'bg-black text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
                       >
                         OM
                       </button>
                     </div>
+                    {recommendedModel && !hasUserToggledModel.current && (
+                      <span className="text-[7px] px-1.5 py-0.5 bg-green-100 text-green-700 font-bold uppercase tracking-wide rounded" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        Buoy-verified
+                      </span>
+                    )}
                   </div>
                   {(!timelineQuery.data?.timeline || timelineQuery.data.timeline.length === 0) && (
                     <Button
@@ -2606,18 +2621,23 @@ export default function SpotDetail() {
                                       <span className="text-[8px] text-gray-400 uppercase tracking-wide hidden md:block" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Surf Heights:</span>
                                       <div className="flex border border-black overflow-hidden" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                                         <button
-                                          onClick={() => setHourlyModel('euro')}
+                                          onClick={() => { hasUserToggledModel.current = true; setHourlyModel('euro'); }}
                                           className={`px-2.5 py-1 text-[8px] md:text-[9px] font-bold tracking-wider uppercase transition-colors ${hourlyModel === 'euro' ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
                                         >
                                           Euro
                                         </button>
                                         <button
-                                          onClick={() => setHourlyModel('om')}
+                                          onClick={() => { hasUserToggledModel.current = true; setHourlyModel('om'); }}
                                           className={`px-2.5 py-1 text-[8px] md:text-[9px] font-bold tracking-wider uppercase transition-colors border-l border-black ${hourlyModel === 'om' ? 'bg-black text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
                                         >
                                           OM
                                         </button>
                                       </div>
+                                      {recommendedModel && !hasUserToggledModel.current && (
+                                        <span className="text-[7px] px-1.5 py-0.5 bg-green-100 text-green-700 font-bold uppercase tracking-wide rounded" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                          Buoy-verified
+                                        </span>
+                                      )}
                                     </div>
                                   </div>
 

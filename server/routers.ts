@@ -63,7 +63,7 @@ import { eq, desc, and, gt, lte, sql } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { getDb } from "./db";
 import { fetchBuoy44065Cached, clearBuoyCache } from "./layers/environmental/clients/buoy44065";
-import { addConfidenceToTimeline, getConfidenceSummary, getConfidenceBadgeText, getWaveHeightDiscrepancy, getWaveHeightDiscrepancyByDay, type ConfidenceLevel } from "./utils/forecastConfidence";
+import { addConfidenceToTimeline, getConfidenceSummary, getConfidenceBadgeText, getWaveHeightDiscrepancy, getWaveHeightDiscrepancyByDay, selectRecommendedModel, type ConfidenceLevel } from "./utils/forecastConfidence";
 import { adminProcedure } from "./_core/trpc";
 import { sendBatchEmails, sendEmail } from "./services/email";
 import { sendSMS } from "./services/sms";
@@ -970,9 +970,38 @@ export const appRouter = router({
         const waveHeightDiscrepancy = await getWaveHeightDiscrepancy(spot.id, timelineWithBuoyOverride);
         const waveHeightDiscrepancyByDay = await getWaveHeightDiscrepancyByDay(spot.id, timelineWithBuoyOverride);
 
+        // Auto-select best forecast model by comparing buoy observation vs both models
+        let recommendedModel: { model: 'euro' | 'om'; reason: string; buoyHeightFt: number; omDiffFt: number; euroDiffFt: number | null } | null = null;
+        try {
+          const { fetchBuoy44065Cached } = await import("./services/buoy44065");
+          const buoyData = await fetchBuoy44065Cached();
+
+          // Find the current (first) timeline point for OM wave height
+          const now = Date.now();
+          const currentPoint = timelineWithConfidence.find(p => {
+            const ts = new Date(p.forecastTimestamp).getTime();
+            return ts >= now - 60 * 60 * 1000; // within last hour
+          });
+
+          if (currentPoint) {
+            const omHeightFt = currentPoint.breakingWaveHeightFt ?? currentPoint.dominantSwellHeightFt ?? null;
+            const ecmwfHeightFt = currentPoint.ecmwfWaveHeightFt ?? null;
+            const buoyHeightFt = buoyData?.dominantWaveHeight ?? null;
+            const buoyIsStale = buoyData?.isStale ?? true;
+
+            recommendedModel = selectRecommendedModel(buoyHeightFt, buoyIsStale, omHeightFt, ecmwfHeightFt);
+            if (recommendedModel) {
+              console.log(`[Model Selection] ${spot.name}: recommended=${recommendedModel.model} — ${recommendedModel.reason}`);
+            }
+          }
+        } catch (err) {
+          console.error('[Model Selection] Error selecting recommended model:', err);
+        }
+
         return {
           timeline: timelineWithConfidence,
           spot,
+          recommendedModel,
           confidence: {
             overall: confidenceSummary.overallConfidence,
             badge: getConfidenceBadgeText(confidenceSummary.overallConfidence),
