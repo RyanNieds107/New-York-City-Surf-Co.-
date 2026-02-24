@@ -37,7 +37,7 @@ import {
 } from "lucide-react";
 import { Link, useParams } from "wouter";
 import { toast } from "sonner";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, Fragment } from "react";
 import { ChevronDown, ChevronUp, Bell } from "lucide-react";
 import { getLoginUrl } from "@/const";
 import { cn } from "@/lib/utils";
@@ -2354,7 +2354,16 @@ export default function SpotDetail() {
                         
                         const amConditions = calculateConditions(amPoints);
                         const pmConditions = calculateConditions(pmPoints);
-                        
+
+                        const amScores = amPoints.map(p => p.quality_score ?? p.probabilityScore ?? 0);
+                        const amAvgScore = amScores.length > 0
+                          ? Math.round(amScores.reduce((a, b) => a + b, 0) / amScores.length)
+                          : 0;
+                        const pmScores = pmPoints.map(p => p.quality_score ?? p.probabilityScore ?? 0);
+                        const pmAvgScore = pmScores.length > 0
+                          ? Math.round(pmScores.reduce((a, b) => a + b, 0) / pmScores.length)
+                          : 0;
+
                         let conditionsStr = "CONDITIONS";
                         if (amConditions.heightStr !== "N/A" && pmConditions.heightStr !== "N/A") {
                           conditionsStr = `CONDITIONS AM: ${amConditions.heightStr} ${amConditions.periodStr} PM: ${pmConditions.heightStr} ${pmConditions.periodStr}`;
@@ -2427,13 +2436,16 @@ export default function SpotDetail() {
                             >
                               <div className="flex items-center justify-between gap-2">
                                 <div className="flex-1 min-w-0">
-                                  {/* Top line: Day name + Badge */}
+                                  {/* Top line: Day name + Badge + Confidence */}
                                   <div className="flex items-center gap-2 mb-1">
                                     <h4 className="text-lg md:text-2xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                                       {fullDayName}
                                     </h4>
                                     <span className={`${getScoreBadgeColors(displayScore).bg} ${getScoreBadgeColors(displayScore).text} px-1.5 py-0.5 text-[7px] md:text-[9px] font-bold tracking-wider uppercase`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                                       {verdictLabel}
+                                    </span>
+                                    <span className="text-gray-400 text-[9px] md:text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                      {confidencePercentage}% Confidence
                                     </span>
                                   </div>
 
@@ -2471,21 +2483,29 @@ export default function SpotDetail() {
                                     </div>
                                   )}
 
-                                  {/* Stats line: Height + Wind */}
-                                  <div className="flex items-center gap-2 text-[10px] md:text-xs" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                                    <span className="font-black text-black text-sm md:text-base" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                                      {displayAvgHeight}
-                                    </span>
-                                    {avgWindSpeed !== null && windDirCardinal && (
-                                      <span className="text-gray-500 flex items-center gap-0.5">
-                                        {windDirCardinal.cardinal}
-                                        <Arrow degrees={(windDirCardinal.degrees + 180) % 360} size={10} color="#6b7280" />
-                                        {avgWindSpeed}mph
-                                      </span>
+                                  {/* Stats: AM/PM rows */}
+                                  <div className="space-y-0.5">
+                                    {amConditions.heightStr !== "N/A" && (
+                                      <div className="flex items-center gap-1.5 text-[10px] md:text-xs" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                        <span className="font-bold text-gray-400 w-5 text-[9px]">AM</span>
+                                        <span className="font-black text-black text-sm md:text-base" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                                          {amConditions.heightStr}
+                                        </span>
+                                        <span className="text-gray-500">{amConditions.windStr}</span>
+                                      </div>
                                     )}
-                                    <span className="text-gray-400">
-                                      {confidencePercentage}% confidence
-                                    </span>
+                                    {pmConditions.heightStr !== "N/A" && (
+                                      <div className="flex items-center gap-1.5 text-[10px] md:text-xs" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                        <span className="font-bold text-gray-400 w-5 text-[9px]">PM</span>
+                                        <span className="font-black text-black text-sm md:text-base" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                                          {pmConditions.heightStr}
+                                        </span>
+                                        <span className="text-gray-500">{pmConditions.windStr}</span>
+                                      </div>
+                                    )}
+                                    {amConditions.heightStr === "N/A" && pmConditions.heightStr === "N/A" && (
+                                      <span className="text-gray-400 text-[10px]">No data</span>
+                                    )}
                                   </div>
 
                                 </div>
@@ -2514,34 +2534,8 @@ export default function SpotDetail() {
                               }`}
                             >
                               <div className="px-3 pb-3 md:px-4 md:pb-4">
-                                {/* Two Row Layout - CONDITIONS & BEST WINDOWS on top, TIDE FORECAST below */}
-                                {/* Row 1: CONDITIONS and BEST WINDOWS */}
-                                <div className="grid md:grid-cols-2 gap-2 md:gap-2 mb-2 md:mb-2">
-                                  {/* CONDITIONS Box */}
-                                  <div className="bg-white border-2 border-black p-2 md:p-2.5">
-                                    <span className="text-[8px] md:text-[10px] font-bold tracking-widest text-gray-500 uppercase block mb-1 md:mb-1.5" style={{ fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.5px' }}>CONDITIONS</span>
-                                    <div className="space-y-1">
-                                      {amConditions.heightStr !== "N/A" && (
-                                        <div className="flex items-center justify-between text-[11px] md:text-[13px]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                                          <span className="font-bold text-gray-900 w-6 md:w-8">AM</span>
-                                          <span className="text-gray-700 flex-1 text-[10px] md:text-[13px]">{amConditions.heightStr} @ {amConditions.periodStr}</span>
-                                          <span className="text-gray-500 text-right text-[9px] md:text-[13px]">{amConditions.windStr}</span>
-                                        </div>
-                                      )}
-                                      {pmConditions.heightStr !== "N/A" && (
-                                        <div className="flex items-center justify-between text-[11px] md:text-[13px]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                                          <span className="font-bold text-gray-900 w-6 md:w-8">PM</span>
-                                          <span className="text-gray-700 flex-1 text-[10px] md:text-[13px]">{pmConditions.heightStr} @ {pmConditions.periodStr}</span>
-                                          <span className="text-gray-500 text-right text-[9px] md:text-[13px]">{pmConditions.windStr}</span>
-                                        </div>
-                                      )}
-                                      {amConditions.heightStr === "N/A" && pmConditions.heightStr === "N/A" && (
-                                        <p className="text-xs md:text-sm text-gray-500">No data available</p>
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  {/* BEST WINDOWS Box */}
+                                {/* BEST WINDOWS Box */}
+                                <div className="mb-2 md:mb-2">
                                   <div className="bg-white border-2 border-black p-2 md:p-2.5">
                                     <span className="text-[8px] md:text-[10px] font-medium tracking-widest text-gray-500 uppercase block mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>BEST WINDOWS</span>
                                     {bestWindows.length === 0 ? (
@@ -2610,13 +2604,21 @@ export default function SpotDetail() {
                                     </div>
                                   </div>
 
-                                  {/* Scrollable wrapper for mobile */}
-                                  <div className="overflow-x-auto md:overflow-x-visible">
-                                  {/* Table Header */}
-                                  <div
-                                      className="grid gap-x-3 px-2 md:px-4 py-2 md:py-3 bg-gray-50 border-b border-gray-200 text-[8px] md:text-[10px] font-bold tracking-wide text-gray-500 uppercase"
-                                      style={{ gridTemplateColumns: '52px 88px 1.6fr 1.2fr 1.1fr 1.2fr 56px', width: '100%', minWidth: '600px', fontFamily: "'JetBrains Mono', monospace" }}
-                                  >
+                                  {/* Mobile header */}
+                                  <div className="md:hidden grid gap-x-2 px-2 py-2 bg-gray-50 border-b border-gray-200 text-[8px] font-bold tracking-wide text-gray-500 uppercase" style={{ gridTemplateColumns: '44px 68px 1fr 40px', fontFamily: "'JetBrains Mono', monospace" }}>
+                                    <div></div>
+                                    <div className="flex items-center gap-1">
+                                      Surf
+                                      <span className={`text-[7px] px-1 py-0.5 font-bold rounded ${hourlyModel === 'euro' ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-500'}`}>
+                                        {hourlyModel === 'euro' ? 'EURO' : 'OM'}
+                                      </span>
+                                    </div>
+                                    <div>Wind</div>
+                                    <div className="text-right">Pts</div>
+                                  </div>
+
+                                  {/* Desktop header */}
+                                  <div className="hidden md:grid gap-x-3 px-4 py-3 bg-gray-50 border-b border-gray-200 text-[10px] font-bold tracking-wide text-gray-500 uppercase" style={{ gridTemplateColumns: '52px 88px 1.6fr 1.2fr 1.1fr 1.2fr 56px', fontFamily: "'JetBrains Mono', monospace" }}>
                                     <div></div>
                                     <div className="flex items-center gap-1.5">
                                       Surf
@@ -2818,138 +2820,162 @@ export default function SpotDetail() {
                                         };
                                         const scorePill = getScorePillStyle(qualityScore);
 
+                                        const euroAvailable = point.ecmwfWaveHeightFt != null;
+                                        const showEuro = hourlyModel === 'euro' && euroAvailable;
+                                        const displayHeight = showEuro
+                                          ? formatSurfHeight(Number(point.ecmwfWaveHeightFt))
+                                          : formatSurfRange(surfHeight);
+
                                         return (
-                                          <div
-                                            key={`${point.forecastTimestamp}-${index}`}
-                                            className={cn(
-                                              "grid gap-x-3 px-2 md:px-4 py-2.5 border-b border-gray-100 relative transition-colors items-center",
-                                              isNight ? "bg-gray-100 hover:bg-gray-200" : "hover:bg-gray-50"
-                                            )}
-                                            style={{ gridTemplateColumns: '52px 88px 1.6fr 1.2fr 1.1fr 1.2fr 56px', width: '100%', minWidth: '600px' }}
-                                          >
-                                            {/* Quality indicator left border */}
-                                            <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${getQualityBorderColor(qualityScore)}`} />
-
-                                            {/* Time */}
-                                            <div>
-                                              <span className="text-[11px] md:text-[13px] font-bold text-gray-700" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{hour12}<span className="text-gray-400 font-medium">{period}</span></span>
-                                            </div>
-
-                                            {/* Surf Height Pill */}
-                                            {(() => {
-                                              const euroAvailable = point.ecmwfWaveHeightFt != null;
-                                              const showEuro = hourlyModel === 'euro' && euroAvailable;
-                                              const displayHeight = showEuro
-                                                ? formatSurfHeight(Number(point.ecmwfWaveHeightFt))
-                                                : formatSurfRange(surfHeight);
-                                              return (
-                                                <div className="flex">
-                                                  <div className={`rounded-lg px-1.5 md:px-2.5 py-0.5 md:py-1 text-center ${showEuro ? 'bg-blue-50 ring-1 ring-blue-200' : 'bg-gray-100'}`}>
-                                                    <span className={`text-xs md:text-sm font-bold ${showEuro ? 'text-blue-900' : 'text-gray-900'}`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                                                      {displayHeight}
-                                                    </span>
-                                                  </div>
-                                                </div>
-                                              );
-                                            })()}
-
-                                            {/* Primary Swell — stacked */}
-                                            <div className="flex flex-col gap-0.5">
-                                              <div className="flex items-baseline gap-1.5">
-                                                <span className="text-[13px] md:text-[14px] font-bold text-gray-900" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                                                  {primarySwellHeight !== null ? `${primarySwellHeight.toFixed(1)}ft` : '—'}
-                                                </span>
-                                                {primarySwellPeriod !== null && (
-                                                  <span className="text-[10px] md:text-[11px] font-medium text-gray-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                                                    {Math.round(primarySwellPeriod)}s
+                                          <Fragment key={`${point.forecastTimestamp}-${index}`}>
+                                            {/* Mobile row — 4 columns: time | surf | wind | score */}
+                                            <div
+                                              className={cn(
+                                                "md:hidden grid gap-x-2 px-2 py-2.5 border-b border-gray-100 relative items-center",
+                                                isNight ? "bg-gray-100" : ""
+                                              )}
+                                              style={{ gridTemplateColumns: '44px 68px 1fr 40px' }}
+                                            >
+                                              <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${getQualityBorderColor(qualityScore)}`} />
+                                              {/* Time */}
+                                              <span className="text-[11px] font-bold text-gray-700" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{hour12}<span className="text-gray-400 font-medium">{period}</span></span>
+                                              {/* Surf height pill */}
+                                              <div className="flex">
+                                                <div className={`rounded-lg px-1.5 py-0.5 text-center ${showEuro ? 'bg-blue-50 ring-1 ring-blue-200' : 'bg-gray-100'}`}>
+                                                  <span className={`text-xs font-bold ${showEuro ? 'text-blue-900' : 'text-gray-900'}`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                                    {displayHeight}
                                                   </span>
+                                                </div>
+                                              </div>
+                                              {/* Wind */}
+                                              <div className="flex items-center gap-1.5 min-w-0">
+                                                <span className="text-[11px] font-bold text-gray-900 leading-none truncate" style={{ fontFamily: "'JetBrains Mono', monospace", color: windColor }}>
+                                                  {windSpeed !== null ? `${windSpeed}mph` : '—'}
+                                                  {windDir && <span className="text-gray-400 font-medium ml-1">{windDir.cardinal}</span>}
+                                                </span>
+                                                {point.windDirectionDeg !== null && (
+                                                  <WindArrowBadge directionDeg={point.windDirectionDeg} windType={getWindBadgeType(windType)} />
                                                 )}
                                               </div>
-                                              {primarySwellDir !== null && (
-                                                <div className="flex items-center gap-1">
-                                                  {primarySwellDeg !== null && <SwellArrow directionDeg={primarySwellDeg} size={11} />}
-                                                  <span className="text-[9px] text-gray-400 font-medium" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{primarySwellDir?.cardinal}</span>
+                                              {/* Score */}
+                                              <div className="flex items-center justify-end">
+                                                <div className={`${scorePill.bg} ${scorePill.text} rounded px-1 py-0.5 text-[11px] font-black tabular-nums leading-none`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                                  {Math.round(qualityScore)}
                                                 </div>
-                                              )}
+                                              </div>
                                             </div>
 
-                                            {/* Secondary Swell — stacked, muted */}
-                                            <div className="flex flex-col gap-0.5">
-                                              {secondaryHeight !== null && secondaryHeight > 0 ? (
-                                                <>
-                                                  <div className="flex items-baseline gap-1.5">
-                                                    <span className="text-[12px] md:text-[13px] font-semibold text-gray-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                                                      {secondaryHeight.toFixed(1)}ft
+                                            {/* Desktop row — full 7 columns */}
+                                            <div
+                                              className={cn(
+                                                "hidden md:grid gap-x-3 px-4 py-2.5 border-b border-gray-100 relative transition-colors items-center",
+                                                isNight ? "bg-gray-100 hover:bg-gray-200" : "hover:bg-gray-50"
+                                              )}
+                                              style={{ gridTemplateColumns: '52px 88px 1.6fr 1.2fr 1.1fr 1.2fr 56px' }}
+                                            >
+                                              <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${getQualityBorderColor(qualityScore)}`} />
+                                              {/* Time */}
+                                              <div>
+                                                <span className="text-[13px] font-bold text-gray-700" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{hour12}<span className="text-gray-400 font-medium">{period}</span></span>
+                                              </div>
+                                              {/* Surf height pill */}
+                                              <div className="flex">
+                                                <div className={`rounded-lg px-2.5 py-1 text-center ${showEuro ? 'bg-blue-50 ring-1 ring-blue-200' : 'bg-gray-100'}`}>
+                                                  <span className={`text-sm font-bold ${showEuro ? 'text-blue-900' : 'text-gray-900'}`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                                    {displayHeight}
+                                                  </span>
+                                                </div>
+                                              </div>
+                                              {/* Primary Swell */}
+                                              <div className="flex flex-col gap-0.5">
+                                                <div className="flex items-baseline gap-1.5">
+                                                  <span className="text-[14px] font-bold text-gray-900" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                                    {primarySwellHeight !== null ? `${primarySwellHeight.toFixed(1)}ft` : '—'}
+                                                  </span>
+                                                  {primarySwellPeriod !== null && (
+                                                    <span className="text-[11px] font-medium text-gray-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                                      {Math.round(primarySwellPeriod)}s
                                                     </span>
-                                                    {secondaryPeriod !== null && (
-                                                      <span className="text-[9px] md:text-[10px] font-medium text-gray-300" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                                                        {Math.round(secondaryPeriod)}s
-                                                      </span>
-                                                    )}
+                                                  )}
+                                                </div>
+                                                {primarySwellDir !== null && (
+                                                  <div className="flex items-center gap-1">
+                                                    {primarySwellDeg !== null && <SwellArrow directionDeg={primarySwellDeg} size={11} />}
+                                                    <span className="text-[9px] text-gray-400 font-medium" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{primarySwellDir?.cardinal}</span>
                                                   </div>
-                                                  {secondaryDir !== null && (
-                                                    <div className="flex items-center gap-1">
-                                                      {secondaryDeg !== null && <SwellArrow directionDeg={secondaryDeg} size={10} secondary />}
-                                                      <span className="text-[9px] text-gray-300 font-medium" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{secondaryDir?.cardinal}</span>
+                                                )}
+                                              </div>
+                                              {/* Secondary Swell */}
+                                              <div className="flex flex-col gap-0.5">
+                                                {secondaryHeight !== null && secondaryHeight > 0 ? (
+                                                  <>
+                                                    <div className="flex items-baseline gap-1.5">
+                                                      <span className="text-[13px] font-semibold text-gray-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                                        {secondaryHeight.toFixed(1)}ft
+                                                      </span>
+                                                      {secondaryPeriod !== null && (
+                                                        <span className="text-[10px] font-medium text-gray-300" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                                          {Math.round(secondaryPeriod)}s
+                                                        </span>
+                                                      )}
                                                     </div>
-                                                  )}
-                                                </>
-                                              ) : (
-                                                <span className="text-[11px] text-gray-200">—</span>
-                                              )}
-                                            </div>
-
-                                            {/* Wind */}
-                                            <div className="flex items-center gap-1.5">
-                                              <div className="flex flex-col">
-                                                <span className="text-[12px] md:text-[13px] font-bold text-gray-900 leading-none" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                                                  {windSpeed !== null ? windSpeed : '—'}
-                                                  {windGust !== null && windSpeed !== null && windGust > windSpeed && (
-                                                    <sup className="text-[8px] font-bold text-gray-500 ml-0.5">{windGust}</sup>
-                                                  )}
-                                                  <span className="text-[9px] font-medium text-gray-400 ml-0.5">mph</span>
-                                                </span>
-                                                {windDir && <span className="text-[8px] text-gray-400 font-medium" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{windDir?.cardinal}</span>}
+                                                    {secondaryDir !== null && (
+                                                      <div className="flex items-center gap-1">
+                                                        {secondaryDeg !== null && <SwellArrow directionDeg={secondaryDeg} size={10} secondary />}
+                                                        <span className="text-[9px] text-gray-300 font-medium" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{secondaryDir?.cardinal}</span>
+                                                      </div>
+                                                    )}
+                                                  </>
+                                                ) : (
+                                                  <span className="text-[11px] text-gray-200">—</span>
+                                                )}
                                               </div>
-                                              {point.windDirectionDeg !== null && (
-                                                <WindArrowBadge
-                                                  directionDeg={point.windDirectionDeg}
-                                                  windType={getWindBadgeType(windType)}
-                                                />
-                                              )}
-                                            </div>
-
-                                            {/* Tide */}
-                                            <div className="flex flex-col gap-0.5">
-                                              {tideInfo.height !== null && tideInfo.state && (
-                                                <>
-                                                  <span className="text-[12px] md:text-[13px] font-bold text-gray-900 leading-none" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                                                    {tideInfo.height.toFixed(1)}ft
+                                              {/* Wind */}
+                                              <div className="flex items-center gap-1.5">
+                                                <div className="flex flex-col">
+                                                  <span className="text-[13px] font-bold text-gray-900 leading-none" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                                    {windSpeed !== null ? windSpeed : '—'}
+                                                    {windGust !== null && windSpeed !== null && windGust > windSpeed && (
+                                                      <sup className="text-[8px] font-bold text-gray-500 ml-0.5">{windGust}</sup>
+                                                    )}
+                                                    <span className="text-[9px] font-medium text-gray-400 ml-0.5">mph</span>
                                                   </span>
-                                                  <span className={`text-[8px] md:text-[9px] font-bold uppercase tracking-wider leading-none ${
-                                                    tideInfo.state === 'high' ? 'text-blue-600' :
-                                                    tideInfo.state === 'low' ? 'text-orange-500' :
-                                                    'text-gray-400'
-                                                  }`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                                                    {tideInfo.state === 'high' ? 'HIGH' :
-                                                     tideInfo.state === 'low' ? 'LOW' :
-                                                     tideInfo.state === 'rising' ? '↑ rising' : '↓ falling'}
-                                                  </span>
-                                                </>
-                                              )}
-                                            </div>
-
-                                            {/* Quality — score pill */}
-                                            <div className="flex items-center justify-end">
-                                              <div className={`${scorePill.bg} ${scorePill.text} rounded px-1.5 py-0.5 text-[11px] md:text-[12px] font-black tabular-nums leading-none`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                                                {Math.round(qualityScore)}
+                                                  {windDir && <span className="text-[8px] text-gray-400 font-medium" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{windDir?.cardinal}</span>}
+                                                </div>
+                                                {point.windDirectionDeg !== null && (
+                                                  <WindArrowBadge directionDeg={point.windDirectionDeg} windType={getWindBadgeType(windType)} />
+                                                )}
+                                              </div>
+                                              {/* Tide */}
+                                              <div className="flex flex-col gap-0.5">
+                                                {tideInfo.height !== null && tideInfo.state && (
+                                                  <>
+                                                    <span className="text-[13px] font-bold text-gray-900 leading-none" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                                      {tideInfo.height.toFixed(1)}ft
+                                                    </span>
+                                                    <span className={`text-[9px] font-bold uppercase tracking-wider leading-none ${
+                                                      tideInfo.state === 'high' ? 'text-blue-600' :
+                                                      tideInfo.state === 'low' ? 'text-orange-500' :
+                                                      'text-gray-400'
+                                                    }`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                                      {tideInfo.state === 'high' ? 'HIGH' :
+                                                       tideInfo.state === 'low' ? 'LOW' :
+                                                       tideInfo.state === 'rising' ? '↑ rising' : '↓ falling'}
+                                                    </span>
+                                                  </>
+                                                )}
+                                              </div>
+                                              {/* Quality score */}
+                                              <div className="flex items-center justify-end">
+                                                <div className={`${scorePill.bg} ${scorePill.text} rounded px-1.5 py-0.5 text-[12px] font-black tabular-nums leading-none`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                                                  {Math.round(qualityScore)}
+                                                </div>
                                               </div>
                                             </div>
-                                          </div>
+                                          </Fragment>
                                         );
                                       });
                                     })()}
-                                  </div>
                                   </div>
                                 </div>
                               </div>
