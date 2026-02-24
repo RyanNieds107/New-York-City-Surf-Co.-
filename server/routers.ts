@@ -972,7 +972,7 @@ export const appRouter = router({
         }
 
         // Add ECMWF confidence data to timeline (compares Open-Meteo vs Stormglass)
-        const timelineWithConfidence = await addConfidenceToTimeline(spot.id, timelineWithBuoyOverride);
+        const timelineWithConfidence = await addConfidenceToTimeline(spot.id, timelineWithBuoyOverride, spot.name);
         const confidenceSummary = await getConfidenceSummary(spot.id, timelineWithBuoyOverride);
         const waveHeightDiscrepancy = await getWaveHeightDiscrepancy(spot.id, timelineWithBuoyOverride);
         const waveHeightDiscrepancyByDay = await getWaveHeightDiscrepancyByDay(spot.id, timelineWithBuoyOverride);

@@ -13,6 +13,8 @@
 import { getStormglassVerification } from "../db";
 import type { ForecastTimelineResult } from "../services/forecast";
 import type { StormglassVerification } from "../../drizzle/schema";
+import { calculateQualityScoreWithProfile } from "./qualityRating";
+import { getSpotProfile } from "./spotProfiles";
 
 export type ConfidenceLevel = "HIGH" | "MED" | "LOW" | null;
 
@@ -41,6 +43,8 @@ export function calculateConfidence(
 export interface ForecastWithConfidence extends ForecastTimelineResult {
   modelConfidence: ConfidenceLevel;
   ecmwfWaveHeightFt: number | null;
+  euroQualityScore: number | null;
+  euroQualityRating: string | null;
 }
 
 /**
@@ -49,7 +53,8 @@ export interface ForecastWithConfidence extends ForecastTimelineResult {
  */
 export async function addConfidenceToTimeline(
   spotId: number,
-  timeline: ForecastTimelineResult[]
+  timeline: ForecastTimelineResult[],
+  spotName?: string
 ): Promise<ForecastWithConfidence[]> {
   if (timeline.length === 0) {
     return [];
@@ -86,10 +91,61 @@ export async function addConfidenceToTimeline(
     // Calculate confidence
     const modelConfidence = calculateConfidence(openMeteoHeight, ecmwfHeight);
 
+    // Compute Euro quality score when ECMWF data is available and spot name is provided
+    let euroQualityScore: number | null = null;
+    let euroQualityRating: string | null = null;
+
+    if (ecmwfHeight != null && spotName) {
+      const profile = getSpotProfile(spotName);
+      if (profile) {
+        const MPH_TO_KTS = 1 / 1.15078;
+
+        // Build a ForecastPoint-compatible object using timeline data
+        // waveHeightFt must be in tenths of feet (ForecastPoint convention)
+        const forecastPointLike = {
+          waveHeightFt: Math.round((point.dominantSwellHeightFt ?? point.waveHeightFt ?? 0) * 10),
+          wavePeriodSec: point.dominantSwellPeriodS ?? point.wavePeriodSec ?? null,
+          waveDirectionDeg: point.dominantSwellDirectionDeg ?? point.waveDirectionDeg ?? null,
+          windSpeedKts: point.windSpeedMph != null ? Math.round(point.windSpeedMph * MPH_TO_KTS) : null,
+          windDirectionDeg: point.windDirectionDeg ?? null,
+          windGustsKts: point.windGustsMph != null ? Math.round(point.windGustsMph * MPH_TO_KTS) : null,
+          secondarySwellHeightFt: point.secondarySwellHeightFt ?? null,
+          secondarySwellPeriodS: point.secondarySwellPeriodS ?? null,
+          secondarySwellDirectionDeg: point.secondarySwellDirectionDeg ?? null,
+          windWaveHeightFt: point.windWaveHeightFt ?? null,
+          windWavePeriodS: point.windWavePeriodS ?? null,
+          windWaveDirectionDeg: point.windWaveDirectionDeg ?? null,
+          // Stubs for required ForecastPoint fields not used by quality scorer
+          waterTempF: null,
+          airTempF: null,
+          tertiarySwellHeightFt: null,
+          tertiarySwellPeriodS: null,
+          tertiarySwellDirectionDeg: null,
+        };
+
+        // tideHeightFt in ForecastTimelineResult is in tenths of feet
+        const tideFt = (point.tideHeightFt ?? 0) / 10;
+
+        const euroResult = calculateQualityScoreWithProfile(
+          forecastPointLike as any,
+          spotName,
+          tideFt,
+          profile,
+          point.tidePhase ?? null,
+          ecmwfHeight  // breakingHeightOverride = Euro wave height (ft)
+        );
+
+        euroQualityScore = euroResult.score;
+        euroQualityRating = euroResult.rating;
+      }
+    }
+
     return {
       ...point,
       modelConfidence,
       ecmwfWaveHeightFt: ecmwfHeight,
+      euroQualityScore,
+      euroQualityRating,
     };
   });
 }

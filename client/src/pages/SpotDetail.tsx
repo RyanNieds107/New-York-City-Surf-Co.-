@@ -691,6 +691,23 @@ export default function SpotDetail() {
     return "All-Time";
   };
 
+  // Get effective quality score based on active model toggle
+  const getEffectiveQualityScore = (
+    point: NonNullable<typeof timelineQuery.data>['timeline'][number],
+    model: 'euro' | 'om'
+  ): number => {
+    if (model === 'euro' && point.euroQualityScore != null) return point.euroQualityScore;
+    return point.quality_score ?? point.probabilityScore ?? 0;
+  };
+
+  const getEffectiveQualityRating = (
+    point: NonNullable<typeof timelineQuery.data>['timeline'][number],
+    model: 'euro' | 'om'
+  ): string | null => {
+    if (model === 'euro' && point.euroQualityRating != null) return point.euroQualityRating;
+    return point.quality_rating ?? null;
+  };
+
   // Helper functions for 7-day forecast UI
   const getFullDayName = (date: Date): string => {
     return date.toLocaleDateString("en-US", { weekday: "long" }).toUpperCase();
@@ -803,10 +820,10 @@ export default function SpotDetail() {
     
     for (let i = 0; i < sortedPoints.length; i++) {
       const point = sortedPoints[i];
-      const score = point.quality_score ?? point.probabilityScore ?? 0;
+      const score = getEffectiveQualityScore(point, dayCardModel);
       const date = new Date(point.forecastTimestamp);
       const hour = date.getHours();
-      
+
         if (score > threshold) {
         // Check if this hour is consecutive with the last point in current window
         if (currentWindow.length > 0) {
@@ -865,7 +882,7 @@ export default function SpotDetail() {
     if (points.length === 0) return null;
     
     // Calculate average score
-    const scores = points.map(p => p.quality_score ?? p.probabilityScore ?? 0);
+    const scores = points.map(p => getEffectiveQualityScore(p, dayCardModel));
     const avgScore = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
     
     // Get time range
@@ -914,7 +931,7 @@ export default function SpotDetail() {
     
     for (let i = 0; i < sortedPoints.length; i++) {
       const point = sortedPoints[i];
-      const score = point.quality_score ?? point.probabilityScore ?? 0;
+      const score = getEffectiveQualityScore(point, dayCardModel);
       const windType = point.windType ?? null;
       const windSpeed = point.windSpeedMph ?? null;
       const date = new Date(point.forecastTimestamp);
@@ -2146,17 +2163,17 @@ export default function SpotDetail() {
                         const spot = spotQuery.data;
                         
                         // Calculate validScores for all hours (used by bestScore calculation)
-                        const validScores = points.map(p => p.quality_score !== null ? p.quality_score : p.probabilityScore).filter(s => s !== null);
+                        const validScores = points.map(p => getEffectiveQualityScore(p, dayCardModel));
                         let avgScore: number;
-                        
+
                         if (spot) {
                           // Filter points to daylight hours only
                           const daylightPoints = points.filter(p => {
                             return !isNighttime(p.forecastTimestamp, parseFloat(String(spot.latitude)), parseFloat(String(spot.longitude)));
                           });
-                          
+
                           // Get scores for daylight hours
-                          const daylightScores = daylightPoints.map(p => p.quality_score !== null ? p.quality_score : p.probabilityScore).filter(s => s !== null);
+                          const daylightScores = daylightPoints.map(p => getEffectiveQualityScore(p, dayCardModel));
                           
                           // Check if at least 50% of daylight hours are surfable (score >= 40)
                           const surfableDaylightHours = daylightScores.filter(s => s >= 40).length;
@@ -2254,10 +2271,10 @@ export default function SpotDetail() {
                           const daylightPoints = points.filter(p => {
                             return !isNighttime(p.forecastTimestamp, parseFloat(String(spot.latitude)), parseFloat(String(spot.longitude)));
                           });
-                          const daylightScores = daylightPoints.map(p => p.quality_score !== null ? p.quality_score : p.probabilityScore).filter(s => s !== null);
+                          const daylightScores = daylightPoints.map(p => getEffectiveQualityScore(p, dayCardModel));
                           const surfableScores = daylightScores.filter(s => s >= 40);
                           surfableDaylightHoursCount = surfableScores.length;
-                          
+
                           // Determine best quality rating among surfable hours
                           if (surfableScores.length > 0) {
                             const maxScore = Math.max(...surfableScores);
@@ -2273,7 +2290,7 @@ export default function SpotDetail() {
                           }
                         } else {
                           // Fallback: count all hours if spot data unavailable
-                          const allScores = points.map(p => p.quality_score !== null ? p.quality_score : p.probabilityScore).filter(s => s !== null);
+                          const allScores = points.map(p => getEffectiveQualityScore(p, dayCardModel));
                           const surfableScores = allScores.filter(s => s >= 40);
                           surfableDaylightHoursCount = surfableScores.length;
                           
@@ -2355,11 +2372,11 @@ export default function SpotDetail() {
                         const amConditions = calculateConditions(amPoints);
                         const pmConditions = calculateConditions(pmPoints);
 
-                        const amScores = amPoints.map(p => p.quality_score ?? p.probabilityScore ?? 0);
+                        const amScores = amPoints.map(p => getEffectiveQualityScore(p, dayCardModel));
                         const amAvgScore = amScores.length > 0
                           ? Math.round(amScores.reduce((a, b) => a + b, 0) / amScores.length)
                           : 0;
-                        const pmScores = pmPoints.map(p => p.quality_score ?? p.probabilityScore ?? 0);
+                        const pmScores = pmPoints.map(p => getEffectiveQualityScore(p, dayCardModel));
                         const pmAvgScore = pmScores.length > 0
                           ? Math.round(pmScores.reduce((a, b) => a + b, 0) / pmScores.length)
                           : 0;
@@ -2541,7 +2558,7 @@ export default function SpotDetail() {
                                     {bestWindows.length === 0 ? (
                                       <p className="text-[10px] text-gray-600 uppercase tracking-wide" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                                         {(() => {
-                                          const allScores = points.map(p => p.quality_score ?? p.probabilityScore ?? 0);
+                                          const allScores = points.map(p => getEffectiveQualityScore(p, dayCardModel));
                                           const allBelow50 = allScores.every(s => s < 50);
 
                                           if (allBelow50) {
@@ -2743,7 +2760,7 @@ export default function SpotDetail() {
                                         const hour = date.getHours();
                                         const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
                                         const period = hour < 12 ? 'am' : 'pm';
-                                        const qualityScore = point.quality_score ?? point.probabilityScore ?? 0;
+                                        const qualityScore = getEffectiveQualityScore(point, hourlyModel);
 
                                         // Check if this hour is during nighttime
                                         const isNight = spot ? isNighttime(point.forecastTimestamp, parseFloat(String(spot.latitude)), parseFloat(String(spot.longitude))) : false;
