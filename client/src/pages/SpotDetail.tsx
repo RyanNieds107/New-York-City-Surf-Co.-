@@ -882,9 +882,10 @@ export default function SpotDetail() {
     const { label, emoji } = getWindowLabel(middleHour);
     
     // Get representative conditions from middle point
-    const waveHeight = formatSurfHeight(
-      middlePoint.dominantSwellHeightFt ?? middlePoint.waveHeightFt ?? null
-    );
+    const waveHeightFt = dayCardModel === 'euro' && middlePoint.ecmwfWaveHeightFt != null
+      ? Number(middlePoint.ecmwfWaveHeightFt)
+      : (middlePoint.dominantSwellHeightFt ?? middlePoint.waveHeightFt ?? null);
+    const waveHeight = formatSurfHeight(waveHeightFt);
     const windDesc = formatWindDescription(middlePoint.windType ?? null, middlePoint.windSpeedMph ?? null);
     const tideDesc = formatTideDescription(middlePoint.tidePhase ?? null);
     
@@ -2320,9 +2321,10 @@ export default function SpotDetail() {
                         });
                         
                         const calculateConditions = (pointSet: typeof points) => {
-                          // Use breakingWaveHeightFt which accounts for period (3s wind chop != surfable waves)
-                          // 0 is a valid value meaning flat conditions, so we use explicit null check
-                          const heights = pointSet.map(p => p.breakingWaveHeightFt !== null ? p.breakingWaveHeightFt : (p.dominantSwellHeightFt ?? p.waveHeightFt)).filter(h => h !== null) as number[];
+                          const heights = pointSet.map(p => {
+                            if (dayCardModel === 'euro' && p.ecmwfWaveHeightFt != null) return Number(p.ecmwfWaveHeightFt);
+                            return p.breakingWaveHeightFt !== null ? p.breakingWaveHeightFt : (p.dominantSwellHeightFt ?? p.waveHeightFt);
+                          }).filter(h => h !== null) as number[];
                           const periods = pointSet.map(p => p.dominantSwellPeriodS ?? p.wavePeriodSec).filter(p => p !== null && p > 0) as number[];
                           const windSpeeds = pointSet.map(p => p.windSpeedMph).filter(s => s !== null) as number[];
                           const windDirs = pointSet.map(p => p.windDirectionDeg).filter(d => d !== null) as number[];
