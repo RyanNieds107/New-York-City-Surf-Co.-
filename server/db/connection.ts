@@ -3,39 +3,6 @@ import mysql from "mysql2/promise";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 let _pool: mysql.Pool | null = null;
-let _windGustsKtsColumnExists: boolean | null = null; // Cache column existence check
-
-// Check if windGustsKts column exists in the database
-export async function checkWindGustsKtsColumnExists(): Promise<boolean> {
-  if (_windGustsKtsColumnExists !== null) {
-    return _windGustsKtsColumnExists; // Return cached result
-  }
-
-  try {
-    const dbUrl = process.env.MYSQL_URL || process.env.DATABASE_URL;
-    if (!dbUrl) {
-      console.warn('[checkWindGustsKtsColumnExists] No database URL, assuming column does not exist');
-      _windGustsKtsColumnExists = false;
-      return false;
-    }
-
-    const connection = await mysql.createConnection(dbUrl);
-    const [rows] = await connection.execute(
-      `SELECT COUNT(*) as count FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'forecast_points' AND COLUMN_NAME = 'windGustsKts'`
-    );
-    await connection.end();
-
-    const count = (rows as any[])[0]?.count ?? 0;
-    _windGustsKtsColumnExists = count > 0;
-    console.log(`[checkWindGustsKtsColumnExists] Column windGustsKts exists: ${_windGustsKtsColumnExists}`);
-    return _windGustsKtsColumnExists;
-  } catch (error: any) {
-    console.warn('[checkWindGustsKtsColumnExists] Error checking column existence:', error.message);
-    _windGustsKtsColumnExists = false;
-    return false;
-  }
-}
-
 // Retry helper for database connections during Railway startup
 async function retryWithBackoff<T>(
   fn: () => Promise<T>,

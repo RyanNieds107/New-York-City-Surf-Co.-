@@ -118,9 +118,6 @@ export async function addConfidenceToTimeline(
           // Stubs for required ForecastPoint fields not used by quality scorer
           waterTempF: null,
           airTempF: null,
-          tertiarySwellHeightFt: null,
-          tertiarySwellPeriodS: null,
-          tertiarySwellDirectionDeg: null,
         };
 
         // tideHeightFt in ForecastTimelineResult is in tenths of feet

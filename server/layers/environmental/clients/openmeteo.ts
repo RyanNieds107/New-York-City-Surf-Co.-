@@ -21,10 +21,6 @@ export interface NomadsForecastPoint {
   secondarySwellHeightFt: number | null;
   secondarySwellPeriodS: number | null;
   secondarySwellDirectionDeg: number | null;
-  // Tertiary swell (third swell component - only available from GFS wave models)
-  tertiarySwellHeightFt: number | null;
-  tertiarySwellPeriodS: number | null;
-  tertiarySwellDirectionDeg: number | null;
   // Wind waves
   windWaveHeightFt: number | null;
   windWavePeriodS: number | null;
@@ -60,10 +56,6 @@ interface OpenMeteoResponse {
     secondary_swell_wave_height?: (number | null)[]; // meters
     secondary_swell_wave_period?: (number | null)[]; // seconds
     secondary_swell_wave_direction?: (number | null)[]; // degrees (0-360)
-    // Tertiary swell (only available from GFS wave models)
-    tertiary_swell_wave_height?: (number | null)[]; // meters
-    tertiary_swell_wave_period?: (number | null)[]; // seconds
-    tertiary_swell_wave_direction?: (number | null)[]; // degrees (0-360)
     // Wind waves
     wind_wave_height?: (number | null)[]; // meters
     wind_wave_period?: (number | null)[]; // seconds
@@ -132,10 +124,6 @@ export async function fetchOpenMeteoForecastForSpot(
     'secondary_swell_wave_height',
     'secondary_swell_wave_period',
     'secondary_swell_wave_direction',
-    // Tertiary swell (only available from GFS wave models)
-    'tertiary_swell_wave_height',
-    'tertiary_swell_wave_period',
-    'tertiary_swell_wave_direction',
     // Wind waves
     'wind_wave_height',
     'wind_wave_period',
@@ -215,6 +203,7 @@ export async function fetchOpenMeteoForecastForSpot(
     // Merge wind data into hourly object
     hourly.wind_speed_10m = weatherHourly.wind_speed_10m as (number | null)[] || [];
     hourly.wind_direction_10m = weatherHourly.wind_direction_10m as (number | null)[] || [];
+    hourly.wind_gusts_10m = weatherHourly.wind_gusts_10m as (number | null)[] || [];
     // Merge air temperature from weather response
     hourly.temperature_2m = weatherHourly.temperature_2m as (number | null)[] || [];
 
@@ -312,11 +301,6 @@ export async function fetchOpenMeteoForecastForSpot(
       const secondarySwellPeriodSRaw = hourly.secondary_swell_wave_period?.[i] ?? null;
       const secondarySwellDirectionDegRaw = hourly.secondary_swell_wave_direction?.[i] ?? null;
 
-      // Extract tertiary swell values (only available from GFS wave models)
-      const tertiarySwellHeightM = hourly.tertiary_swell_wave_height?.[i] ?? null;
-      const tertiarySwellPeriodSRaw = hourly.tertiary_swell_wave_period?.[i] ?? null;
-      const tertiarySwellDirectionDegRaw = hourly.tertiary_swell_wave_direction?.[i] ?? null;
-
       // Extract wind wave values
       const windWaveHeightM = hourly.wind_wave_height?.[i] ?? null;
       const windWavePeriodSRaw = hourly.wind_wave_period?.[i] ?? null;
@@ -345,10 +329,6 @@ export async function fetchOpenMeteoForecastForSpot(
       const secondarySwellHeightFt = metersToFeet(secondarySwellHeightM);
       const secondarySwellPeriodS = validatePeriod(secondarySwellPeriodSRaw);
       const secondarySwellDirectionDeg = validateDirection(secondarySwellDirectionDegRaw);
-
-      const tertiarySwellHeightFt = metersToFeet(tertiarySwellHeightM);
-      const tertiarySwellPeriodS = validatePeriod(tertiarySwellPeriodSRaw);
-      const tertiarySwellDirectionDeg = validateDirection(tertiarySwellDirectionDegRaw);
 
       const windWaveHeightFt = metersToFeet(windWaveHeightM);
       const windWavePeriodS = validatePeriod(windWavePeriodSRaw);
@@ -380,10 +360,6 @@ export async function fetchOpenMeteoForecastForSpot(
         secondarySwellHeightFt,
         secondarySwellPeriodS,
         secondarySwellDirectionDeg,
-        // Tertiary swell
-        tertiarySwellHeightFt,
-        tertiarySwellPeriodS,
-        tertiarySwellDirectionDeg,
         // Wind waves
         windWaveHeightFt,
         windWavePeriodS,
@@ -447,10 +423,6 @@ export function convertToDbFormat(
     secondarySwellHeightFt: forecastPoint.secondarySwellHeightFt !== null ? forecastPoint.secondarySwellHeightFt.toFixed(1) : null,
     secondarySwellPeriodS: forecastPoint.secondarySwellPeriodS !== null ? Math.round(forecastPoint.secondarySwellPeriodS) : null,
     secondarySwellDirectionDeg: forecastPoint.secondarySwellDirectionDeg !== null ? Math.round(forecastPoint.secondarySwellDirectionDeg) : null,
-    // Tertiary swell (stored as decimal feet - convert to string for decimal type)
-    tertiarySwellHeightFt: forecastPoint.tertiarySwellHeightFt !== null ? forecastPoint.tertiarySwellHeightFt.toFixed(1) : null,
-    tertiarySwellPeriodS: forecastPoint.tertiarySwellPeriodS !== null ? Math.round(forecastPoint.tertiarySwellPeriodS) : null,
-    tertiarySwellDirectionDeg: forecastPoint.tertiarySwellDirectionDeg !== null ? Math.round(forecastPoint.tertiarySwellDirectionDeg) : null,
     // Wind waves (stored as decimal feet - convert to string for decimal type)
     windWaveHeightFt: forecastPoint.windWaveHeightFt !== null ? forecastPoint.windWaveHeightFt.toFixed(1) : null,
     windWavePeriodS: forecastPoint.windWavePeriodS !== null ? Math.round(forecastPoint.windWavePeriodS) : null,

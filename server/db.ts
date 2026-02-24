@@ -43,39 +43,6 @@ import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
 let _pool: mysql.Pool | null = null;
-let _windGustsKtsColumnExists: boolean | null = null; // Cache column existence check
-
-// Check if windGustsKts column exists in the database
-async function checkWindGustsKtsColumnExists(): Promise<boolean> {
-  if (_windGustsKtsColumnExists !== null) {
-    return _windGustsKtsColumnExists; // Return cached result
-  }
-  
-  try {
-    const dbUrl = process.env.MYSQL_URL || process.env.DATABASE_URL;
-    if (!dbUrl) {
-      console.warn('[checkWindGustsKtsColumnExists] No database URL, assuming column does not exist');
-      _windGustsKtsColumnExists = false;
-      return false;
-    }
-    
-    const connection = await mysql.createConnection(dbUrl);
-    const [rows] = await connection.execute(
-      `SELECT COUNT(*) as count FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'forecast_points' AND COLUMN_NAME = 'windGustsKts'`
-    );
-    await connection.end();
-    
-    const count = (rows as any[])[0]?.count ?? 0;
-    _windGustsKtsColumnExists = count > 0;
-    console.log(`[checkWindGustsKtsColumnExists] Column windGustsKts exists: ${_windGustsKtsColumnExists}`);
-    return _windGustsKtsColumnExists;
-  } catch (error: any) {
-    console.warn('[checkWindGustsKtsColumnExists] Error checking column existence:', error.message);
-    _windGustsKtsColumnExists = false;
-    return false;
-  }
-}
-
 // Retry helper for database connections during Railway startup
 async function retryWithBackoff<T>(
   fn: () => Promise<T>,
@@ -472,74 +439,8 @@ export async function insertForecastPoints(forecastPointsArray: InsertForecastPo
     console.log('✅ Successfully inserted', forecastPointsArray.length, 'forecast points');
     console.log(`📊 Net result: ${deletedCount} deleted → ${forecastPointsArray.length} inserted (spot ${spotId})`);
   } catch (error: any) {
-    // DrizzleQueryError wraps the actual MySQL error in error.cause
-    const actualError = error.cause || error;
-    const errorStr = JSON.stringify(error);
-    
-    // Check if this is a windGustsKts column error
-    const isWindGustsError = 
-      actualError.code === "ER_BAD_FIELD_ERROR" ||
-      actualError.sqlMessage?.includes("windGustsKts") ||
-      actualError.sqlMessage?.includes("Unknown column 'windGustsKts'") ||
-      actualError.message?.includes("windGustsKts") ||
-      error.message?.includes("windGustsKts") ||
-      errorStr.includes("windGustsKts");
-    
-    if (isWindGustsError) {
-      console.warn(`[insertForecastPoints] Schema mismatch: windGustsKts column doesn't exist. Using backward-compatible insert...`);
-      
-      // Use raw SQL insert without windGustsKts column
-      try {
-        const dbUrl = process.env.MYSQL_URL || process.env.DATABASE_URL;
-        if (!dbUrl) {
-          throw new Error("Database connection URL not available for backward-compatible insert");
-        }
-        
-        const connection = await mysql.createConnection(dbUrl);
-        
-        // Build INSERT statement without windGustsKts
-        const columns = 'spotId, forecastTimestamp, modelRunTime, hoursOut, waveHeightFt, wavePeriodSec, waveDirectionDeg, secondarySwellHeightFt, secondarySwellPeriodS, secondarySwellDirectionDeg, tertiarySwellHeightFt, tertiarySwellPeriodS, tertiarySwellDirectionDeg, windWaveHeightFt, windWavePeriodS, windWaveDirectionDeg, windSpeedKts, windDirectionDeg, waterTempF, airTempF, source';
-        const placeholders = forecastPointsArray.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
-        const values = forecastPointsArray.flatMap(point => [
-          point.spotId,
-          point.forecastTimestamp,
-          point.modelRunTime,
-          point.hoursOut,
-          point.waveHeightFt,
-          point.wavePeriodSec,
-          point.waveDirectionDeg,
-          point.secondarySwellHeightFt,
-          point.secondarySwellPeriodS,
-          point.secondarySwellDirectionDeg,
-          point.tertiarySwellHeightFt,
-          point.tertiarySwellPeriodS,
-          point.tertiarySwellDirectionDeg,
-          point.windWaveHeightFt,
-          point.windWavePeriodS,
-          point.windWaveDirectionDeg,
-          point.windSpeedKts,
-          point.windDirectionDeg,
-          point.waterTempF,
-          point.airTempF,
-          point.source,
-        ]);
-        
-        await connection.execute(
-          `INSERT INTO forecast_points (${columns}) VALUES ${placeholders}`,
-          values
-        );
-        
-        await connection.end();
-        console.log('✅ Successfully inserted', forecastPointsArray.length, 'forecast points (without windGustsKts)');
-        console.log(`📊 Net result: ${deletedCount} deleted → ${forecastPointsArray.length} inserted (spot ${spotId})`);
-      } catch (fallbackError: any) {
-        console.error(`[insertForecastPoints] Backward-compatible insert also failed:`, fallbackError);
-        throw fallbackError;
-      }
-    } else {
-      // Re-throw other errors
-      throw error;
-    }
+    console.error(`[insertForecastPoints] Insert failed:`, error);
+    throw error;
   }
 }
 
@@ -587,70 +488,6 @@ export async function getForecastTimeline(
     
     return result;
   } catch (error: any) {
-    // DrizzleQueryError wraps the actual MySQL error in error.cause
-    const actualError = error.cause || error;
-    const errorStr = JSON.stringify(error);
-    
-    // Check if this is a windGustsKts column error - check both error and cause
-    const isWindGustsError = 
-      actualError.code === "ER_BAD_FIELD_ERROR" ||
-      actualError.sqlMessage?.includes("windGustsKts") ||
-      actualError.sqlMessage?.includes("Unknown column 'windGustsKts'") ||
-      actualError.message?.includes("windGustsKts") ||
-      error.message?.includes("windGustsKts") ||
-      errorStr.includes("windGustsKts");
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/db.ts:483',message:'getForecastTimeline query error',data:{spotId,maxHoursOut,errorCode:error.code,causeCode:actualError.code,errorMessage:error.message,causeMessage:actualError.message,sqlMessage:error.sqlMessage,causeSqlMessage:actualError.sqlMessage,isWindGustsError},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-    
-    if (isWindGustsError) {
-      console.warn(`[getForecastTimeline] Schema mismatch: windGustsKts column doesn't exist. Using backward-compatible query...`);
-      console.warn(`[getForecastTimeline] Error details:`, actualError.message || actualError.sqlMessage || error.message);
-      
-      // TEMPORARY FIX: Try query without windGustsKts to allow backward compatibility
-      // This allows the app to work while waiting for migration
-      console.warn(`[getForecastTimeline] Attempting backward-compatible query (excluding windGustsKts)...`);
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/db.ts:403',message:'Attempting backward-compatible query',data:{spotId,maxHoursOut,hasDbUrl:!!(process.env.MYSQL_URL || process.env.DATABASE_URL)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      
-      try {
-        const dbUrl = process.env.MYSQL_URL || process.env.DATABASE_URL;
-        if (!dbUrl) {
-          throw new Error("Database connection URL not available for backward-compatible query");
-        }
-        
-        // Query without selecting windGustsKts - use raw SQL with explicit column selection
-        const connection = await mysql.createConnection(dbUrl);
-        const [rows] = await connection.execute(
-          `SELECT id, spotId, forecastTimestamp, modelRunTime, hoursOut, waveHeightFt, wavePeriodSec, waveDirectionDeg, secondarySwellHeightFt, secondarySwellPeriodS, secondarySwellDirectionDeg, tertiarySwellHeightFt, tertiarySwellPeriodS, tertiarySwellDirectionDeg, windWaveHeightFt, windWavePeriodS, windWaveDirectionDeg, windSpeedKts, windDirectionDeg, waterTempF, airTempF, source, createdAt FROM forecast_points WHERE spotId = ? AND hoursOut <= ? ORDER BY forecastTimestamp`,
-          [spotId, maxHoursOut]
-        );
-        await connection.end();
-        
-        // Map results to ForecastPoint format (windGustsKts will be null)
-        const backwardCompatibleResults = (rows as any[]).map(row => ({
-          ...row,
-          windGustsKts: null, // Column doesn't exist yet, set to null
-        })) as ForecastPoint[];
-        
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/db.ts:422',message:'Backward-compatible query succeeded',data:{spotId,maxHoursOut,resultCount:backwardCompatibleResults.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
-        
-        console.log(`[getForecastTimeline] ✓ Backward-compatible query succeeded, returned ${backwardCompatibleResults.length} points`);
-        return backwardCompatibleResults;
-      } catch (fallbackError: any) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/db.ts:424',message:'Backward-compatible query failed',data:{spotId,maxHoursOut,errorMessage:fallbackError.message,errorCode:fallbackError.code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
-        
-        console.error(`[getForecastTimeline] ❌ Backward-compatible query also failed:`, fallbackError);
-        throw new Error("Database schema is out of sync. The windGustsKts column is missing. Please ensure migration 0014_add_wind_gusts.sql has been applied to the database.");
-      }
-    }
     console.error(`[getForecastTimeline] Database query error:`, error);
     throw error;
   }
@@ -674,48 +511,6 @@ export async function getLatestModelRunTime(spotId?: number): Promise<Date | nul
     const result = await query;
     return result.length > 0 ? result[0].modelRunTime : null;
   } catch (error: any) {
-    // DrizzleQueryError wraps the actual MySQL error in error.cause
-    const actualError = error.cause || error;
-    const errorStr = JSON.stringify(error);
-    
-    // Check if this is a windGustsKts column error
-    const isWindGustsError = 
-      actualError.code === "ER_BAD_FIELD_ERROR" ||
-      actualError.sqlMessage?.includes("windGustsKts") ||
-      actualError.sqlMessage?.includes("Unknown column 'windGustsKts'") ||
-      actualError.message?.includes("windGustsKts") ||
-      error.message?.includes("windGustsKts") ||
-      errorStr.includes("windGustsKts");
-    
-    if (isWindGustsError) {
-      console.warn(`[getLatestModelRunTime] Schema mismatch: windGustsKts column doesn't exist. Using backward-compatible query...`);
-      
-      // Use raw SQL query - even column projection might fail if schema validation happens
-      try {
-        const dbUrl = process.env.MYSQL_URL || process.env.DATABASE_URL;
-        if (!dbUrl) {
-          console.warn(`[getLatestModelRunTime] Database URL not available, returning null`);
-          return null;
-        }
-        
-        const connection = await mysql.createConnection(dbUrl);
-        const sql = spotId !== undefined
-          ? `SELECT modelRunTime FROM forecast_points WHERE spotId = ? ORDER BY modelRunTime DESC LIMIT 1`
-          : `SELECT modelRunTime FROM forecast_points ORDER BY modelRunTime DESC LIMIT 1`;
-        const params = spotId !== undefined ? [spotId] : [];
-        
-        const [rows] = await connection.execute(sql, params);
-        await connection.end();
-        
-        const rowArray = rows as any[];
-        return rowArray.length > 0 ? rowArray[0].modelRunTime : null;
-      } catch (fallbackError: any) {
-        console.error(`[getLatestModelRunTime] Backward-compatible query also failed:`, fallbackError);
-        return null;
-      }
-    }
-    
-    // Re-throw other errors
     console.error(`[getLatestModelRunTime] Query error:`, error);
     throw error;
   }
@@ -748,59 +543,7 @@ export async function isForecastDataStale(
     
     return result.length === 0;
   } catch (error: any) {
-    // DrizzleQueryError wraps the actual MySQL error in error.cause
-    const actualError = error.cause || error;
-    const errorStr = JSON.stringify(error);
-    
-    // Check if this is a windGustsKts column error
-    const isWindGustsError = 
-      actualError.code === "ER_BAD_FIELD_ERROR" ||
-      actualError.sqlMessage?.includes("windGustsKts") ||
-      actualError.sqlMessage?.includes("Unknown column 'windGustsKts'") ||
-      actualError.message?.includes("windGustsKts") ||
-      error.message?.includes("windGustsKts") ||
-      errorStr.includes("windGustsKts");
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/db.ts:647',message:'isForecastDataStale query error',data:{spotId,maxAgeHours,errorCode:error.code,causeCode:actualError.code,errorMessage:error.message,causeMessage:actualError.message,sqlMessage:error.sqlMessage,causeSqlMessage:actualError.sqlMessage,isWindGustsError},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
-    // #endregion
-    
-    if (isWindGustsError) {
-      console.warn(`[isForecastDataStale] Schema mismatch: windGustsKts column doesn't exist. Using backward-compatible query...`);
-      
-      // TEMPORARY FIX: Use raw SQL query excluding windGustsKts
-      try {
-        const dbUrl = process.env.MYSQL_URL || process.env.DATABASE_URL;
-        if (!dbUrl) {
-          console.warn(`[isForecastDataStale] Database URL not available, assuming stale`);
-          return true;
-        }
-        
-        const connection = await mysql.createConnection(dbUrl);
-        const [rows] = await connection.execute(
-          `SELECT id FROM forecast_points WHERE spotId = ? AND modelRunTime >= ? LIMIT 1`,
-          [spotId, cutoff]
-        );
-        await connection.end();
-        
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/db.ts:510',message:'isForecastDataStale backward-compatible query succeeded',data:{spotId,maxAgeHours,resultCount:(rows as any[]).length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
-        // #endregion
-        
-        const rowArray = rows as any[];
-        return rowArray.length === 0;
-      } catch (fallbackError: any) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/db.ts:515',message:'isForecastDataStale backward-compatible query failed',data:{spotId,maxAgeHours,errorMessage:fallbackError.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
-        // #endregion
-        
-        console.error(`[isForecastDataStale] Backward-compatible query also failed:`, fallbackError);
-        // If we can't check, assume data is stale (safer to refetch)
-        return true;
-      }
-    }
-    
-    // For other errors, assume data is stale (safer to refetch)
+    // For errors, assume data is stale (safer to refetch)
     console.error(`[isForecastDataStale] Query error:`, error);
     return true;
   }

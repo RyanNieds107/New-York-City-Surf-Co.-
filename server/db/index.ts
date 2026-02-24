@@ -9,7 +9,7 @@
 //   - server/layers/retention/db/retention.db.ts (14 functions)
 
 // Connection management (already split)
-export { getDb, checkWindGustsKtsColumnExists, closeDb } from './connection';
+export { getDb, closeDb } from './connection';
 
 // Temporary: Re-export all functions from monolithic server/db.ts
 // These will be moved to layer-specific modules in a future iteration

@@ -48,10 +48,6 @@ export const forecastPoints = mysqlTable("forecast_points", {
   secondarySwellHeightFt: decimal("secondarySwellHeightFt", { precision: 4, scale: 1 }),
   secondarySwellPeriodS: int("secondarySwellPeriodS"), // seconds
   secondarySwellDirectionDeg: int("secondarySwellDirectionDeg"), // degrees
-  // Tertiary swell (third swell component - only from GFS wave models)
-  tertiarySwellHeightFt: decimal("tertiarySwellHeightFt", { precision: 4, scale: 1 }),
-  tertiarySwellPeriodS: int("tertiarySwellPeriodS"), // seconds
-  tertiarySwellDirectionDeg: int("tertiarySwellDirectionDeg"), // degrees
   // Wind waves (NEW - stored as decimal feet)
   windWaveHeightFt: decimal("windWaveHeightFt", { precision: 4, scale: 1 }),
   windWavePeriodS: int("windWavePeriodS"), // seconds
