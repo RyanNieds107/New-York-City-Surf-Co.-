@@ -328,15 +328,15 @@ export default function Dashboard() {
       </header>
 
       {/* Main Content */}
-      <main className="container py-4 sm:py-6 md:py-8 px-3 sm:px-4">
+      <main className="container py-3 sm:py-4 px-3 sm:px-4">
         {isLoading ? (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-4 sm:mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-3 sm:mb-4">
               {[1, 2, 3].map((i) => (
                 <Skeleton key={i} className="h-48 sm:h-64 w-full rounded-sm bg-gray-100" style={{ borderRadius: '2px' }} />
               ))}
             </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {[1, 2, 3].map((i) => (
                 <Card key={i} className="bg-white border-black">
                 <CardHeader>
@@ -365,7 +365,7 @@ export default function Dashboard() {
 
             {/* Top 3 Spots - Photo Cards */}
             {topThreeSpots.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-4 sm:mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-3 sm:mb-4">
                 {topThreeSpots.map((spot) => {
                   const imagePath = getSpotImagePath(spot.name);
                   const region = getSpotRegion(spot.name);
@@ -389,7 +389,7 @@ export default function Dashboard() {
 
             {/* Bottom 3 Spots - Photo Cards */}
             {bottomThreeSpots.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 {bottomThreeSpots.map((spot) => {
                   const isComingSoon = isComingSoonSpot(spot.name);
                   const imagePath = getSpotImagePath(spot.name);
@@ -434,7 +434,7 @@ export default function Dashboard() {
             {/* <YearInReview2025 /> */}
 
             {/* Surf Analysis Card */}
-            <div className="relative mt-6 sm:mt-8 md:mt-12 mb-4 sm:mb-6 md:mb-8">
+            <div className="relative mt-4 sm:mt-6 mb-3 sm:mb-4">
               <GateOverlay
                 locked={showGuideGate}
                 title="Unlock our 5-Year Swell Study"
@@ -450,32 +450,31 @@ export default function Dashboard() {
                   onClick={showGuideGate ? undefined : () => setLocation("/surf-analysis")}
                 >
                   {/* Header Section */}
-                  <div className="bg-gray-50 px-4 sm:px-6 md:px-8 lg:px-12 py-6 sm:py-8 md:py-10 lg:py-12 border-b-2 border-black">
-                    {/* GUIDE Badge */}
-                    <div className="mb-4 sm:mb-6">
-                      <span className="inline-block px-3 py-1.5 sm:px-4 sm:py-2 bg-black text-white text-[10px] sm:text-xs font-bold uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", letterSpacing: '2px' }}>
+                  <div className="bg-gray-50 px-4 sm:px-6 md:px-8 py-4 sm:py-6 md:py-8 border-b-2 border-black">
+                    <div className="mb-2 sm:mb-3">
+                      <span className="inline-block px-3 py-1 bg-black text-white text-[10px] font-bold uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", letterSpacing: '2px' }}>
                         GUIDE
                       </span>
                     </div>
-                    <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black text-black mb-3 sm:mb-4 leading-tight tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                    <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-black mb-2 sm:mb-3 leading-tight tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
                       When Western Long Island Surf Actually Works
                     </h2>
-                    <div className="text-xs sm:text-sm md:text-base text-gray-700 font-semibold" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                    <div className="text-xs sm:text-sm text-gray-700 font-semibold" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                       An analysis based on five years of historical swell data
                     </div>
                   </div>
 
-                  <CardContent className="px-4 sm:px-6 md:px-8 lg:px-12 py-4 sm:py-6 md:py-8 bg-white">
+                  <CardContent className="px-4 sm:px-6 md:px-8 py-3 sm:py-4 bg-white">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
-                        <p className="text-sm sm:text-base md:text-lg text-gray-700 mb-3 sm:mb-4" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                        We tracked every surfable day on Western Long Island over the last five years, using Lido Beach as a baseline. Here's what the numbers say.
+                        <p className="text-sm text-gray-700 mb-2" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
+                          We tracked every surfable day on Western Long Island over the last five years, using Lido Beach as a baseline. Here's what the numbers say.
                         </p>
-                        <div className="text-xs sm:text-sm text-black uppercase tracking-wider transition-colors group-hover:text-gray-700" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        <div className="text-xs text-black uppercase tracking-wider transition-colors group-hover:text-gray-700" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                           Click to read full analysis →
                         </div>
                       </div>
-                      <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6 text-black ml-3 sm:ml-4 transition-transform group-hover:translate-x-1" />
+                      <ChevronRight className="h-5 w-5 text-black ml-3 transition-transform group-hover:translate-x-1" />
                     </div>
                   </CardContent>
                 </Card>

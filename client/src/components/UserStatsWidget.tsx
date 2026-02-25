@@ -21,39 +21,22 @@ export function UserStatsWidget() {
   };
 
   return (
-    <div className="bg-white border-2 border-black p-6">
-      <div className="flex items-center gap-3 mb-4">
-        <div className={`w-12 h-12 ${rankColors[stats.rank]} flex items-center justify-center`}>
-          <Trophy className="h-6 w-6 text-white" />
-        </div>
-        <div>
-          <h3 className="text-2xl font-black uppercase text-black" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
-            {stats.rank}
-          </h3>
-          <p className="text-xs text-gray-800" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-            Top {100 - stats.percentile}% Contributor
-          </p>
-        </div>
+    <div className="bg-white border-2 border-black px-3 py-2.5 flex items-center gap-3">
+      <div className={`w-8 h-8 flex-shrink-0 ${rankColors[stats.rank]} flex items-center justify-center`}>
+        <Trophy className="h-4 w-4 text-white" />
       </div>
-
-      <div className="space-y-2">
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-600">Reports Submitted</span>
-          <span className="font-bold" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{stats.reportCount}</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-600">Users Helped</span>
-          <span className="font-bold" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{stats.impactStats.helpedUsers}</span>
-        </div>
+      <div className="flex items-center gap-1">
+        <span className="text-base font-black uppercase text-black" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+          {stats.rank}
+        </span>
+        <span className="text-xs text-gray-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+          · Top {100 - stats.percentile}% Contributor
+        </span>
       </div>
-
-      {stats.reportCount > 0 && (
-        <div className="mt-4 pt-4 border-t-2 border-gray-200">
-          <p className="text-sm text-gray-600">
-            Your {stats.reportCount} {stats.reportCount === 1 ? 'report has' : 'reports have'} helped improve forecasts for the community!
-          </p>
-        </div>
-      )}
+      <div className="ml-auto flex items-center gap-4 text-xs" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+        <span className="text-gray-500">{stats.reportCount} <span className="text-gray-400">reports</span></span>
+        <span className="text-gray-500">{stats.impactStats.helpedUsers} <span className="text-gray-400">helped</span></span>
+      </div>
     </div>
   );
 }

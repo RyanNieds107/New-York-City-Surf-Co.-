@@ -32,32 +32,31 @@ export function ReportFeed({ spotId, limit = 20 }: ReportFeedProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="divide-y divide-gray-100 border-2 border-black">
       {reports.map((report) => (
-        <div key={report.id} className="bg-white border-2 border-black p-4">
-          {/* Header */}
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <p className="font-bold text-sm text-black" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+        <div key={report.id} className="bg-white px-3 py-2.5">
+          {/* Row: name/meta on left, stars on right */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="font-bold text-xs text-black truncate" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                 {report.user?.name || "Anonymous"}
-              </p>
-              <div className="flex items-center gap-2 text-xs text-gray-700" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                <span>{formatDistanceToNow(new Date(report.sessionDate), { addSuffix: true })}</span>
-                {!spotId && 'spot' in report && (
-                  <>
-                    <span>•</span>
-                    <span>{report.spot?.name}</span>
-                  </>
-                )}
-              </div>
+              </span>
+              <span className="text-gray-400 text-xs">·</span>
+              <span className="text-xs text-gray-500 truncate" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                {formatDistanceToNow(new Date(report.sessionDate), { addSuffix: true })}
+              </span>
+              {!spotId && 'spot' in report && (
+                <>
+                  <span className="text-gray-400 text-xs">·</span>
+                  <span className="text-xs text-gray-500 truncate" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{report.spot?.name}</span>
+                </>
+              )}
             </div>
-
-            {/* Star Rating */}
-            <div className="flex gap-0.5">
+            <div className="flex gap-0.5 flex-shrink-0">
               {[1, 2, 3, 4, 5].map((star) => (
                 <Star
                   key={star}
-                  className={`h-4 w-4 ${
+                  className={`h-3 w-3 ${
                     star <= report.starRating
                       ? "fill-yellow-400 stroke-yellow-400"
                       : "stroke-gray-300"
@@ -67,28 +66,30 @@ export function ReportFeed({ spotId, limit = 20 }: ReportFeedProps) {
             </div>
           </div>
 
-          {/* Photo */}
+          {/* Note + crowd on same line */}
+          {(report.quickNote || report.crowdLevel) && (
+            <div className="flex items-center gap-3 mt-0.5">
+              {report.quickNote && (
+                <p className="text-xs text-gray-500 italic truncate" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  "{report.quickNote}"
+                </p>
+              )}
+              {report.crowdLevel && (
+                <div className="flex items-center gap-1 text-xs text-gray-400 flex-shrink-0">
+                  <Users className="h-3 w-3" />
+                  <span>{["Empty", "Light", "Moderate", "Crowded", "Packed"][report.crowdLevel - 1]}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Photo (kept but smaller) */}
           {report.photoUrl && (
             <img
               src={report.photoUrl}
               alt="Session"
-              className="w-full h-48 object-cover border-2 border-black mb-3"
+              className="w-full h-32 object-cover border border-gray-200 mt-2"
             />
-          )}
-
-          {/* Quick Note */}
-          {report.quickNote && (
-            <p className="text-sm mb-2 text-gray-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-              "{report.quickNote}"
-            </p>
-          )}
-
-          {/* Crowd Level */}
-          {report.crowdLevel && (
-            <div className="flex items-center gap-2 text-xs text-gray-700">
-              <Users className="h-3.5 w-3.5" />
-              <span>{["Empty", "Light", "Moderate", "Crowded", "Packed"][report.crowdLevel - 1]}</span>
-            </div>
           )}
         </div>
       ))}

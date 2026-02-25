@@ -128,12 +128,15 @@ export function LidoBeachTabs({ activeTab }: LidoBeachTabsProps) {
           <div className="divide-y-2 divide-black">
             {/* The Jones Inlet Lens */}
             <div className="p-3 sm:p-6">
-              <div className="flex items-start gap-3 sm:gap-4">
-                <div className="w-12 h-12 bg-black flex items-center justify-center shrink-0">
-                  <span className="text-white font-black text-lg" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>01</span>
+              <div className="flex flex-col sm:flex-row sm:items-start sm:gap-4">
+                <div className="flex items-center gap-3 mb-2 sm:mb-0">
+                  <div className="w-12 h-12 bg-black flex items-center justify-center shrink-0">
+                    <span className="text-white font-black text-lg" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>01</span>
+                  </div>
+                  <h4 className="text-xl font-black text-black uppercase sm:hidden" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>THE JONES INLET LENS</h4>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-xl sm:text-2xl font-black text-black uppercase mb-2 sm:mb-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>THE JONES INLET LENS</h4>
+                  <h4 className="hidden sm:block text-xl sm:text-2xl font-black text-black uppercase mb-2 sm:mb-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>THE JONES INLET LENS</h4>
                   <p className="text-xs sm:text-sm text-gray-700 mb-3 sm:mb-4 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                     The massive sand deposit at Jones Inlet acts like a magnifying glass for swell energy. When waves roll in from the southeast, they hit this shallow underwater hill and bend toward Lido, focusing the energy right into the lineup instead of spreading it evenly down the coast.
                   </p>
@@ -156,28 +159,31 @@ export function LidoBeachTabs({ activeTab }: LidoBeachTabsProps) {
             </div>
 
             {/* Jones Inlet Shoal Visual */}
-            <div className="p-3 sm:p-6 bg-gray-50">
-              <div className="flex items-center gap-2 mb-3 sm:mb-4">
+            <div className="pt-3 pb-3 sm:p-6 bg-gray-50">
+              <div className="flex items-center gap-2 mb-3 sm:mb-4 px-3 sm:px-0">
                 <span className="text-[10px] font-medium tracking-widest text-gray-500 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>BATHYMETRY VISUAL</span>
               </div>
-              <div className="border-2 border-black overflow-hidden">
+              <div className="border-y-2 sm:border-2 border-black overflow-hidden">
                 <img
                   src="/Jones Inlet Shoal.png"
                   alt="Jones Inlet Shoal diagram showing wave refraction and the Lido Bump effect"
                   className="w-full"
-                  style={{ maxWidth: '100%', height: 'auto' }}
+                  style={{ maxWidth: '100%', height: 'auto', minHeight: '200px' }}
                 />
               </div>
             </div>
 
             {/* No Jetties, No Problem */}
             <div className="p-3 sm:p-6">
-              <div className="flex items-start gap-3 sm:gap-4">
-                <div className="w-12 h-12 bg-black flex items-center justify-center shrink-0">
-                  <span className="text-white font-black text-lg" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>02</span>
+              <div className="flex flex-col sm:flex-row sm:items-start sm:gap-4">
+                <div className="flex items-center gap-3 mb-2 sm:mb-0 sm:flex-col sm:gap-0">
+                  <div className="w-12 h-12 bg-black flex items-center justify-center shrink-0">
+                    <span className="text-white font-black text-lg" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>02</span>
+                  </div>
+                  <h4 className="text-xl sm:text-2xl font-black text-black uppercase sm:hidden" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>NO JETTIES, NO PROBLEM</h4>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-xl sm:text-2xl font-black text-black uppercase mb-2 sm:mb-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>NO JETTIES, NO PROBLEM</h4>
+                  <h4 className="hidden sm:block text-xl sm:text-2xl font-black text-black uppercase mb-2 sm:mb-3" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>NO JETTIES, NO PROBLEM</h4>
                   <p className="text-xs sm:text-sm text-gray-700 mb-3 sm:mb-4 leading-relaxed" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
                     Long Beach and Rockaway's rock groins chop up wave lines and kill momentum. Lido's open beach lets swells maintain clean, uninterrupted crests with maximum power. The natural sand movement builds up a middle bar that amplifies those heavy peaks.
                   </p>
