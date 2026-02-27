@@ -224,6 +224,7 @@ export default function SpotDetail() {
   const [hourlyModel, setHourlyModel] = useState<'euro' | 'om'>('om');
   const [dayCardModel, setDayCardModel] = useState<'euro' | 'om'>('om');
   const hasUserToggledModel = useRef(false);
+  const [modelInfoOpen, setModelInfoOpen] = useState(false);
 
   // Surf plan popup: utils for imperative fetch, mutations for show/record
   const utils = trpc.useUtils();
@@ -2036,36 +2037,38 @@ export default function SpotDetail() {
             {/* Forecast Timeline - Multi-Day Forecast - NYC Grit Style */}
             <div className="bg-white border border-black">
               <div className="p-3 md:p-4 border-b border-black">
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-2 gap-2">
                   <div>
                     <h2 className="text-2xl md:text-4xl font-black text-black uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif", letterSpacing: '-0.02em' }}>
                       7-DAY FORECAST
                     </h2>
-                    <p className="mt-2 text-[10px] uppercase tracking-widest text-gray-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    <p className="mt-1 text-[10px] uppercase tracking-widest text-gray-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                       Quality scores and conditions for the next 7 days
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[8px] text-gray-400 uppercase tracking-wide hidden md:block" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Wave Heights:</span>
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <div className="flex border border-black overflow-hidden" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                       <button
                         onClick={() => { hasUserToggledModel.current = true; setDayCardModel('euro'); }}
-                        className={`px-2 py-1 text-[9px] uppercase tracking-wider transition-colors ${dayCardModel === 'euro' ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+                        className={`px-2.5 py-1.5 text-[9px] uppercase tracking-wider transition-colors ${dayCardModel === 'euro' ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
                       >
                         Euro
                       </button>
                       <button
                         onClick={() => { hasUserToggledModel.current = true; setDayCardModel('om'); }}
-                        className={`px-2 py-1 text-[9px] uppercase tracking-wider transition-colors ${dayCardModel === 'om' ? 'bg-black text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+                        className={`px-2.5 py-1.5 text-[9px] uppercase tracking-wider transition-colors ${dayCardModel === 'om' ? 'bg-black text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
                       >
                         Blend
                       </button>
                     </div>
                     <TooltipProvider delayDuration={300}>
-                      <Tooltip>
+                      <Tooltip open={modelInfoOpen} onOpenChange={setModelInfoOpen}>
                         <TooltipTrigger asChild>
-                          <span className="cursor-default text-gray-400 hover:text-gray-700 transition-colors">
-                            <Info className="h-3 w-3" />
+                          <span
+                            className="cursor-pointer text-gray-400 hover:text-gray-700 transition-colors p-1 -m-1"
+                            onClick={() => setModelInfoOpen(o => !o)}
+                          >
+                            <Info className="h-4 w-4" />
                           </span>
                         </TooltipTrigger>
                         <TooltipContent side="bottom" className="max-w-[220px] text-[10px] normal-case tracking-normal font-normal leading-relaxed">
@@ -2649,10 +2652,13 @@ export default function SpotDetail() {
                                         </button>
                                       </div>
                                       <TooltipProvider delayDuration={300}>
-                                        <Tooltip>
+                                        <Tooltip open={modelInfoOpen} onOpenChange={setModelInfoOpen}>
                                           <TooltipTrigger asChild>
-                                            <span className="cursor-default text-gray-400 hover:text-gray-700 transition-colors">
-                                              <Info className="h-3 w-3" />
+                                            <span
+                                              className="cursor-pointer text-gray-400 hover:text-gray-700 transition-colors p-1 -m-1"
+                                              onClick={() => setModelInfoOpen(o => !o)}
+                                            >
+                                              <Info className="h-4 w-4" />
                                             </span>
                                           </TooltipTrigger>
                                           <TooltipContent side="bottom" className="max-w-[220px] text-[10px] normal-case tracking-normal font-normal leading-relaxed">

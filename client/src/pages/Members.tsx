@@ -96,6 +96,7 @@ export default function Members() {
     },
   ]);
   const [isDossierOpen, setIsDossierOpen] = useState(false);
+  const [scoreInfoOpen, setScoreInfoOpen] = useState(false);
   const [dossierName, setDossierName] = useState("");
   const [dossierEmail, setDossierEmail] = useState("");
   const [dossierHomeBreak, setDossierHomeBreak] = useState<"Lido Beach" | "Long Beach" | "Rockaway Beach">("Lido Beach");
@@ -999,10 +1000,13 @@ export default function Members() {
                     <div className="flex items-center gap-1 text-[8px] text-gray-400 mt-0.5" style={monoStyle}>
                       Score {Math.round(homeBreakScore)}/100
                       <TooltipProvider delayDuration={300}>
-                        <Tooltip>
+                        <Tooltip open={scoreInfoOpen} onOpenChange={setScoreInfoOpen}>
                           <TooltipTrigger asChild>
-                            <span className="cursor-default text-gray-400 hover:text-gray-700 transition-colors">
-                              <Info className="h-3 w-3" />
+                            <span
+                              className="cursor-pointer text-gray-400 hover:text-gray-700 transition-colors p-1 -m-1"
+                              onClick={() => setScoreInfoOpen(o => !o)}
+                            >
+                              <Info className="h-4 w-4" />
                             </span>
                           </TooltipTrigger>
                           <TooltipContent side="top" className="max-w-[240px] text-[10px] normal-case tracking-normal font-normal leading-relaxed">
