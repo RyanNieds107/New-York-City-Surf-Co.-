@@ -34,7 +34,9 @@ import {
   Train,
   ShoppingBag,
   ChevronRight,
+  Info,
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Link, useParams } from "wouter";
 import { toast } from "sonner";
 import { useState, useMemo, useEffect, useRef, Fragment } from "react";
@@ -2056,9 +2058,22 @@ export default function SpotDetail() {
                         onClick={() => { hasUserToggledModel.current = true; setDayCardModel('om'); }}
                         className={`px-2 py-1 text-[9px] uppercase tracking-wider transition-colors ${dayCardModel === 'om' ? 'bg-black text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
                       >
-                        OM
+                        Blend
                       </button>
                     </div>
+                    <TooltipProvider delayDuration={300}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="cursor-default text-gray-400 hover:text-gray-700 transition-colors">
+                            <Info className="h-3 w-3" />
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="max-w-[220px] text-[10px] normal-case tracking-normal font-normal leading-relaxed">
+                          <p><span className="font-bold uppercase text-[9px] tracking-wide">Euro</span><br/>ECMWF model. Most reliable for major storms, nor'easters, and hurricane swells.</p>
+                          <p className="mt-1.5"><span className="font-bold uppercase text-[9px] tracking-wide">Blend</span><br/>Multi-model composite. Most accurate for typical day-to-day conditions at Long Island breaks. Always verify with buoy data morning-of.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                     {recommendedModel && !hasUserToggledModel.current && (
                       <span className="text-[7px] px-1.5 py-0.5 bg-green-100 text-green-700 font-bold uppercase tracking-wide rounded" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                         Buoy-verified
@@ -2630,9 +2645,22 @@ export default function SpotDetail() {
                                           onClick={() => { hasUserToggledModel.current = true; setHourlyModel('om'); }}
                                           className={`px-2.5 py-1 text-[8px] md:text-[9px] font-bold tracking-wider uppercase transition-colors border-l border-black ${hourlyModel === 'om' ? 'bg-black text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
                                         >
-                                          OM
+                                          Blend
                                         </button>
                                       </div>
+                                      <TooltipProvider delayDuration={300}>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <span className="cursor-default text-gray-400 hover:text-gray-700 transition-colors">
+                                              <Info className="h-3 w-3" />
+                                            </span>
+                                          </TooltipTrigger>
+                                          <TooltipContent side="bottom" className="max-w-[220px] text-[10px] normal-case tracking-normal font-normal leading-relaxed">
+                                            <p><span className="font-bold uppercase text-[9px] tracking-wide">Euro</span><br/>ECMWF model. Most reliable for major storms, nor'easters, and hurricane swells.</p>
+                                            <p className="mt-1.5"><span className="font-bold uppercase text-[9px] tracking-wide">Blend</span><br/>Multi-model composite. Most accurate for typical day-to-day conditions at Long Island breaks. Always verify with buoy data morning-of.</p>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
                                       {recommendedModel && !hasUserToggledModel.current && (
                                         <span className="text-[7px] px-1.5 py-0.5 bg-green-100 text-green-700 font-bold uppercase tracking-wide rounded" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                                           Buoy-verified
@@ -2647,7 +2675,7 @@ export default function SpotDetail() {
                                     <div className="flex items-center gap-1">
                                       Surf
                                       <span className={`text-[7px] px-1 py-0.5 font-bold rounded ${hourlyModel === 'euro' ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-500'}`}>
-                                        {hourlyModel === 'euro' ? 'EURO' : 'OM'}
+                                        {hourlyModel === 'euro' ? 'EURO' : 'BLEND'}
                                       </span>
                                     </div>
                                     <div>Wind</div>
@@ -2660,7 +2688,7 @@ export default function SpotDetail() {
                                     <div className="flex items-center gap-1.5">
                                       Surf
                                       <span className={`text-[7px] px-1 py-0.5 font-bold rounded ${hourlyModel === 'euro' ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-500'}`}>
-                                        {hourlyModel === 'euro' ? 'EURO' : 'OM'}
+                                        {hourlyModel === 'euro' ? 'EURO' : 'BLEND'}
                                       </span>
                                     </div>
                                     <div>Primary Swell</div>

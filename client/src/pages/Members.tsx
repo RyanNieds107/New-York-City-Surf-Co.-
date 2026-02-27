@@ -17,6 +17,7 @@ import { AnnouncementsFeed } from "@/components/AnnouncementsFeed";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { WaveForecastChart } from "@/components/WaveForecastChart";
 import { TideSparkline } from "@/components/TideSparkline";
+import { formatSurfHeight } from "@/lib/forecastUtils";
 
 export default function Members() {
   const [, setLocation] = useLocation();
@@ -321,7 +322,7 @@ export default function Members() {
   const homeBreakScore = homeBreakCurrent?.qualityScore ?? homeBreakCurrent?.probabilityScore ?? 0;
   const homeBreakStatus = homeBreakScore >= 60 ? "GO" : "STANDBY";
   const waveHeightFt = homeBreakCurrent?.breakingWaveHeightFt ?? homeBreakCurrent?.dominantSwellHeightFt ?? 1.5;
-  const homeBreakWaveLabel = `${Math.max(1, Math.floor(waveHeightFt))}-${Math.max(2, Math.ceil(waveHeightFt))}FT`;
+  const homeBreakWaveLabel = formatSurfHeight(waveHeightFt).toUpperCase();
   const homeBreakWindSpeed = Math.round(homeBreakCurrent?.windSpeedMph ?? 14);
   const formatCardinal = (deg: number | null | undefined) => {
     if (deg === null || deg === undefined) return "S";
@@ -734,7 +735,7 @@ export default function Members() {
                     className="border border-black px-3 py-1.5 text-[10px] uppercase tracking-wider hover:bg-black hover:text-white transition-colors"
                     style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
-                    Edit Dossier
+                    Customize Your Profile
                   </button>
                   <button
                     type="button"
@@ -902,7 +903,7 @@ export default function Members() {
                 {/* View full forecast CTA */}
                 <button
                   onClick={() => setLocation("/spot/1")}
-                  className="mt-4 w-full border border-black px-3 py-2 text-[10px] uppercase tracking-wider hover:bg-black hover:text-white transition-colors flex items-center justify-center gap-1"
+                  className="mt-4 w-full border border-black px-3 py-2 text-[10px] uppercase tracking-wider text-black hover:bg-black hover:text-white transition-colors flex items-center justify-center gap-1"
                   style={{ fontFamily: "'JetBrains Mono', monospace" }}
                 >
                   Full Forecast

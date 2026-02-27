@@ -69,11 +69,11 @@ export function TideSparkline({ spotId }: TideSparklineProps) {
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <span className="text-[9px] uppercase tracking-widest text-gray-400" style={monoFont}>
+        <span className="text-[9px] uppercase tracking-widest text-gray-600" style={monoFont}>
           Today's Tide
         </span>
         {currentHeightFt != null && (
-          <span className="text-[9px] uppercase tracking-wide text-slate-500 font-bold" style={monoFont}>
+          <span className="text-[9px] uppercase tracking-wide text-slate-700 font-bold" style={monoFont}>
             {currentHeightFt.toFixed(1)}ft · {currentPoint?.phase ?? ""}
           </span>
         )}
@@ -109,7 +109,7 @@ export function TideSparkline({ spotId }: TideSparklineProps) {
         {[0, 6, 12, 18, 23].map((h) => (
           <span
             key={h}
-            className="text-[8px] text-gray-300"
+            className="text-[8px] text-gray-500"
             style={monoFont}
           >
             {formatHour(h)}
