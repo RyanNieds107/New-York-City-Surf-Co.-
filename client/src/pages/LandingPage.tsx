@@ -1352,7 +1352,7 @@ function SurfStatusBanner({ featuredSpots, travelMode }: SurfStatusBannerProps) 
                 <>
                   <span className="text-xl md:text-2xl text-gray-400" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>•</span>
                   <span className={`text-xl md:text-2xl ${nextWindowData.type === 'good' ? 'text-green-700' : 'text-yellow-700'}`} style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                    {nextWindowData.type === 'good' ? 'Good window: ' : 'Marginal window: '}
+                    {nextWindowData.type === 'good' ? 'Good window: ' : "Don't Bother: "}
                     {formatWindowTime(nextWindowData.window.time, nextWindowData.window.endTime)}
                   </span>
                 </>
@@ -1540,7 +1540,7 @@ export default function LandingPage() {
         : next.start.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase();
     const hourLabel = next.start.toLocaleTimeString("en-US", { hour: "numeric", hour12: true }).replace(" ", "").toUpperCase();
 
-    const prefix = windowType === 'good' ? 'GOOD WINDOW' : 'MARGINAL WINDOW';
+    const prefix = windowType === 'good' ? 'GOOD WINDOW' : "DON'T BOTHER";
     return `${prefix}: ${next.name.toUpperCase()} ${dayLabel} ${hourLabel}`;
   }, [rockawayLive.queries.timeline.data?.timeline, longBeachLive.queries.timeline.data?.timeline, lidoLive.queries.timeline.data?.timeline]);
 

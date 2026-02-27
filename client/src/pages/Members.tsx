@@ -4,10 +4,11 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
-import { Loader2, Bell, Users, ShoppingBag, Home, X, ChevronRight, Phone, Store, GraduationCap, Wrench, LogOut, Video, Link2, Upload, ExternalLink, Waves } from "lucide-react";
+import { Loader2, Bell, Users, ShoppingBag, Home, X, ChevronRight, Phone, Store, GraduationCap, Wrench, LogOut, Video, Link2, Upload, ExternalLink, Waves, Info } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatDistanceToNow } from "date-fns";
 import { ReportFeed } from "@/components/ReportFeed";
 import { UserStatsWidget } from "@/components/UserStatsWidget";
@@ -15,7 +16,6 @@ import { ReportDatePicker } from "@/components/ReportDatePicker";
 import { LatestPhotos } from "@/components/LatestPhotos";
 import { AnnouncementsFeed } from "@/components/AnnouncementsFeed";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { WaveForecastChart } from "@/components/WaveForecastChart";
 import { TideSparkline } from "@/components/TideSparkline";
 import { formatSurfHeight } from "@/lib/forecastUtils";
 
@@ -105,6 +105,14 @@ export default function Members() {
   const [dossierVolumeL, setDossierVolumeL] = useState("");
   const [dossierMinWaveHeight, setDossierMinWaveHeight] = useState<number>(2);
   const [dossierWindPreference, setDossierWindPreference] = useState("OFFSHORE");
+  const [dossierMinQualityScore, setDossierMinQualityScore] = useState<number>(60);
+
+  // Depends on dossierHomeBreak state — must come after useState declarations
+  const homeBreakSpotIdEarly = spots?.find((s) => s.name === dossierHomeBreak)?.id;
+  const { data: timelineData } = trpc.forecasts.getTimeline.useQuery(
+    { spotId: homeBreakSpotIdEarly!, hours: 168 },
+    { enabled: homeBreakSpotIdEarly != null, staleTime: 30 * 60 * 1000 }
+  );
 
   const memberLabel = user
     ? `${String(memberInfo?.memberNumber ?? 0).padStart(3, '0')}/${String(memberInfo?.totalCount ?? 40).padStart(3, '0')}`
@@ -208,12 +216,14 @@ export default function Members() {
         primaryBoard?: string;
         volumeL?: string;
         windPreference?: string;
+        minQualityScore?: number;
       };
       if (typeof parsed.experienceYears === "number") setDossierExperienceYears(parsed.experienceYears);
       if (typeof parsed.location === "string") setDossierLocation(parsed.location);
       if (typeof parsed.primaryBoard === "string") setDossierPrimaryBoard(parsed.primaryBoard);
       if (typeof parsed.volumeL === "string") setDossierVolumeL(parsed.volumeL);
       if (typeof parsed.windPreference === "string") setDossierWindPreference(parsed.windPreference);
+      if (typeof parsed.minQualityScore === "number") setDossierMinQualityScore(parsed.minQualityScore);
     } catch {
       // Ignore malformed local storage.
     }
@@ -311,6 +321,8 @@ export default function Members() {
 
   const selectStyles = "w-full bg-white border border-gray-300 px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all";
   const labelStyles = "block text-[10px] font-semibold uppercase tracking-widest text-gray-700 mb-1.5";
+  const bebasStyle = { fontFamily: "'Bebas Neue', 'Oswald', sans-serif" };
+  const monoStyle = { fontFamily: "'JetBrains Mono', monospace" };
   const navigateToTab = (value: string) => {
     setActiveTab(value);
     setLocation(`/members?tab=${value}`);
@@ -318,7 +330,7 @@ export default function Members() {
 
   const homeBreakEntry = currentConditionsQuery.data?.find((item) => item.spot?.name === dossierHomeBreak);
   const homeBreakCurrent = homeBreakEntry?.currentConditions;
-  const homeBreakSpotId = spots?.find((s) => s.name === dossierHomeBreak)?.id;
+  const homeBreakSpotId = homeBreakSpotIdEarly;
   const homeBreakScore = homeBreakCurrent?.qualityScore ?? homeBreakCurrent?.probabilityScore ?? 0;
   const homeBreakStatus = homeBreakScore >= 60 ? "GO" : "STANDBY";
   const waveHeightFt = homeBreakCurrent?.breakingWaveHeightFt ?? homeBreakCurrent?.dominantSwellHeightFt ?? 1.5;
@@ -352,12 +364,23 @@ export default function Members() {
   const getTier = (score: number) => {
     if (score >= 80) return "FIRING";
     if (score >= 65) return "PRIME";
-    return "MARGINAL";
+    return "DON'T BOTHER";
   };
   const getTierColor = (score: number) => {
-    if (score >= 80) return "bg-emerald-600";
-    if (score >= 65) return "bg-amber-500";
+    if (score >= 70) return "bg-emerald-600";
+    if (score >= 50) return "bg-amber-500";
     return "bg-gray-400";
+  };
+  const getObjectiveTier = (score: number): string => {
+    if (score >= 80) return "FIRING";
+    if (score >= 70) return "PRIME";
+    if (score >= 50) return "AVERAGE";
+    return "POOR";
+  };
+  const getObjectiveTierColor = (score: number): string => {
+    if (score >= 70) return "text-emerald-600";
+    if (score >= 50) return "text-amber-500";
+    return "text-gray-500";
   };
   const getYouTubeEmbedUrl = (url: string) => {
     try {
@@ -460,6 +483,7 @@ export default function Members() {
             primaryBoard: dossierPrimaryBoard,
             volumeL: dossierVolumeL,
             windPreference: dossierWindPreference,
+            minQualityScore: dossierMinQualityScore,
           })
         );
       }
@@ -471,6 +495,146 @@ export default function Members() {
       toast.error(message);
     }
   };
+
+  // --- Helper functions ---
+  const windMatchesPref = (windType: string | null | undefined, windPref: string): boolean => {
+    if (!windType) return false;
+    const pref = windPref.toLowerCase();
+    const wt = windType.toLowerCase();
+    if (pref.includes("offshore")) return wt === "offshore" || wt === "side-offshore";
+    if (pref.includes("any") || pref.includes("all")) return true;
+    return wt.includes(pref) || pref.includes(wt);
+  };
+
+  const getPersonalizedVerdict = (
+    waveHeightFt: number,
+    windType: string | null | undefined,
+    minWaveHeight: number,
+    windPref: string,
+    minQualityScore: number,
+    currentScore: number,
+    nextSession: { day: string; waveLabel: string } | null
+  ): { text: string; status: 'go' | 'marginal' | 'standby' } => {
+    const heightOk = waveHeightFt >= minWaveHeight;
+    const windOk = windMatchesPref(windType, windPref);
+    const scoreOk = currentScore >= minQualityScore;
+    if (!heightOk && nextSession) return { text: `Below your minimum. Next window: ${nextSession.day} — ${nextSession.waveLabel}.`, status: 'standby' };
+    if (!heightOk) return { text: "Below your minimum. Not your day.", status: 'standby' };
+    if (!scoreOk) return { text: `Quality score (${Math.round(currentScore)}) is below your ${minQualityScore} threshold. Not worth it.`, status: 'marginal' };
+    if (!windOk) return { text: "Waves are there but winds aren't ideal for you. Worth checking live.", status: 'marginal' };
+    return { text: "Your conditions. Get in the water.", status: 'go' };
+  };
+
+  const getLocalIntel = (
+    windType: string | null | undefined,
+    swellDirDeg: number | null | undefined,
+    waveHeightFt: number,
+    homeBreak: string
+  ): string | null => {
+    const wt = windType?.toLowerCase() ?? "";
+    const dir = swellDirDeg ?? 180;
+    const isSSE = dir >= 135 && dir <= 202;
+    const isNE = dir >= 22 && dir <= 90;
+    const isCross = wt === "cross";
+    const isOffshore = wt === "offshore" || wt === "side-offshore";
+    const isOnshore = wt === "onshore";
+    const isBig = waveHeightFt >= 5;
+    const isSmall = waveHeightFt < 1.5;
+
+    if (isBig && homeBreak === "Rockaway Beach") return "Big days at Rockaway get crowded fast. Expect a zoo by 8am. Manage expectations.";
+    if (isBig && homeBreak === "Lido Beach") return "When it's this big, Lido breaks cleaner on large N/NE swell. Check the outer bar first.";
+    if (isBig) return "Post-storm size is often cleanest on day two. Verify with buoy data morning-of.";
+    if (isSmall) return "Don't bother today. Dawn patrol only — conditions typically deteriorate by mid-morning.";
+    if (isCross && homeBreak === "Lido Beach") return "Cross winds at Lido tend to clean up late morning on incoming tide.";
+    if (isCross && homeBreak === "Long Beach") return "Long Beach handles cross winds better than most. Worth a look before committing.";
+    if (isCross && homeBreak === "Rockaway Beach") return "Cross winds at Rockaway kill the shape fast. Check back at the next tide turn.";
+    if (isOffshore && isSSE) return "South swell with offshore flow — textbook LI setup. Don't overthink it.";
+    if (isSSE && waveHeightFt >= 2) return "SSE swell at this size hits the Long Beach sandbar well. South peak is your spot.";
+    if (isNE && homeBreak === "Rockaway Beach") return "NE swell wraps nicely around the Rockaways. Outer bar may be your best bet.";
+    if (isOffshore) return "Clean offshore glass. Go now before the sea breeze fills in around noon.";
+    if (isOnshore) return "Onshore chop today. Early morning is your best window before conditions deteriorate.";
+    return null;
+  };
+
+  type NextSession = {
+    day: string; waveLabel: string; windType: string;
+    period: number | null; score: number; tags: string[];
+  };
+
+  const findNextBestSession = (
+    timeline: NonNullable<typeof timelineData>["timeline"],
+    minWaveHeight: number,
+    windPref: string
+  ): NextSession | null => {
+    if (!timeline?.length) return null;
+    const today = new Date().toDateString();
+
+    const byDay = new Map<string, typeof timeline>();
+    for (const pt of timeline) {
+      const key = new Date(pt.forecastTimestamp).toDateString();
+      if (key === today) continue;
+      if (!byDay.has(key)) byDay.set(key, []);
+      byDay.get(key)!.push(pt);
+    }
+
+    type TimelinePt = NonNullable<typeof timelineData>["timeline"][number];
+    const days = Array.from(byDay.entries()).map(([dateStr, pts]) => ({
+      dateStr,
+      best: pts.reduce((a: TimelinePt, b: TimelinePt) => (a.quality_score ?? 0) > (b.quality_score ?? 0) ? a : b),
+    }));
+
+    const match = days.find(({ best }) => {
+      const ht = best.breakingWaveHeightFt ?? best.dominantSwellHeightFt ?? 0;
+      return ht >= minWaveHeight && windMatchesPref(best.windType, windPref);
+    });
+
+    const candidate = match ?? [...days].sort((a, b) => (b.best.quality_score ?? 0) - (a.best.quality_score ?? 0))[0];
+    if (!candidate) return null;
+
+    const { dateStr, best } = candidate;
+    const waveHt = best.breakingWaveHeightFt ?? best.dominantSwellHeightFt ?? 0;
+    const tags: string[] = [];
+    const wt = best.windType?.toLowerCase() ?? "";
+    if (wt === "offshore" || wt === "side-offshore") tags.push("OFFSHORE WINDOW");
+    else if (wt === "cross") tags.push("CROSS WINDS");
+    if (waveHt >= minWaveHeight) tags.push("MEETS YOUR MIN");
+    const sc = best.quality_score ?? 0;
+    if (sc >= 80) tags.push("FIRING");
+    else if (sc >= 65) tags.push("CLEAN");
+
+    return {
+      day: new Date(dateStr).toLocaleDateString("en-US", { weekday: "long" }).toUpperCase(),
+      waveLabel: formatSurfHeight(waveHt).toUpperCase(),
+      windType: (best.windType ?? "").replace("-", " ").toUpperCase(),
+      period: best.dominantSwellPeriodS ?? null,
+      score: Math.round(sc),
+      tags,
+    };
+  };
+
+  const getConditionTags = (): string[] => {
+    const tags: string[] = [];
+    const wt = homeBreakCurrent?.windType?.toLowerCase() ?? "";
+    const tide = homeBreakCurrent?.tidePhase?.toLowerCase() ?? "";
+    const waveHt = homeBreakCurrent?.breakingWaveHeightFt ?? homeBreakCurrent?.dominantSwellHeightFt ?? 0;
+    if (wt === "offshore" || wt === "side-offshore") tags.push("OFFSHORE WINDOW");
+    else if (wt === "cross") tags.push("CROSS WINDS");
+    else if (wt === "onshore") tags.push("ONSHORE");
+    if (tide.includes("rising") || tide.includes("flood") || tide.includes("incoming")) tags.push("INCOMING TIDE");
+    else if (tide.includes("high")) tags.push("HIGH TIDE");
+    else if (tide.includes("low")) tags.push("LOW TIDE");
+    else if (tide.includes("falling") || tide.includes("ebb") || tide.includes("outgoing")) tags.push("OUTGOING TIDE");
+    if (waveHt < dossierMinWaveHeight) tags.push("BELOW MIN");
+    if (homeBreakScore >= 80) tags.push("CROWD ALERT");
+    else if (homeBreakScore >= 65 && (wt === "offshore" || wt === "side-offshore")) tags.push("CLEAN");
+    return tags;
+  };
+
+  // --- Computed derived values ---
+  const nextSession = findNextBestSession(timelineData?.timeline ?? [], dossierMinWaveHeight, dossierWindPreference);
+  const verdict = getPersonalizedVerdict(waveHeightFt, homeBreakCurrent?.windType, dossierMinWaveHeight, dossierWindPreference, dossierMinQualityScore, homeBreakScore, nextSession);
+  const localIntel = getLocalIntel(homeBreakCurrent?.windType, homeBreakCurrent?.dominantSwellDirectionDeg, waveHeightFt, dossierHomeBreak);
+  const conditionTags = getConditionTags();
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -644,6 +808,25 @@ export default function Members() {
                     placeholder="OFFSHORE, WNW"
                   />
                 </div>
+                <div className="sm:col-span-2">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className={labelStyles} style={{ fontFamily: "'JetBrains Mono', monospace" }}>Min Quality Score</label>
+                    <span className="text-xs font-bold text-black" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{dossierMinQualityScore}+</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={40}
+                    max={90}
+                    step={5}
+                    value={dossierMinQualityScore}
+                    onChange={(e) => setDossierMinQualityScore(Number(e.target.value))}
+                    className="w-full h-2 bg-gray-200 rounded-sm appearance-none cursor-pointer accent-black"
+                  />
+                  <div className="flex justify-between text-[8px] text-gray-500 mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    <span>40 — Anything goes</span>
+                    <span>90 — Elite only</span>
+                  </div>
+                </div>
               </div>
             </section>
 
@@ -676,7 +859,7 @@ export default function Members() {
             <TabsList className="bg-transparent p-0 h-auto flex gap-0 min-w-max w-full sm:w-auto">
               <TabsTrigger
                 value="home"
-                className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-gray-100 data-[state=inactive]:text-gray-800 border border-gray-400 border-b-0 first:rounded-tl-lg rounded-none px-3 sm:px-5 py-2 sm:py-2.5 text-xs uppercase tracking-wide sm:tracking-widest font-semibold transition-all -mb-[1px] data-[state=active]:z-10 whitespace-nowrap flex-1 sm:flex-initial flex-row items-center justify-center gap-1.5"
+                className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-gray-100 data-[state=inactive]:text-gray-900 border border-gray-400 border-b-0 first:rounded-tl-lg rounded-none px-3 sm:px-5 py-2 sm:py-2.5 text-xs uppercase tracking-wide sm:tracking-widest font-semibold transition-all -mb-[1px] data-[state=active]:z-10 whitespace-nowrap flex-1 sm:flex-initial flex-row items-center justify-center gap-1.5"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
                 <Home className="h-3.5 w-3.5" />
@@ -684,7 +867,7 @@ export default function Members() {
               </TabsTrigger>
               <TabsTrigger
                 value="alerts"
-                className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-gray-100 data-[state=inactive]:text-gray-800 border border-gray-400 border-b-0 border-l-0 rounded-none px-3 sm:px-5 py-2 sm:py-2.5 text-xs uppercase tracking-wide sm:tracking-widest font-semibold transition-all -mb-[1px] data-[state=active]:z-10 whitespace-nowrap flex-1 sm:flex-initial flex-row items-center justify-center gap-1.5"
+                className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-gray-100 data-[state=inactive]:text-gray-900 border border-gray-400 border-b-0 border-l-0 rounded-none px-3 sm:px-5 py-2 sm:py-2.5 text-xs uppercase tracking-wide sm:tracking-widest font-semibold transition-all -mb-[1px] data-[state=active]:z-10 whitespace-nowrap flex-1 sm:flex-initial flex-row items-center justify-center gap-1.5"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
                 <Bell className="h-3.5 w-3.5" />
@@ -692,7 +875,7 @@ export default function Members() {
               </TabsTrigger>
               <TabsTrigger
                 value="community"
-                className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-gray-100 data-[state=inactive]:text-gray-800 border border-gray-400 border-b-0 border-l-0 rounded-none px-3 sm:px-5 py-2 sm:py-2.5 text-xs uppercase tracking-wide sm:tracking-widest font-semibold transition-all -mb-[1px] data-[state=active]:z-10 whitespace-nowrap flex-1 sm:flex-initial flex-row items-center justify-center gap-1.5"
+                className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-gray-100 data-[state=inactive]:text-gray-900 border border-gray-400 border-b-0 border-l-0 rounded-none px-3 sm:px-5 py-2 sm:py-2.5 text-xs uppercase tracking-wide sm:tracking-widest font-semibold transition-all -mb-[1px] data-[state=active]:z-10 whitespace-nowrap flex-1 sm:flex-initial flex-row items-center justify-center gap-1.5"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
                 <Waves className="h-3.5 w-3.5" />
@@ -700,7 +883,7 @@ export default function Members() {
               </TabsTrigger>
               <TabsTrigger
                 value="services"
-                className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-gray-100 data-[state=inactive]:text-gray-800 border border-gray-400 border-b-0 border-l-0 rounded-none px-3 sm:px-5 py-2 sm:py-2.5 text-xs uppercase tracking-wide sm:tracking-widest font-semibold transition-all -mb-[1px] data-[state=active]:z-10 whitespace-nowrap flex-1 sm:flex-initial flex-row items-center justify-center gap-1.5"
+                className="relative data-[state=active]:bg-black data-[state=active]:text-white data-[state=inactive]:bg-gray-100 data-[state=inactive]:text-gray-900 border border-gray-400 border-b-0 border-l-0 rounded-none px-3 sm:px-5 py-2 sm:py-2.5 text-xs uppercase tracking-wide sm:tracking-widest font-semibold transition-all -mb-[1px] data-[state=active]:z-10 whitespace-nowrap flex-1 sm:flex-initial flex-row items-center justify-center gap-1.5"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
                 <ShoppingBag className="h-3.5 w-3.5" />
@@ -722,7 +905,7 @@ export default function Members() {
                     {dossierName || "SURFER"} · {dossierHomeBreak} · MEMBER {memberLabel}
                   </h1>
                   <p
-                    className="text-[10px] text-gray-500 uppercase tracking-widest mt-1"
+                    className="text-[10px] text-gray-700 uppercase tracking-widest mt-1"
                     style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
                     NYC Surf Co. · Private Beta · {dossierLocation || "Long Island, NY"}
@@ -732,7 +915,7 @@ export default function Members() {
                   <button
                     type="button"
                     onClick={() => setIsDossierOpen(true)}
-                    className="border border-black px-3 py-1.5 text-[10px] uppercase tracking-wider hover:bg-black hover:text-white transition-colors"
+                    className="border border-black px-3 py-1.5 text-[10px] uppercase tracking-wider text-black hover:bg-black hover:text-white transition-colors"
                     style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
                     Customize Your Profile
@@ -740,7 +923,7 @@ export default function Members() {
                   <button
                     type="button"
                     onClick={() => navigateToTab("alerts")}
-                    className="border border-black px-3 py-1.5 text-[10px] uppercase tracking-wider hover:bg-black hover:text-white transition-colors flex items-center gap-1"
+                    className="border border-black px-3 py-1.5 text-[10px] uppercase tracking-wider text-black hover:bg-black hover:text-white transition-colors flex items-center gap-1"
                     style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
                     <Bell className="h-3 w-3" />
@@ -754,81 +937,179 @@ export default function Members() {
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] border-2 border-t-0 border-black bg-white">
 
               {/* LEFT: Main Content */}
-              <div className="p-4 sm:p-6 lg:border-r-2 lg:border-black">
+              <div className="lg:border-r-2 lg:border-black flex flex-col">
 
-                {/* Hero: GO/STANDBY + Score (like price + change) */}
-                <div className="pb-4 border-b border-gray-200 mb-4">
-                  <div className="flex items-end gap-4 flex-wrap">
+                {/* Hero: Personalized verdict */}
+                <div className="px-4 py-4 border-b-2 border-black">
+                  <div className="flex items-center justify-between mb-3">
                     <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={`h-2 w-2 rounded-full ${homeBreakStatus === "GO" ? "bg-emerald-500 animate-pulse" : "bg-gray-400"}`} />
-                        <span className="text-[10px] uppercase tracking-wider text-gray-700" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                          Live · {homeBreakStatus === "GO" ? "Active window" : `Est. +${nextWindowHours}h`}
-                        </span>
+                      <div className="text-[8px] uppercase tracking-widest text-gray-500" style={monoStyle}>
+                        Personalized · {dossierHomeBreak}
                       </div>
-                      <div
-                        className={`text-5xl sm:text-7xl font-black uppercase leading-none ${homeBreakStatus === "GO" ? "text-emerald-600" : "text-orange-700"}`}
-                        style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                      >
-                        {homeBreakStatus}
+                      <div className="text-[8px] text-gray-400 mt-0.5" style={monoStyle}>
+                        {dossierMinWaveHeight}ft+ · {dossierWindPreference} · {dossierMinQualityScore}+ score
                       </div>
                     </div>
-                    <div className="pb-1">
-                      <div className="text-[10px] uppercase tracking-wider text-gray-700 mb-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Wave Height</div>
-                      <div className="text-3xl sm:text-4xl font-black leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`h-1.5 w-1.5 rounded-full ${verdict.status === 'go' ? "bg-emerald-500 animate-pulse" : "bg-gray-400"}`} />
+                      <span className="text-[8px] uppercase tracking-wide text-gray-500" style={monoStyle}>
+                        {verdict.status === 'go' ? "Active window" : `Est. +${nextWindowHours}h`}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <span
+                        className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 inline-block ${
+                          verdict.status === 'go' ? "bg-emerald-600 text-white"
+                          : verdict.status === 'marginal' ? "bg-red-600 text-white"
+                          : "bg-red-700 text-white"
+                        }`}
+                        style={monoStyle}
+                      >
+                        {verdict.status === 'go' ? 'GO' : verdict.status === 'marginal' ? "DON'T BOTHER" : 'STANDBY'}
+                      </span>
+                      <div className="text-[10px] text-gray-800 font-medium uppercase tracking-wide mt-2 leading-snug" style={monoStyle}>
+                        {verdict.text}
+                      </div>
+                      {localIntel && (
+                        <div className="mt-1 text-[9px] text-gray-500 leading-snug" style={monoStyle}>
+                          {localIntel}
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <div className="text-[8px] uppercase tracking-wider text-gray-400 mb-0.5" style={monoStyle}>Wave Ht</div>
+                      <div className="text-4xl font-black leading-none text-gray-900" style={bebasStyle}>
                         {homeBreakWaveLabel}
                       </div>
                     </div>
-                    <div className="ml-auto pb-1 text-right">
-                      <div className="text-[10px] uppercase tracking-wider text-gray-700 mb-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Score</div>
-                      <div className="text-3xl sm:text-4xl font-black leading-none" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                        {Math.round(homeBreakScore)}
-                      </div>
-                      <div className="text-[10px] text-gray-600 uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>/ 100</div>
-                    </div>
                   </div>
-                  {/* Intensity bar */}
+
                   <div className="mt-3">
-                    <div className="h-1.5 bg-gray-200 border border-black">
+                    <div className="h-1 bg-gray-100">
                       <div
-                        className={`h-full transition-all ${homeBreakStatus === "GO" ? "bg-emerald-500" : "bg-orange-500"}`}
+                        className={`h-full transition-all ${homeBreakScore >= 70 ? "bg-emerald-500" : homeBreakScore >= 50 ? "bg-amber-500" : "bg-red-400"}`}
                         style={{ width: `${intensityPct}%` }}
                       />
                     </div>
-                    <div className="text-[9px] uppercase tracking-wider text-gray-600 mt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      Intensity: {Math.round(homeBreakScore)}/100
+                    <div className="flex items-center gap-1 text-[8px] text-gray-400 mt-0.5" style={monoStyle}>
+                      Score {Math.round(homeBreakScore)}/100
+                      <TooltipProvider delayDuration={300}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-default text-gray-400 hover:text-gray-700 transition-colors">
+                              <Info className="h-3 w-3" />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-[240px] text-[10px] normal-case tracking-normal font-normal leading-relaxed">
+                            An objective forecast rating (0–100) based on wave shape, swell quality, wind, and tide alignment — the same score shown on the full forecast pages. Your dossier minimum is {dossierMinQualityScore}. Anything below that threshold shows as DON'T BOTHER regardless of wave height or wind.
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                   </div>
                 </div>
 
-                {/* 7-Day Wave Forecast Chart */}
-                <WaveForecastChart spotId={homeBreakSpotId} />
-
-                {/* Conditions Grid (like financial stats row) */}
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <div className="text-[9px] uppercase tracking-widest text-gray-600 mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    Current Conditions · {homeBreakCurrent ? "Live data" : "Awaiting data"}
+                {/* Next Session */}
+                <div className="px-4 py-4 border-b-2 border-black">
+                  <div className="text-[8px] uppercase tracking-widest text-gray-500 mb-2" style={monoStyle}>
+                    Next Session · {dossierHomeBreak}
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {[
-                      ["Wave Height", homeBreakWaveLabel],
-                      ["Period", homeBreakCurrent?.dominantSwellPeriodS ? `${homeBreakCurrent.dominantSwellPeriodS}s` : "—"],
-                      ["Swell Dir", homeBreakCurrent?.dominantSwellDirectionDeg != null
-                        ? `${homeBreakCurrent.dominantSwellDirectionDeg}° ${formatCardinal(homeBreakCurrent.dominantSwellDirectionDeg)}`
-                        : "—"],
-                      ["Wind", `${homeBreakWindSpeed}MPH ${windDirection}`],
-                      ["Tide", homeBreakCurrent?.tidePhase ? homeBreakCurrent.tidePhase.toUpperCase() : "—"],
-                      ["Wind Type", homeBreakCurrent?.windType ? homeBreakCurrent.windType.replace("-", " ").toUpperCase() : "—"],
-                    ].map(([label, value]) => (
-                      <div key={label} className="border border-gray-200 p-2.5">
-                        <div className="text-[9px] uppercase tracking-widest text-gray-700 mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                          {label}
+                  {nextSession ? (
+                    <div className={`border-l-4 px-3 py-2.5 ${
+                      nextSession.score >= 70 ? "border-l-emerald-500 bg-emerald-50"
+                      : nextSession.score >= 50 ? "border-l-amber-400 bg-amber-50"
+                      : "border-l-red-400 bg-red-50"
+                    }`}>
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="text-2xl font-black uppercase leading-none text-gray-900" style={bebasStyle}>{nextSession.day}</div>
+                          <div className="text-[9px] uppercase tracking-wide text-gray-600 mt-0.5" style={monoStyle}>
+                            {nextSession.waveLabel} · {nextSession.windType}{nextSession.period ? ` · ${nextSession.period}s` : ""}
+                          </div>
                         </div>
-                        <div className="text-base sm:text-lg font-black leading-none uppercase text-gray-800" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                          {value}
+                        <div className="text-right">
+                          <div className={`text-3xl font-black leading-none ${nextSession.score >= 70 ? "text-emerald-600" : nextSession.score >= 50 ? "text-amber-500" : "text-red-600"}`} style={bebasStyle}>{nextSession.score}</div>
+                          <div className="text-[8px] text-gray-500" style={monoStyle}>/100</div>
                         </div>
                       </div>
-                    ))}
+                      <div className="mt-2 flex gap-1.5 flex-wrap">
+                        {nextSession.tags.map(tag => (
+                          <span key={tag} className={`text-[8px] uppercase tracking-wider px-1.5 py-0.5 border ${
+                            ["OFFSHORE WINDOW", "CLEAN", "FIRING"].includes(tag) ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                            : ["CROSS WINDS", "INCOMING TIDE"].includes(tag) ? "bg-amber-50 text-amber-700 border-amber-300"
+                            : ["BELOW MIN", "ONSHORE"].includes(tag) ? "bg-red-50 text-red-700 border-red-300"
+                            : "bg-white/70 text-gray-700 border-gray-300"
+                          }`} style={monoStyle}>{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-[9px] text-gray-400 uppercase tracking-wide" style={monoStyle}>
+                      No matching session in next 7 days.
+                    </div>
+                  )}
+                  <button onClick={() => setLocation(`/spot/${homeBreakSpotId ?? 1}`)}
+                    className="mt-2 text-[9px] uppercase tracking-wider text-gray-400 hover:text-black transition-colors flex items-center gap-0.5"
+                    style={monoStyle}>
+                    Full Forecast <ChevronRight className="h-3 w-3" />
+                  </button>
+                </div>
+
+                {/* Current Conditions — dark slab */}
+                {(() => {
+                  const periodS = homeBreakCurrent?.dominantSwellPeriodS;
+                  const periodDesc = periodS == null ? "" : periodS >= 14 ? "long-period groundswell" : periodS >= 12 ? "groundswell — powerful" : periodS >= 10 ? "sweet spot for WLI breaks" : periodS >= 7 ? "mid-period — some shape" : "wind swell — choppy";
+                  const swellDirDeg = homeBreakCurrent?.dominantSwellDirectionDeg;
+                  const swellDirDesc = swellDirDeg == null ? "" : (swellDirDeg >= 135 && swellDirDeg <= 225) ? "favorable for LI south shore" : (swellDirDeg >= 90 && swellDirDeg < 135) ? "angled — manageable" : "suboptimal angle";
+                  const windTypeRaw = homeBreakCurrent?.windType || "";
+                  const windTypeDesc = windTypeRaw.includes("offshore") ? "clean, glassy faces" : windTypeRaw.includes("onshore") ? "blown out, choppy" : windTypeRaw.includes("cross") ? "some texture, rideable" : "";
+                  const tidePhase = (homeBreakCurrent?.tidePhase || "").toLowerCase();
+                  const tideDesc = tidePhase === "rising" ? "building — most breaks improve" : tidePhase === "falling" ? "dropping — watch shallows" : tidePhase === "high" ? "full tide — slower, fatter" : tidePhase === "low" ? "low — exposed, more punch" : "";
+                  const htFt = homeBreakCurrent?.waveHeightFt;
+                  const waveDesc = htFt == null ? "" : htFt >= 8 ? "overhead+ — consequential" : htFt >= 5 ? "head-high — solid" : htFt >= 3 ? "chest to shoulder — fun" : htFt >= 1.5 ? "waist to chest — playful" : "knee-high — beginner only";
+                  const stats = [
+                    { label: "Wave Ht", value: homeBreakWaveLabel, desc: waveDesc },
+                    { label: "Period", value: periodS ? `${periodS}s` : "—", desc: periodDesc },
+                    { label: "Swell Dir", value: swellDirDeg != null ? `${swellDirDeg}° ${formatCardinal(swellDirDeg)}` : "—", desc: swellDirDesc },
+                    { label: "Wind", value: `${homeBreakWindSpeed}mph ${windDirection}`, desc: windTypeDesc },
+                    { label: "Tide", value: homeBreakCurrent?.tidePhase ? homeBreakCurrent.tidePhase.toUpperCase() : "—", desc: tideDesc },
+                    { label: "Wind Type", value: windTypeRaw ? windTypeRaw.replace("-", " ").toUpperCase() : "—", desc: "" },
+                  ];
+                  return (
+                    <div className="bg-slate-700 px-4 py-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="text-[8px] uppercase tracking-widest text-slate-300" style={monoStyle}>
+                          Current Conditions
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className={`h-1.5 w-1.5 rounded-full ${homeBreakCurrent ? "bg-emerald-400 animate-pulse" : "bg-slate-500"}`} />
+                          <span className="text-[8px] uppercase tracking-wide text-slate-300" style={monoStyle}>
+                            {homeBreakCurrent ? "Live" : "Awaiting"}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-x-4 gap-y-3">
+                        {stats.map(({ label, value, desc }) => (
+                          <div key={label}>
+                            <div className="text-[8px] uppercase tracking-widest text-slate-400 mb-0.5" style={monoStyle}>{label}</div>
+                            <div className="text-xl font-black leading-none text-white uppercase" style={bebasStyle}>{value}</div>
+                            {desc && <div className="text-[8px] text-slate-400 mt-0.5 leading-tight" style={monoStyle}>{desc}</div>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Surf Cams placeholder — fills remaining height */}
+                <div className="px-4 py-4 border-t-2 border-black flex-1 flex flex-col justify-center items-center min-h-[120px]">
+                  <div className="text-[9px] uppercase tracking-widest text-gray-400 mb-1" style={monoStyle}>Surf Cams</div>
+                  <div className="text-3xl font-black uppercase leading-none text-gray-200" style={bebasStyle}>Coming Soon</div>
+                  <div className="text-[9px] text-gray-400 mt-1.5 text-center" style={monoStyle}>
+                    Live feeds for your favorite Long Island breaks
                   </div>
                 </div>
 
@@ -849,6 +1130,7 @@ export default function Members() {
                     ["Volume", dossierVolumeL ? `${dossierVolumeL}L` : "—"],
                     ["Min Height", `${dossierMinWaveHeight}ft`],
                     ["Wind Pref", dossierWindPreference || "—"],
+                    ["Min Score", `${dossierMinQualityScore}+`],
                   ] as [string, string][]).map(([label, value]) => (
                     <div key={label} className="flex justify-between items-baseline py-2 border-b border-gray-100">
                       <span className="text-[10px] text-gray-700 uppercase tracking-wide" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
@@ -865,34 +1147,30 @@ export default function Members() {
                 <div className="mt-5 pt-4 border-t-2 border-black">
                   <div className="flex items-center justify-between mb-2">
                     <div className="text-[9px] uppercase tracking-widest text-gray-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      Conditions Rating
+                      Raw Conditions · Objective
                     </div>
                   </div>
                   <div
-                    className={`text-2xl font-black uppercase leading-none ${homeBreakStatus === "GO" ? "text-emerald-600" : "text-orange-700"}`}
+                    className={`text-2xl font-black uppercase leading-none ${getObjectiveTierColor(homeBreakScore)}`}
                     style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
                   >
-                    {getTier(homeBreakScore)}
+                    {getObjectiveTier(homeBreakScore)}
                   </div>
-                  <div className="text-[10px] text-gray-700 uppercase tracking-wide mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    {homeBreakStatus === "GO" ? "Active surf window" : `Next window ~${nextWindowHours}h`}
+                  <div className="text-[9px] text-gray-500 uppercase tracking-wide mt-0.5" style={monoStyle}>
+                    {Math.round(homeBreakScore)}/100 · {homeBreakStatus === "GO" ? "Active window" : `Est. +${nextWindowHours}h`}
                   </div>
-                  {homeBreakCurrent?.windType && (
-                    <div className="mt-2">
-                      <span
-                        className={`text-[9px] uppercase tracking-wider px-2 py-0.5 border ${
-                          homeBreakCurrent.windType === "offshore" || homeBreakCurrent.windType === "side-offshore"
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-300"
-                            : homeBreakCurrent.windType === "cross"
-                            ? "bg-amber-50 text-amber-700 border-amber-300"
-                            : "bg-red-50 text-red-700 border-red-300"
-                        }`}
-                        style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                      >
-                        {homeBreakCurrent.windType.replace("-", " ")} winds
-                      </span>
-                    </div>
-                  )}
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {conditionTags.length > 0 ? conditionTags.map(tag => (
+                      <span key={tag} className={`text-[9px] uppercase tracking-wider px-2 py-0.5 border ${
+                        ["OFFSHORE WINDOW", "CLEAN", "FIRING"].includes(tag) ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                        : ["CROSS WINDS", "INCOMING TIDE"].includes(tag) ? "bg-amber-50 text-amber-700 border-amber-300"
+                        : ["BELOW MIN", "ONSHORE"].includes(tag) ? "bg-red-50 text-red-700 border-red-300"
+                        : "bg-gray-100 text-gray-600 border-gray-300"
+                      }`} style={monoStyle}>{tag}</span>
+                    )) : (
+                      <span className="text-[9px] uppercase tracking-wider text-gray-400" style={monoStyle}>No active signals</span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Tide Sparkline */}
@@ -912,157 +1190,143 @@ export default function Members() {
               </div>
             </div>
 
-            {/* Surf Cams + Local Media Board — below the fold */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 items-stretch mt-4">
-              <div className="border-2 border-black p-3 sm:p-4 bg-white min-h-[200px] flex flex-col justify-center">
-                <div className="text-[10px] uppercase tracking-widest text-gray-600 mb-2 text-center" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                  Surf Cams
-                </div>
-                <div
-                  className="text-4xl sm:text-5xl font-black uppercase leading-none text-center text-gray-300"
-                  style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                >
-                  Coming Soon
-                </div>
-                <p className="mt-3 text-[11px] sm:text-xs uppercase tracking-wide text-gray-500 text-center" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                  Live camera feeds for your home break will be available here.
-                </p>
-              </div>
-
-              <div className="border-2 border-black bg-white">
-                  <div className="p-3 sm:p-4 border-b border-gray-300">
-                    <div className="text-[10px] uppercase tracking-widest text-gray-600 mb-1.5 sm:mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      Local Media Board
-                    </div>
-                    <div className="text-xl sm:text-2xl md:text-3xl font-black uppercase leading-none mb-1.5 sm:mb-2" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                      Post Community Media
-                    </div>
-                    <p className="text-[10px] sm:text-xs uppercase tracking-wide text-gray-700" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      Share your own YouTube, favorite clips, and session photos/videos.
-                    </p>
+            {/* Local Media Board — Post form left, video feed right */}
+            <div className="grid grid-cols-1 md:grid-cols-2 border-2 border-black border-t-0">
+              {/* LEFT: Post form */}
+              <div className="border-b-2 md:border-b-0 md:border-r-2 border-black">
+                <div className="p-4 border-b-2 border-black">
+                  <div className="text-[8px] uppercase tracking-widest text-gray-700 mb-1" style={monoStyle}>
+                    Local Media Board
                   </div>
+                  <div className="text-2xl font-black uppercase leading-none text-black" style={bebasStyle}>
+                    Post Community Media
+                  </div>
+                  <p className="text-[9px] uppercase tracking-wide text-gray-700 mt-1" style={monoStyle}>
+                    Share YouTube clips, favorites, and session photos/videos.
+                  </p>
+                </div>
 
-                  <form onSubmit={handleSubmitMediaPost} className="p-3 sm:p-4 border-b border-gray-300 space-y-3">
-                    <div className="grid grid-cols-1 gap-2">
-                      {[
-                        { value: "my_youtube", label: "My YouTube", icon: Video },
-                        { value: "shared_youtube", label: "Favorite YouTube", icon: Link2 },
-                        { value: "session_media", label: "Session Photo/Video", icon: Upload },
-                      ].map((option) => {
-                        const Icon = option.icon;
-                        return (
-                          <button
-                            key={option.value}
-                            type="button"
-                            onClick={() => setMediaPostType(option.value as "my_youtube" | "shared_youtube" | "session_media")}
-                            className={`border px-2.5 py-2 text-left transition-all ${
-                              mediaPostType === option.value
-                                ? "bg-black text-white border-black"
-                                : "bg-white text-black border-gray-300 hover:border-black"
-                            }`}
-                          >
-                            <span className="inline-flex items-center gap-2 text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                              <Icon className="h-3.5 w-3.5" />
-                              {option.label}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <input
-                      type="text"
-                      value={mediaTitle}
-                      onChange={(e) => setMediaTitle(e.target.value)}
-                      placeholder="Title"
-                      className={`${selectStyles} py-2`}
-                    />
-                    <input
-                      type="url"
-                      value={mediaUrl}
-                      onChange={(e) => setMediaUrl(e.target.value)}
-                      placeholder={mediaPostType === "session_media" ? "Photo/video URL" : "YouTube URL"}
-                      className={`${selectStyles} py-2`}
-                    />
-                    <textarea
-                      value={mediaCaption}
-                      onChange={(e) => setMediaCaption(e.target.value)}
-                      rows={2}
-                      placeholder="Caption (optional)"
-                      className={`${selectStyles} py-2 resize-y`}
-                    />
-                    <Button
-                      type="submit"
-                      className="w-full bg-black text-white hover:bg-gray-800 border border-black uppercase tracking-wider text-xs"
-                      style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                    >
-                      Post to Local Media
-                    </Button>
-                  </form>
-
-                  <div className="p-3 sm:p-4 space-y-3 max-h-[460px] overflow-y-auto">
-                    {communityMediaPosts.slice(0, 3).map((post) => {
-                      const embedUrl = getYouTubeEmbedUrl(post.url);
-                      const showYouTube = Boolean(embedUrl) && (post.type === "my_youtube" || post.type === "shared_youtube");
-                      const showImage = post.type === "session_media" && isLikelyImage(post.url);
-                      const showVideo = post.type === "session_media" && isLikelyVideo(post.url);
+                <form onSubmit={handleSubmitMediaPost} className="p-4 space-y-3">
+                  <div className="grid grid-cols-1 gap-1.5">
+                    {[
+                      { value: "my_youtube", label: "My YouTube", icon: Video },
+                      { value: "shared_youtube", label: "Favorite YouTube", icon: Link2 },
+                      { value: "session_media", label: "Session Photo/Video", icon: Upload },
+                    ].map((option) => {
+                      const Icon = option.icon;
                       return (
-                        <article key={post.id} className="border border-black p-2.5">
-                          <div className="mb-2">
-                            <h3 className="text-sm font-black uppercase leading-tight text-black" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
-                              {post.title}
-                            </h3>
-                            <p className="text-[9px] uppercase tracking-wider text-gray-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                              {post.author} · {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
-                            </p>
-                          </div>
-
-                          {showYouTube && embedUrl && (
-                            <div className="mb-2 border border-black overflow-hidden">
-                              <iframe
-                                src={embedUrl}
-                                title={post.title}
-                                className="w-full aspect-video"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                referrerPolicy="strict-origin-when-cross-origin"
-                                allowFullScreen
-                              />
-                            </div>
-                          )}
-
-                          {showImage && (
-                            <img src={post.url} alt={post.title} className="w-full h-40 object-cover border border-black mb-2" />
-                          )}
-
-                          {showVideo && (
-                            <video controls className="w-full h-40 object-cover border border-black mb-2">
-                              <source src={post.url} />
-                            </video>
-                          )}
-
-                          {!showYouTube && !showImage && !showVideo && (
-                            <a
-                              href={post.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide border border-black px-2 py-1 hover:bg-black hover:text-white transition-colors mb-2"
-                              style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                            >
-                              Open Media
-                              <ExternalLink className="h-3 w-3" />
-                            </a>
-                          )}
-
-                          {post.caption && (
-                            <p className="text-xs text-gray-700" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-                              {post.caption}
-                            </p>
-                          )}
-                        </article>
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => setMediaPostType(option.value as "my_youtube" | "shared_youtube" | "session_media")}
+                          className={`border px-2.5 py-2 text-left transition-all ${
+                            mediaPostType === option.value
+                              ? "bg-black text-white border-black"
+                              : "bg-white text-black border-gray-300 hover:border-black"
+                          }`}
+                        >
+                          <span className="inline-flex items-center gap-2 text-[10px] uppercase tracking-wider" style={monoStyle}>
+                            <Icon className="h-3.5 w-3.5" />
+                            {option.label}
+                          </span>
+                        </button>
                       );
                     })}
                   </div>
+                  <input
+                    type="text"
+                    value={mediaTitle}
+                    onChange={(e) => setMediaTitle(e.target.value)}
+                    placeholder="Title"
+                    className={`${selectStyles} py-2`}
+                  />
+                  <input
+                    type="url"
+                    value={mediaUrl}
+                    onChange={(e) => setMediaUrl(e.target.value)}
+                    placeholder={mediaPostType === "session_media" ? "Photo/video URL" : "YouTube URL"}
+                    className={`${selectStyles} py-2`}
+                  />
+                  <textarea
+                    value={mediaCaption}
+                    onChange={(e) => setMediaCaption(e.target.value)}
+                    rows={2}
+                    placeholder="Caption (optional)"
+                    className={`${selectStyles} py-2 resize-y`}
+                  />
+                  <Button
+                    type="submit"
+                    className="w-full bg-black text-white hover:bg-gray-800 border border-black uppercase tracking-wider text-xs"
+                    style={monoStyle}
+                  >
+                    Post to Local Media
+                  </Button>
+                </form>
+              </div>
+
+              {/* RIGHT: Video feed */}
+              <div className="flex flex-col p-4">
+                <div className="text-[8px] uppercase tracking-widest text-gray-500 mb-3" style={monoStyle}>
+                  Community Feed
                 </div>
+                {communityMediaPosts.slice(0, 3).map((post) => {
+                  const embedUrl = getYouTubeEmbedUrl(post.url);
+                  const showYouTube = Boolean(embedUrl) && (post.type === "my_youtube" || post.type === "shared_youtube");
+                  const showImage = post.type === "session_media" && isLikelyImage(post.url);
+                  const showVideo = post.type === "session_media" && isLikelyVideo(post.url);
+                  return (
+                    <article key={post.id} className="border border-black p-2.5 flex flex-col flex-1">
+                      <div className="mb-2">
+                        <h3 className="text-sm font-black uppercase leading-tight text-black" style={bebasStyle}>
+                          {post.title}
+                        </h3>
+                        <p className="text-[9px] uppercase tracking-wider text-gray-500" style={monoStyle}>
+                          {post.author} · {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
+                        </p>
+                      </div>
+                      {showYouTube && embedUrl && (
+                        <div className="flex-1 border border-black overflow-hidden mb-2">
+                          <iframe
+                            src={embedUrl}
+                            title={post.title}
+                            className="w-full h-full min-h-[200px]"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            referrerPolicy="strict-origin-when-cross-origin"
+                            allowFullScreen
+                          />
+                        </div>
+                      )}
+                      {showImage && (
+                        <img src={post.url} alt={post.title} className="flex-1 w-full object-cover border border-black mb-2" />
+                      )}
+                      {showVideo && (
+                        <video controls className="flex-1 w-full object-cover border border-black mb-2">
+                          <source src={post.url} />
+                        </video>
+                      )}
+                      {!showYouTube && !showImage && !showVideo && (
+                        <a
+                          href={post.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide border border-black px-2 py-1 hover:bg-black hover:text-white transition-colors mb-2"
+                          style={monoStyle}
+                        >
+                          Open Media <ExternalLink className="h-3 w-3" />
+                        </a>
+                      )}
+                      {post.caption && (
+                        <p className="text-[10px] text-gray-600 mt-auto pt-2" style={monoStyle}>{post.caption}</p>
+                      )}
+                    </article>
+                  );
+                })}
+                {communityMediaPosts.length === 0 && (
+                  <div className="text-[9px] text-gray-400 uppercase tracking-wide" style={monoStyle}>
+                    No posts yet. Be the first to share.
+                  </div>
+                )}
+              </div>
             </div>
           </TabsContent>
 

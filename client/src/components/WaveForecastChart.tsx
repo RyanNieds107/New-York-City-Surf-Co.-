@@ -246,7 +246,7 @@ export function WaveForecastChart({ spotId }: WaveForecastChartProps) {
             </div>
             <div className="flex items-center gap-1">
               <div className="w-3 h-3 bg-gray-400 rounded-sm" />
-              <span className="text-[9px] text-gray-500 uppercase" style={monoFont}>Marginal</span>
+              <span className="text-[9px] text-gray-500 uppercase" style={monoFont}>Don't Bother</span>
             </div>
           </div>
         </div>
