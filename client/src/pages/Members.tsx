@@ -896,38 +896,40 @@ export default function Members() {
           <TabsContent value="home" className="mt-0">
             {/* Identity Header Bar */}
             <div className="bg-white border-2 border-black p-3 sm:p-5">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
                   <h1
-                    className="text-2xl sm:text-4xl font-black text-black uppercase tracking-tight leading-none"
+                    className="text-xl sm:text-4xl font-black text-black uppercase tracking-tight leading-none"
                     style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
                   >
-                    {dossierName || "SURFER"} · {dossierHomeBreak} · MEMBER {memberLabel}
+                    <span className="block sm:inline">{dossierName || "SURFER"} · {dossierHomeBreak}</span>
+                    <span className="block sm:inline sm:before:content-['·'] sm:before:mx-1">MEMBER {memberLabel}</span>
                   </h1>
                   <p
-                    className="text-[10px] text-gray-700 uppercase tracking-widest mt-1"
+                    className="text-[9px] sm:text-[10px] text-gray-700 uppercase tracking-widest mt-1"
                     style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
-                    NYC Surf Co. · Private Beta · {dossierLocation || "Long Island, NY"}
+                    NYC Surf Co. · {dossierLocation || "Long Island, NY"}
                   </p>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-1.5 flex-shrink-0">
                   <button
                     type="button"
                     onClick={() => setIsDossierOpen(true)}
-                    className="border border-black px-3 py-1.5 text-[10px] uppercase tracking-wider text-black hover:bg-black hover:text-white transition-colors"
+                    className="border border-black px-2 sm:px-3 py-1.5 text-[10px] uppercase tracking-wider text-black hover:bg-black hover:text-white transition-colors"
                     style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
-                    Customize Your Profile
+                    <span className="hidden sm:inline">Customize Your Profile</span>
+                    <span className="sm:hidden">Profile</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => navigateToTab("alerts")}
-                    className="border border-black px-3 py-1.5 text-[10px] uppercase tracking-wider text-black hover:bg-black hover:text-white transition-colors flex items-center gap-1"
+                    className="border border-black px-2 sm:px-3 py-1.5 text-[10px] uppercase tracking-wider text-black hover:bg-black hover:text-white transition-colors flex items-center gap-1"
                     style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
                     <Bell className="h-3 w-3" />
-                    Alerts
+                    <span className="hidden sm:inline">Alerts</span>
                   </button>
                 </div>
               </div>
@@ -1091,7 +1093,7 @@ export default function Members() {
                           </span>
                         </div>
                       </div>
-                      <div className="grid grid-cols-3 gap-x-4 gap-y-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-4">
                         {stats.map(({ label, value, desc }) => (
                           <div key={label}>
                             <div className="text-[8px] uppercase tracking-widest text-slate-400 mb-0.5" style={monoStyle}>{label}</div>
@@ -1105,7 +1107,7 @@ export default function Members() {
                 })()}
 
                 {/* Surf Cams placeholder — fills remaining height */}
-                <div className="px-4 py-4 border-t-2 border-black flex-1 flex flex-col justify-center items-center min-h-[120px]">
+                <div className="px-4 py-4 border-t-2 border-black flex-1 flex flex-col justify-center items-center min-h-[80px] sm:min-h-[120px]">
                   <div className="text-[9px] uppercase tracking-widest text-gray-400 mb-1" style={monoStyle}>Surf Cams</div>
                   <div className="text-3xl font-black uppercase leading-none text-gray-200" style={bebasStyle}>Coming Soon</div>
                   <div className="text-[9px] text-gray-400 mt-1.5 text-center" style={monoStyle}>
@@ -1265,7 +1267,7 @@ export default function Members() {
               </div>
 
               {/* RIGHT: Video feed */}
-              <div className="flex flex-col p-4">
+              <div className="flex flex-col p-4 border-t-2 md:border-t-0 border-black">
                 <div className="text-[8px] uppercase tracking-widest text-gray-500 mb-3" style={monoStyle}>
                   Community Feed
                 </div>
