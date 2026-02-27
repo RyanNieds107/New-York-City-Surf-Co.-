@@ -224,7 +224,8 @@ export default function SpotDetail() {
   const [hourlyModel, setHourlyModel] = useState<'euro' | 'om'>('om');
   const [dayCardModel, setDayCardModel] = useState<'euro' | 'om'>('om');
   const hasUserToggledModel = useRef(false);
-  const [modelInfoOpen, setModelInfoOpen] = useState(false);
+  const [dayCardModelInfoOpen, setDayCardModelInfoOpen] = useState(false);
+  const [hourlyModelInfoOpen, setHourlyModelInfoOpen] = useState(false);
 
   // Surf plan popup: utils for imperative fetch, mutations for show/record
   const utils = trpc.useUtils();
@@ -2062,11 +2063,11 @@ export default function SpotDetail() {
                       </button>
                     </div>
                     <TooltipProvider delayDuration={300}>
-                      <Tooltip open={modelInfoOpen} onOpenChange={setModelInfoOpen}>
+                      <Tooltip open={dayCardModelInfoOpen} onOpenChange={setDayCardModelInfoOpen}>
                         <TooltipTrigger asChild>
                           <span
                             className="cursor-pointer text-gray-400 hover:text-gray-700 transition-colors p-1 -m-1"
-                            onClick={() => setModelInfoOpen(o => !o)}
+                            onClick={() => setDayCardModelInfoOpen(o => !o)}
                           >
                             <Info className="h-4 w-4" />
                           </span>
@@ -2652,11 +2653,11 @@ export default function SpotDetail() {
                                         </button>
                                       </div>
                                       <TooltipProvider delayDuration={300}>
-                                        <Tooltip open={modelInfoOpen} onOpenChange={setModelInfoOpen}>
+                                        <Tooltip open={hourlyModelInfoOpen} onOpenChange={setHourlyModelInfoOpen}>
                                           <TooltipTrigger asChild>
                                             <span
                                               className="cursor-pointer text-gray-400 hover:text-gray-700 transition-colors p-1 -m-1"
-                                              onClick={() => setModelInfoOpen(o => !o)}
+                                              onClick={() => setHourlyModelInfoOpen(o => !o)}
                                             >
                                               <Info className="h-4 w-4" />
                                             </span>
@@ -2676,7 +2677,7 @@ export default function SpotDetail() {
                                   </div>
 
                                   {/* Mobile header */}
-                                  <div className="md:hidden grid gap-x-2 px-2 py-2 bg-gray-50 border-b border-gray-200 text-[8px] font-bold tracking-wide text-gray-500 uppercase" style={{ gridTemplateColumns: '44px 68px 1fr 40px', fontFamily: "'JetBrains Mono', monospace" }}>
+                                  <div className="md:hidden grid gap-x-2 px-2 py-2 bg-gray-50 border-b border-gray-200 text-[8px] font-bold tracking-wide text-gray-500 uppercase" style={{ gridTemplateColumns: '44px 1fr 1fr 40px', fontFamily: "'JetBrains Mono', monospace" }}>
                                     <div></div>
                                     <div className="flex items-center gap-1">
                                       Surf
@@ -2905,7 +2906,7 @@ export default function SpotDetail() {
                                                 "md:hidden grid gap-x-2 px-2 py-2.5 border-b border-gray-100 relative items-center",
                                                 isNight ? "bg-gray-100" : ""
                                               )}
-                                              style={{ gridTemplateColumns: '44px 68px 1fr 40px' }}
+                                              style={{ gridTemplateColumns: '44px 1fr 1fr 40px' }}
                                             >
                                               <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${getQualityBorderColor(qualityScore)}`} />
                                               {/* Time */}
