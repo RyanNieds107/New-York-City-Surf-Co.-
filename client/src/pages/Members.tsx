@@ -489,10 +489,10 @@ export default function Members() {
         );
       }
 
-      toast.success("Dossier updated");
+      toast.success("Profile updated");
       setIsDossierOpen(false);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to update dossier";
+      const message = error instanceof Error ? error.message : "Failed to update profile";
       toast.error(message);
     }
   };
@@ -686,18 +686,19 @@ export default function Members() {
       <Sheet open={isDossierOpen} onOpenChange={setIsDossierOpen}>
         <SheetContent
           side="right"
-          className="w-full sm:max-w-xl border-l border-white/30 bg-white/70 backdrop-blur-xl"
+          className="w-full sm:max-w-xl border-l border-white/30 bg-white/70 backdrop-blur-xl flex flex-col"
         >
-          <SheetHeader>
+          <SheetHeader className="flex-shrink-0">
             <SheetTitle
               className="text-xl font-black uppercase tracking-tight text-black"
               style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
             >
-              MEMBER DOSSIER [{memberLabel}]
+              CUSTOM PROFILE [{memberLabel}]
             </SheetTitle>
           </SheetHeader>
 
-          <form onSubmit={handleUpdateDossier} className="mt-6 space-y-5">
+          <div className="overflow-y-auto flex-1 px-1 pb-6">
+          <form onSubmit={handleUpdateDossier} className="space-y-5">
             <section className="border border-black/15 bg-white/60 p-4">
               <div className="text-[10px] uppercase tracking-widest text-gray-700 mb-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                 Identity Intel
@@ -839,13 +840,14 @@ export default function Members() {
             >
               {updateProfileMutation.isPending || updateAlertMutation.isPending || createAlertMutation.isPending
                 ? "UPDATING"
-                : "UPDATE DOSSIER"}
+                : "UPDATE PROFILE"}
             </Button>
 
             <p className="text-[10px] text-gray-600 uppercase tracking-wide text-center" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
               Precision in data leads to certainty in the water.
             </p>
           </form>
+          </div>
         </SheetContent>
       </Sheet>
 
