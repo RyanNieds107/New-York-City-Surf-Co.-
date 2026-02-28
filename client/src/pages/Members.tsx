@@ -1071,7 +1071,7 @@ export default function Members() {
                     </div>
                     <div className="text-right flex-shrink-0">
                       <div className="text-[8px] uppercase tracking-wider text-gray-400 mb-0.5" style={monoStyle}>Wave Ht</div>
-                      <div className="text-4xl font-black leading-none text-gray-900" style={bebasStyle}>
+                      <div className="text-3xl sm:text-4xl font-black leading-none text-gray-900" style={bebasStyle}>
                         {homeBreakWaveLabel}
                       </div>
                     </div>
@@ -1218,64 +1218,67 @@ export default function Members() {
 
               {/* RIGHT: Member Dossier Sidebar */}
               <div className="p-4 border-t-2 border-black lg:border-t-0">
-                <div className="text-[9px] uppercase tracking-widest text-gray-600 mb-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                  Member Profile
-                </div>
-                <div className="space-y-0">
-                  {([
-                    ["Symbol", `MEMBER ${memberLabel}`],
-                    ["Location", dossierLocation || "—"],
-                    ["Home Break", dossierHomeBreak],
-                    ["Experience", `${dossierExperienceYears} yrs`],
-                    ["Primary Board", dossierPrimaryBoard || "—"],
-                    ["Volume", dossierVolumeL ? `${dossierVolumeL}L` : "—"],
-                    ["Min Height", `${dossierMinWaveHeight}ft`],
-                    ["Wind Pref", dossierWindPreference || "—"],
-                    ["Min Score", `${dossierMinQualityScore}+`],
-                  ] as [string, string][]).map(([label, value]) => (
-                    <div key={label} className="flex justify-between items-baseline py-2 border-b border-gray-100">
-                      <span className="text-[10px] text-gray-700 uppercase tracking-wide" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                        {label}
-                      </span>
-                      <span className="text-[10px] font-bold text-right max-w-[130px] truncate text-gray-900" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                        {value}
-                      </span>
+                {/* Desktop-only: profile rows + conditions rating */}
+                <div className="hidden lg:block">
+                  <div className="text-[9px] uppercase tracking-widest text-gray-600 mb-3" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    Member Profile
+                  </div>
+                  <div className="space-y-0">
+                    {([
+                      ["Symbol", `MEMBER ${memberLabel}`],
+                      ["Location", dossierLocation || "—"],
+                      ["Home Break", dossierHomeBreak],
+                      ["Experience", `${dossierExperienceYears} yrs`],
+                      ["Primary Board", dossierPrimaryBoard || "—"],
+                      ["Volume", dossierVolumeL ? `${dossierVolumeL}L` : "—"],
+                      ["Min Height", `${dossierMinWaveHeight}ft`],
+                      ["Wind Pref", dossierWindPreference || "—"],
+                      ["Min Score", `${dossierMinQualityScore}+`],
+                    ] as [string, string][]).map(([label, value]) => (
+                      <div key={label} className="flex justify-between items-baseline py-2 border-b border-gray-100">
+                        <span className="text-[10px] text-gray-700 uppercase tracking-wide" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                          {label}
+                        </span>
+                        <span className="text-[10px] font-bold text-right max-w-[130px] truncate text-gray-900" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                          {value}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Conditions Rating (like Analyst Consensus) */}
+                  <div className="mt-5 pt-4 border-t-2 border-black">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-[9px] uppercase tracking-widest text-gray-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        Raw Conditions · Objective
+                      </div>
                     </div>
-                  ))}
+                    <div
+                      className={`text-2xl font-black uppercase leading-none ${getObjectiveTierColor(homeBreakScore)}`}
+                      style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
+                    >
+                      {getObjectiveTier(homeBreakScore)}
+                    </div>
+                    <div className="text-[9px] text-gray-500 uppercase tracking-wide mt-0.5" style={monoStyle}>
+                      {Math.round(homeBreakScore)}/100 · {homeBreakStatus === "GO" ? "Active window" : `Est. +${nextWindowHours}h`}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {conditionTags.length > 0 ? conditionTags.map(tag => (
+                        <span key={tag} className={`text-[9px] uppercase tracking-wider px-2 py-0.5 border ${
+                          ["OFFSHORE WINDOW", "CLEAN", "FIRING"].includes(tag) ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                          : ["CROSS WINDS", "INCOMING TIDE"].includes(tag) ? "bg-amber-50 text-amber-700 border-amber-300"
+                          : ["BELOW MIN", "ONSHORE"].includes(tag) ? "bg-red-50 text-red-700 border-red-300"
+                          : "bg-gray-100 text-gray-600 border-gray-300"
+                        }`} style={monoStyle}>{tag}</span>
+                      )) : (
+                        <span className="text-[9px] uppercase tracking-wider text-gray-400" style={monoStyle}>No active signals</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
-                {/* Conditions Rating (like Analyst Consensus) */}
-                <div className="mt-5 pt-4 border-t-2 border-black">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-[9px] uppercase tracking-widest text-gray-600" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      Raw Conditions · Objective
-                    </div>
-                  </div>
-                  <div
-                    className={`text-2xl font-black uppercase leading-none ${getObjectiveTierColor(homeBreakScore)}`}
-                    style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
-                  >
-                    {getObjectiveTier(homeBreakScore)}
-                  </div>
-                  <div className="text-[9px] text-gray-500 uppercase tracking-wide mt-0.5" style={monoStyle}>
-                    {Math.round(homeBreakScore)}/100 · {homeBreakStatus === "GO" ? "Active window" : `Est. +${nextWindowHours}h`}
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {conditionTags.length > 0 ? conditionTags.map(tag => (
-                      <span key={tag} className={`text-[9px] uppercase tracking-wider px-2 py-0.5 border ${
-                        ["OFFSHORE WINDOW", "CLEAN", "FIRING"].includes(tag) ? "bg-emerald-50 text-emerald-700 border-emerald-300"
-                        : ["CROSS WINDS", "INCOMING TIDE"].includes(tag) ? "bg-amber-50 text-amber-700 border-amber-300"
-                        : ["BELOW MIN", "ONSHORE"].includes(tag) ? "bg-red-50 text-red-700 border-red-300"
-                        : "bg-gray-100 text-gray-600 border-gray-300"
-                      }`} style={monoStyle}>{tag}</span>
-                    )) : (
-                      <span className="text-[9px] uppercase tracking-wider text-gray-400" style={monoStyle}>No active signals</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Tide Sparkline */}
-                <div className="mt-3 pt-3 border-t border-gray-100">
+                {/* Always visible: Tide Sparkline */}
+                <div className="mt-0 lg:mt-3 pt-0 lg:pt-3 lg:border-t lg:border-gray-100">
                   <TideSparkline spotId={homeBreakSpotId} />
                 </div>
 
