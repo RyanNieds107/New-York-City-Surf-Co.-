@@ -212,7 +212,6 @@ export default function SpotDetail() {
   const [crowdLevel, setCrowdLevel] = useState(3);
   const [showCrowdReport, setShowCrowdReport] = useState(false);
   const [reportDate, setReportDate] = useState<Date>(new Date());
-  const [showScoreBreakdown, setShowScoreBreakdown] = useState(false);
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   const [extendedForecastTooltip, setExtendedForecastTooltip] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("ideal-conditions");
@@ -1890,117 +1889,26 @@ export default function SpotDetail() {
                     />
                   </div>
                   
-                  {/* Rating label - clickable to show breakdown */}
-                  <button
-                    onClick={() => setShowScoreBreakdown(!showScoreBreakdown)}
-                    className="w-full text-center mt-2 group cursor-pointer"
-                  >
+                  {/* Rating label */}
+                  <div className="w-full text-center mt-2">
                     <span className="text-sm font-bold text-black uppercase tracking-widest" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                       {getRatingLabel(currentData.score)}
                     </span>
-                    <span className="ml-2 text-xs text-gray-500 group-hover:text-black transition-colors flex items-center gap-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      <ExpandArrow expanded={showScoreBreakdown} size={10} />
-                      {showScoreBreakdown
-                        ? (isAuthenticated ? 'Hide breakdown' : 'Hide preview')
-                        : (isAuthenticated ? 'Why this rating?' : 'Unlock breakdown')}
-                    </span>
-                  </button>
+                  </div>
 
-                  {/* Score Breakdown - Expandable */}
-                  {showScoreBreakdown && currentConditions && (
-                    <div className="mt-4 pt-4 border-t border-gray-200 animate-in slide-in-from-top-2 duration-200">
-                      <GateOverlay
-                        locked={!isAuthenticated}
-                        title="FULL SCORE BREAKDOWN"
-                        description="Sign in to unlock the full factor breakdown."
-                        ctaLabel="SIGN IN TO UNLOCK"
-                        onUnlock={handleUnlockSpot}
-                        compact={true}
-                        cardClassName="max-w-lg"
-                        overlayClassName="items-center"
-                      >
-                        <div className="flex justify-center gap-8">
-                        {/* Swell Score - uses NOAA buoy data when available */}
-                        <div className="text-center">
-                          <div className="text-xs text-gray-500 uppercase tracking-wider mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Swell</div>
-                          {(() => {
-                            const buoyData = buoyQuery.data;
-                            const swellHeight = buoyData?.waveHeight ?? currentConditions.dominantSwellHeightFt ?? 0;
-                            const swellPeriod = buoyData?.dominantPeriod ?? currentConditions.dominantSwellPeriodS;
-                            return (
-                              <>
-                                <div className={`text-2xl font-black ${
-                                  swellHeight >= 3 ? 'text-emerald-600' :
-                                  swellHeight >= 2 ? 'text-amber-500' :
-                                  'text-red-500'
-                                }`} style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                                  {swellHeight > 0 ? `${Number(swellHeight).toFixed(1)}ft` : '—'}
-                                </div>
-                                <div className="text-[10px] text-gray-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                                  {swellPeriod ? `${Math.round(swellPeriod)}s period` : ''}
-                                </div>
-                              </>
-                            );
-                          })()}
-                        </div>
-
-                        {/* Wind Score */}
-                        <div className="text-center">
-                          <div className="text-xs text-gray-500 uppercase tracking-wider mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Wind</div>
-                          <div className={`text-2xl font-black ${
-                            currentConditions.windType === 'offshore' ? 'text-emerald-600' :
-                            currentConditions.windType === 'onshore' ? 'text-red-500' :
-                            currentConditions.windType === 'side-offshore' ? 'text-gray-500' :
-                            'text-amber-500'
-                          }`} style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                            {currentConditions.windType === 'offshore' ? '✓' :
-                             currentConditions.windType === 'onshore' ? '✗' :
-                             currentConditions.windType === 'side-offshore' ? '~' : '~'}
-                          </div>
-                          <div className="text-[10px] text-gray-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                            {currentConditions.windSpeedMph ? (
-                              <>
-                                {Math.round(currentConditions.windSpeedMph)}
-                                {currentConditions.windGustsMph && currentConditions.windGustsMph > currentConditions.windSpeedMph && (
-                                  <sup className="text-[8px]">{Math.round(currentConditions.windGustsMph)}</sup>
-                                )}
-                                mph {currentConditions.windType ?? ''}
-                              </>
-                            ) : '—'}
-                          </div>
-                        </div>
-
-                        {/* Tide Score */}
-                        <div className="text-center">
-                          <div className="text-xs text-gray-500 uppercase tracking-wider mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Tide</div>
-                          <div className={`text-2xl font-black ${
-                            currentConditions.tidePhase === 'rising' || currentConditions.tidePhase === 'falling' ? 'text-emerald-600' :
-                            'text-amber-500'
-                          }`} style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                            <TrendArrow
-                              rising={currentConditions.tidePhase === 'rising' || currentConditions.tidePhase === 'high'}
-                              size={20}
-                            />
-                          </div>
-                          <div className="text-[10px] text-gray-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                            {currentConditions.tideHeightFt ? `${(currentConditions.tideHeightFt / 10).toFixed(1)}ft ${currentConditions.tidePhase ?? ''}` : '—'}
-                          </div>
-                        </div>
-
-                        {/* Overall Score */}
-                        <div className="text-center">
-                          <div className="text-xs text-gray-500 uppercase tracking-wider mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Score</div>
-                          <div className="text-2xl font-black text-black" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-                            {Math.round(currentData.score)}
-                          </div>
-                          <div className="text-[10px] text-gray-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                            out of 100
-                          </div>
-                        </div>
-                      </div>
-                      </GateOverlay>
-                    </div>
-                  )}
+                  {/* Members callout */}
+                  <div className="mt-3 pt-3 border-t border-gray-200 text-center">
+                    <p className="text-[10px] text-gray-500 leading-relaxed mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      Members get the full breakdown — personalized to your break, your board, and your experience.
+                    </p>
+                    <a
+                      href="/members"
+                      className="inline-block text-[10px] font-bold uppercase tracking-widest text-black border border-black px-3 py-1.5 hover:bg-black hover:text-white transition-colors"
+                      style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                    >
+                      View Member Forecast →
+                    </a>
+                  </div>
                 </div>
               )}
 

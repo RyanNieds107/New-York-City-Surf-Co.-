@@ -84,17 +84,7 @@ export default function Members() {
     caption?: string;
     author: string;
     createdAt: string;
-  }>>([
-    {
-      id: "seed-1",
-      type: "shared_youtube",
-      title: "Perfect Long Beach Morning Session",
-      url: "https://www.youtube.com/watch?v=0rRLS3A5VwA",
-      caption: "Clean lines and classic winter shape setup.",
-      author: "NYC Surf Co.",
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
-    },
-  ]);
+  }>>([]);
   const [isDossierOpen, setIsDossierOpen] = useState(false);
   const [scoreInfoOpen, setScoreInfoOpen] = useState(false);
   const [dossierName, setDossierName] = useState("");
@@ -363,25 +353,32 @@ export default function Members() {
     .slice(0, 1)
     .map((report) => crowdLabelByLevel[(report.crowdLevel || 3) - 1])[0] || "Light";
   const getTier = (score: number) => {
-    if (score >= 80) return "FIRING";
-    if (score >= 65) return "PRIME";
+    if (score >= 91) return "ALL-TIME";
+    if (score >= 76) return "FIRING";
+    if (score >= 60) return "GO SURF";
+    if (score >= 40) return "WORTH A LOOK";
     return "DON'T BOTHER";
   };
   const getTierColor = (score: number) => {
-    if (score >= 70) return "bg-emerald-600";
-    if (score >= 50) return "bg-amber-500";
-    return "bg-gray-400";
+    if (score >= 91) return "bg-emerald-600";
+    if (score >= 76) return "bg-green-600";
+    if (score >= 60) return "bg-lime-500";
+    if (score >= 40) return "bg-yellow-500";
+    return "bg-red-500";
   };
   const getObjectiveTier = (score: number): string => {
-    if (score >= 80) return "FIRING";
-    if (score >= 70) return "PRIME";
-    if (score >= 50) return "AVERAGE";
-    return "POOR";
+    if (score >= 91) return "ALL-TIME";
+    if (score >= 76) return "FIRING";
+    if (score >= 60) return "GO SURF";
+    if (score >= 40) return "WORTH A LOOK";
+    return "DON'T BOTHER";
   };
   const getObjectiveTierColor = (score: number): string => {
-    if (score >= 70) return "text-emerald-600";
-    if (score >= 50) return "text-amber-500";
-    return "text-gray-500";
+    if (score >= 91) return "text-emerald-600";
+    if (score >= 76) return "text-green-600";
+    if (score >= 60) return "text-lime-600";
+    if (score >= 40) return "text-yellow-600";
+    return "text-red-500";
   };
   const getYouTubeEmbedUrl = (url: string) => {
     try {
@@ -527,33 +524,126 @@ export default function Members() {
   };
 
   const getLocalIntel = (
-    windType: string | null | undefined,
-    swellDirDeg: number | null | undefined,
-    waveHeightFt: number,
+    score: number,
+    current: typeof homeBreakCurrent,
     homeBreak: string
   ): string | null => {
-    const wt = windType?.toLowerCase() ?? "";
-    const dir = swellDirDeg ?? 180;
-    const isSSE = dir >= 135 && dir <= 202;
-    const isNE = dir >= 22 && dir <= 90;
-    const isCross = wt === "cross";
-    const isOffshore = wt === "offshore" || wt === "side-offshore";
-    const isOnshore = wt === "onshore";
-    const isBig = waveHeightFt >= 5;
-    const isSmall = waveHeightFt < 1.5;
+    if (!current) return null;
 
-    if (isBig && homeBreak === "Rockaway Beach") return "Big days at Rockaway get crowded fast. Expect a zoo by 8am. Manage expectations.";
-    if (isBig && homeBreak === "Lido Beach") return "When it's this big, Lido breaks cleaner on large N/NE swell. Check the outer bar first.";
-    if (isBig) return "Post-storm size is often cleanest on day two. Verify with buoy data morning-of.";
-    if (isSmall) return "Don't bother today. Dawn patrol only — conditions typically deteriorate by mid-morning.";
-    if (isCross && homeBreak === "Lido Beach") return "Cross winds at Lido tend to clean up late morning on incoming tide.";
-    if (isCross && homeBreak === "Long Beach") return "Long Beach handles cross winds better than most. Worth a look before committing.";
-    if (isCross && homeBreak === "Rockaway Beach") return "Cross winds at Rockaway kill the shape fast. Check back at the next tide turn.";
-    if (isOffshore && isSSE) return "South swell with offshore flow — textbook LI setup. Don't overthink it.";
-    if (isSSE && waveHeightFt >= 2) return "SSE swell at this size hits the Long Beach sandbar well. South peak is your spot.";
-    if (isNE && homeBreak === "Rockaway Beach") return "NE swell wraps nicely around the Rockaways. Outer bar may be your best bet.";
-    if (isOffshore) return "Clean offshore glass. Go now before the sea breeze fills in around noon.";
-    if (isOnshore) return "Onshore chop today. Early morning is your best window before conditions deteriorate.";
+    const windType = current.windType;
+    const windSpeed = current.windSpeedMph ?? 0;
+    const windDir = current.windDirectionDeg ?? null;
+    const tidePhase = current.tidePhase;
+    const period = current.dominantSwellPeriodS ?? 0;
+    const breakingHt = current.breakingWaveHeightFt ?? current.dominantSwellHeightFt ?? 0;
+    const swellDir = current.dominantSwellDirectionDeg ?? null;
+    const secPeriod = 0;
+    const secHt = 0;
+
+    const isLido = homeBreak === "Lido Beach";
+    const isLongBeach = homeBreak === "Long Beach";
+    const isRockaway = homeBreak === "Rockaway Beach";
+
+    const now = new Date();
+    const isWeekend = now.getDay() === 0 || now.getDay() === 6;
+    const month = now.getMonth();
+    const isWinter = month >= 10 || month <= 2; // Nov–Mar
+
+    const isSESwell = swellDir !== null && swellDir >= 110 && swellDir <= 175;
+    const isEastWrap = swellDir !== null && swellDir >= 90 && swellDir <= 105;
+    const isWestBlocked = swellDir !== null && swellDir >= 247.5 && swellDir <= 330;
+    const isWNWWind = windDir !== null && windDir >= 285 && windDir <= 315;
+    const isNNWOffshore = windDir !== null && (windDir >= 310 || windDir <= 34);
+    const isNEWind = windDir !== null && windDir >= 35 && windDir <= 60;
+    const hasSecondaryGroundswell = secHt >= 1.5 && secPeriod >= 8 && period < 7;
+    const isHighTide = tidePhase === 'high';
+    const isFallingTide = tidePhase === 'falling';
+    const isRisingTide = tidePhase === 'rising';
+    const isSmall = breakingHt < 2;
+    const isOnshoreStrong = windType === 'onshore' && windSpeed > 7;
+    const isCross = windType === 'cross';
+    const isOffshore = windType === 'offshore' || windType === 'side-offshore';
+    const isLargeSwell = breakingHt >= 5;
+    const hurricaneSwell = score >= 70 && breakingHt >= 6;
+
+    // Global overrides — checked first regardless of rating
+    if (period >= 12) {
+      return "Long period swell. The canyon is going to focus this. Breaking height will be bigger than the buoy numbers look.";
+    }
+    if (isWNWWind && isRockaway) {
+      return "WNW is actually a solid angle for Rockaway given how deep it sits in the Bight. Better here than it would be at Lido or Long Beach today.";
+    }
+    if (hurricaneSwell) {
+      return "Hurricane swells are the most overhyped days of the year here. Expect crowds, closeouts, and a lot of people who don't know what they're doing. Manage expectations.";
+    }
+
+    // All-Time
+    if (score >= 91) {
+      return "One of maybe five days a year on the south shore. You already know what to do.";
+    }
+
+    // Firing
+    if (score >= 76) {
+      if (isLargeSwell && (!isWinter || isWeekend)) {
+        return "Big swell but expect Rockaway to be a zoo by 8am. These are the most overcrowded days of the year. Paddle out early or go to Lido.";
+      }
+      return "This is a real day. N/NW wind, SE groundswell, mid-tide. These don't come together often on Long Island.";
+    }
+
+    // Go Surf
+    if (score >= 60) {
+      if (isSESwell && isLido) {
+        return "SE groundswell is what the Hudson Canyon was made for. Lido is going to be the best option today.";
+      }
+      if (isSESwell && isLongBeach) {
+        return "SE swell hitting the jetty sandbars at Long Beach at the right angle. Worth the trip.";
+      }
+      if (isOffshore && isNNWOffshore && isRisingTide) {
+        return "North wind offshore and tide coming in. Mid-tide is the sweet spot at these breaks. Go.";
+      }
+      return "Wind is offshore and the swell has period behind it. Conditions are lined up.";
+    }
+
+    // Worth a Look
+    if (score >= 40) {
+      if (isCross && breakingHt >= 2) {
+        return "Swell is real but cross winds are adding texture. Manageable if you don't mind choppy conditions.";
+      }
+      if (isEastWrap) {
+        return "East wrap swell. Lost some energy coming around the island. Less organized than it looks on paper.";
+      }
+      if (hasSecondaryGroundswell) {
+        return "There's some groundswell underneath the chop. More shape in the sets than the numbers suggest.";
+      }
+      if (isNEWind && isSmall) {
+        return "NE offshore helps on bigger days. At this size it's not doing much grooming.";
+      }
+      if (isFallingTide) {
+        return "Tide is dropping and the sandbars are going shallow. Go now or wait for the next push.";
+      }
+      return "Swell is real but cross winds are adding texture. Manageable if you don't mind choppy conditions.";
+    }
+
+    // Don't Bother
+    if (isOnshoreStrong) {
+      return "Onshore wind above 7mph makes these beach breaks unrideable. That's the whole story today.";
+    }
+    if (isCross && isFallingTide) {
+      return "Cross winds and a dropping tide. Nothing is going to hold up.";
+    }
+    if (isSmall && period < 7) {
+      return "Wind swell with no period behind it. These aren't real waves.";
+    }
+    if (isHighTide && isLongBeach) {
+      return "High tide is swamping the sandbars at Long Beach. Come back on the drop.";
+    }
+    if (isWestBlocked) {
+      return "Wrong swell angle for the south shore. The NY Bight is blocking most of the energy.";
+    }
+    if (isSmall) {
+      return "Too small for current conditions. Wait for the next swell.";
+    }
+
     return null;
   };
 
@@ -600,8 +690,8 @@ export default function Members() {
     else if (wt === "cross") tags.push("CROSS WINDS");
     if (waveHt >= minWaveHeight) tags.push("MEETS YOUR MIN");
     const sc = best.quality_score ?? 0;
-    if (sc >= 80) tags.push("FIRING");
-    else if (sc >= 65) tags.push("CLEAN");
+    if (sc >= 76) tags.push("FIRING");
+    else if (sc >= 60) tags.push("CLEAN");
 
     return {
       day: new Date(dateStr).toLocaleDateString("en-US", { weekday: "long" }).toUpperCase(),
@@ -634,7 +724,7 @@ export default function Members() {
   // --- Computed derived values ---
   const nextSession = findNextBestSession(timelineData?.timeline ?? [], dossierMinWaveHeight, dossierWindPreference);
   const verdict = getPersonalizedVerdict(waveHeightFt, homeBreakCurrent?.windType, dossierMinWaveHeight, dossierWindPreference, dossierMinQualityScore, homeBreakScore, nextSession);
-  const localIntel = getLocalIntel(homeBreakCurrent?.windType, homeBreakCurrent?.dominantSwellDirectionDeg, waveHeightFt, dossierHomeBreak);
+  const localIntel = getLocalIntel(homeBreakScore, homeBreakCurrent, dossierHomeBreak);
   const conditionTags = getConditionTags();
 
   return (
@@ -978,11 +1068,6 @@ export default function Members() {
                       <div className="text-[10px] text-gray-800 font-medium uppercase tracking-wide mt-2 leading-snug" style={monoStyle}>
                         {verdict.text}
                       </div>
-                      {localIntel && (
-                        <div className="mt-1 text-[9px] text-gray-500 leading-snug" style={monoStyle}>
-                          {localIntel}
-                        </div>
-                      )}
                     </div>
                     <div className="text-right flex-shrink-0">
                       <div className="text-[8px] uppercase tracking-wider text-gray-400 mb-0.5" style={monoStyle}>Wave Ht</div>
@@ -991,6 +1076,14 @@ export default function Members() {
                       </div>
                     </div>
                   </div>
+
+                  {localIntel && (
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <p className="text-[12px] text-gray-700 leading-relaxed" style={monoStyle}>
+                        {localIntel}
+                      </p>
+                    </div>
+                  )}
 
                   <div className="mt-3">
                     <div className="h-1 bg-gray-100">
@@ -1012,7 +1105,7 @@ export default function Members() {
                             </span>
                           </TooltipTrigger>
                           <TooltipContent side="top" className="max-w-[240px] text-[10px] normal-case tracking-normal font-normal leading-relaxed">
-                            An objective forecast rating (0–100) based on wave shape, swell quality, wind, and tide alignment — the same score shown on the full forecast pages. Your dossier minimum is {dossierMinQualityScore}. Anything below that threshold shows as DON'T BOTHER regardless of wave height or wind.
+                            Forecast rating (0–100) based on wave shape, swell quality, wind, and tide alignment, personalized to your quality preferences.
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
@@ -1076,7 +1169,7 @@ export default function Members() {
                   const windTypeDesc = windTypeRaw.includes("offshore") ? "clean, glassy faces" : windTypeRaw.includes("onshore") ? "blown out, choppy" : windTypeRaw.includes("cross") ? "some texture, rideable" : "";
                   const tidePhase = (homeBreakCurrent?.tidePhase || "").toLowerCase();
                   const tideDesc = tidePhase === "rising" ? "building — most breaks improve" : tidePhase === "falling" ? "dropping — watch shallows" : tidePhase === "high" ? "full tide — slower, fatter" : tidePhase === "low" ? "low — exposed, more punch" : "";
-                  const htFt = homeBreakCurrent?.waveHeightFt;
+                  const htFt = homeBreakCurrent?.breakingWaveHeightFt ?? homeBreakCurrent?.dominantSwellHeightFt;
                   const waveDesc = htFt == null ? "" : htFt >= 8 ? "overhead+ — consequential" : htFt >= 5 ? "head-high — solid" : htFt >= 3 ? "chest to shoulder — fun" : htFt >= 1.5 ? "waist to chest — playful" : "knee-high — beginner only";
                   const stats = [
                     { label: "Wave Ht", value: homeBreakWaveLabel, desc: waveDesc },
@@ -1274,10 +1367,12 @@ export default function Members() {
 
               {/* RIGHT: Video feed */}
               <div className="flex flex-col p-4 border-t-2 md:border-t-0 border-black">
-                <div className="text-[8px] uppercase tracking-widest text-gray-500 mb-3" style={monoStyle}>
-                  Community Feed
+                <div className="mb-4">
+                  <h2 className="text-2xl font-black uppercase text-black leading-tight" style={bebasStyle}>Community Feed</h2>
+                  <p className="text-[9px] uppercase tracking-wider text-gray-500 mt-0.5" style={monoStyle}>Share your favorite local surf clips, sessions, and stoke</p>
                 </div>
-                {communityMediaPosts.slice(0, 3).map((post) => {
+                <div className="overflow-y-auto max-h-[600px] flex flex-col gap-0">
+                {communityMediaPosts.map((post) => {
                   const embedUrl = getYouTubeEmbedUrl(post.url);
                   const showYouTube = Boolean(embedUrl) && (post.type === "my_youtube" || post.type === "shared_youtube");
                   const showImage = post.type === "session_media" && isLikelyImage(post.url);
@@ -1329,6 +1424,7 @@ export default function Members() {
                     </article>
                   );
                 })}
+                </div>
                 {communityMediaPosts.length === 0 && (
                   <div className="text-[9px] text-gray-400 uppercase tracking-wide" style={monoStyle}>
                     No posts yet. Be the first to share.

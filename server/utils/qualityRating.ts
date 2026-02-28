@@ -253,7 +253,8 @@ export function scoreTide(tideFt: number, breakingHeightFt: number, spotName?: s
 // ============================================================================
 
 /**
- * Tier 1 — Premium Offshore (330–20°): N, NNW, NNE (core)
+ * Tier 1 — Premium Offshore (330–20°): N, NNW, NN
+ * E (core)
  * Best possible wind for south-facing beaches.
  */
 function isPremiumOffshore(windDir: number): boolean {
