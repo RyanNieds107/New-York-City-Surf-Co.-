@@ -722,8 +722,28 @@ export default function SpotDetail() {
   };
 
   // Helper functions for 7-day forecast UI
+  const ET_TIMEZONE = 'America/New_York';
+
+  function getEasternParts(date: Date) {
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: ET_TIMEZONE,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+      weekday: 'long',
+    });
+    const parts = Object.fromEntries(fmt.formatToParts(date).map(p => [p.type, p.value]));
+    return {
+      hour: parseInt(parts.hour, 10),   // 0-23 (24 when midnight in some locales → normalize)
+      minute: parseInt(parts.minute, 10),
+      weekday: parts.weekday,
+      month: parts.month,
+      day: parts.day,
+      year: parts.year,
+    };
+  }
+
   const getFullDayName = (date: Date): string => {
-    return date.toLocaleDateString("en-US", { weekday: "long" }).toUpperCase();
+    return date.toLocaleDateString("en-US", { weekday: "long", timeZone: ET_TIMEZONE }).toUpperCase();
   };
 
   const getVerdictLabel = (rating: string): string => {
@@ -1071,7 +1091,7 @@ export default function SpotDetail() {
     if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? "s" : ""} ago`;
     if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? "s" : ""} ago`;
     
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: ET_TIMEZONE });
   };
 
   // Format absolute time
@@ -1080,6 +1100,7 @@ export default function SpotDetail() {
       hour: "numeric",
       minute: "2-digit",
       hour12: true,
+      timeZone: ET_TIMEZONE,
     });
   };
 
@@ -1958,13 +1979,13 @@ export default function SpotDetail() {
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <div className="flex border border-black overflow-hidden" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                       <button
-                        onClick={() => { hasUserToggledModel.current = true; setDayCardModel('euro'); }}
+                        onClick={() => { hasUserToggledModel.current = true; setDayCardModel('euro'); setHourlyModel('euro'); }}
                         className={`px-2.5 py-1.5 text-[9px] uppercase tracking-wider transition-colors ${dayCardModel === 'euro' ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
                       >
                         Euro
                       </button>
                       <button
-                        onClick={() => { hasUserToggledModel.current = true; setDayCardModel('om'); }}
+                        onClick={() => { hasUserToggledModel.current = true; setDayCardModel('om'); setHourlyModel('om'); }}
                         className={`px-2.5 py-1.5 text-[9px] uppercase tracking-wider transition-colors ${dayCardModel === 'om' ? 'bg-black text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
                       >
                         Blend
@@ -2193,13 +2214,13 @@ export default function SpotDetail() {
                         let fullDayName = "";
                         if (isToday) {
                           fullDayName = "TODAY";
-                          dayLabel = `TODAY (${dayDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase()})`;
+                          dayLabel = `TODAY (${dayDate.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: ET_TIMEZONE }).toUpperCase()})`;
                         } else if (isTomorrow) {
                           fullDayName = "TOMORROW";
-                          dayLabel = `TOMORROW (${dayDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase()})`;
+                          dayLabel = `TOMORROW (${dayDate.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: ET_TIMEZONE }).toUpperCase()})`;
                         } else {
                           fullDayName = getFullDayName(dayDate);
-                          dayLabel = `${fullDayName} (${dayDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase()})`;
+                          dayLabel = `${fullDayName} (${dayDate.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: ET_TIMEZONE }).toUpperCase()})`;
                         }
                         
                         // Calculate average quality rating for the day
@@ -2548,13 +2569,13 @@ export default function SpotDetail() {
                                       <span className="text-[8px] text-gray-400 uppercase tracking-wide hidden md:block" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Surf Heights:</span>
                                       <div className="flex border border-black overflow-hidden" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                                         <button
-                                          onClick={() => { hasUserToggledModel.current = true; setHourlyModel('euro'); }}
+                                          onClick={() => { hasUserToggledModel.current = true; setHourlyModel('euro'); setDayCardModel('euro'); }}
                                           className={`px-2.5 py-1 text-[8px] md:text-[9px] font-bold tracking-wider uppercase transition-colors ${hourlyModel === 'euro' ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
                                         >
                                           Euro
                                         </button>
                                         <button
-                                          onClick={() => { hasUserToggledModel.current = true; setHourlyModel('om'); }}
+                                          onClick={() => { hasUserToggledModel.current = true; setHourlyModel('om'); setDayCardModel('om'); }}
                                           className={`px-2.5 py-1 text-[8px] md:text-[9px] font-bold tracking-wider uppercase transition-colors border-l border-black ${hourlyModel === 'om' ? 'bg-black text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
                                         >
                                           Blend
@@ -2702,8 +2723,7 @@ export default function SpotDetail() {
                                       const seenTimes = new Set<string>();
                                       const uniquePoints = points.filter((point) => {
                                         const date = new Date(point.forecastTimestamp);
-                                        const hour = date.getHours();
-                                        const minute = date.getMinutes();
+                                        const { hour, minute } = getEasternParts(date);
                                         const timeKey = `${hour}:${minute}`;
 
                                         if (seenTimes.has(timeKey)) {
@@ -2720,9 +2740,10 @@ export default function SpotDetail() {
 
                                       return uniquePoints.map((point, index) => {
                                         const date = new Date(point.forecastTimestamp);
-                                        const hour = date.getHours();
-                                        const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-                                        const period = hour < 12 ? 'am' : 'pm';
+                                        const { hour } = getEasternParts(date);
+                                        const etHour = hour === 24 ? 0 : hour; // normalize midnight edge case
+                                        const hour12 = etHour === 0 ? 12 : etHour > 12 ? etHour - 12 : etHour;
+                                        const period = etHour < 12 ? 'am' : 'pm';
                                         const qualityScore = getEffectiveQualityScore(point, hourlyModel);
 
                                         // Check if this hour is during nighttime

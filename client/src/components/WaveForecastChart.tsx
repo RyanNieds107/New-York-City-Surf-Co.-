@@ -11,7 +11,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import { format, startOfDay, isSameDay } from "date-fns";
+// date-fns format/startOfDay/isSameDay removed — using Intl for Eastern-time grouping
 import { formatSurfHeight } from "@/lib/forecastUtils";
 
 interface WaveForecastChartProps {
@@ -106,23 +106,35 @@ export function WaveForecastChart({ spotId }: WaveForecastChartProps) {
       return buckets;
     }
 
-    // Daily for 3D/7D: group by calendar day
+    // Daily for 3D/7D: group by Eastern-Time calendar day
+    const ET_TIMEZONE = 'America/New_York';
+    const etDateFmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: ET_TIMEZONE,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+    });
+    const etWeekdayFmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: ET_TIMEZONE,
+      weekday: 'short',
+    });
+    const todayEtKey = etDateFmt.format(new Date());
+
     const dayMap = new Map<string, typeof data.timeline>();
     for (const pt of data.timeline) {
-      const dayKey = startOfDay(new Date(pt.forecastTimestamp)).toISOString();
+      const dayKey = etDateFmt.format(new Date(pt.forecastTimestamp));
       if (!dayMap.has(dayKey)) dayMap.set(dayKey, []);
       dayMap.get(dayKey)!.push(pt);
     }
 
-    const today = startOfDay(new Date());
     return Array.from(dayMap.entries()).map(([dayKey, pts]) => {
-      const dayDate = new Date(dayKey);
       const best = pts.reduce((a, b) =>
         (b.quality_score ?? 0) > (a.quality_score ?? 0) ? b : a
       );
       const dayEcmwf = pts.map((p) => p.ecmwfWaveHeightFt).filter((v) => v != null) as number[];
+      // Use the first point's timestamp to derive a weekday label in ET
+      const sampleDate = new Date(pts[0].forecastTimestamp);
+      const weekdayLabel = dayKey === todayEtKey ? "Today" : etWeekdayFmt.format(sampleDate);
       return {
-        label: isSameDay(dayDate, today) ? "Today" : format(dayDate, "EEE"),
+        label: weekdayLabel,
         waveHeight: Math.max(...pts.map((p) => p.breakingWaveHeightFt ?? p.dominantSwellHeightFt ?? 0)),
         qualityScore: Math.max(...pts.map((p) => p.quality_score ?? 0)),
         period: best.dominantSwellPeriodS ?? null,
