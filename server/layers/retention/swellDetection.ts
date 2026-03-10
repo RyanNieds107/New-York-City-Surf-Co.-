@@ -50,6 +50,7 @@ export interface DetectedSwell {
   swellStartTime: Date;
   swellEndTime: Date;
   peakWaveHeightFt: number;
+  peakSwellHeightFt: number | null;        // Peak offshore swell height (for swell display line)
   peakQualityScore: number;
   avgQualityScore: number;
   avgPeriodSec: number;
@@ -163,6 +164,7 @@ export async function detectUpcomingSwells(
         swellStartTime: window.startTime,
         swellEndTime: window.endTime,
         peakWaveHeightFt: window.peakHeight,
+        peakSwellHeightFt: window.peakSwellHeight,
         peakQualityScore: window.peakScore,
         avgQualityScore: window.avgScore,
         avgPeriodSec: window.avgPeriod,
@@ -184,6 +186,7 @@ interface SwellWindow {
   startTime: Date;
   endTime: Date;
   peakHeight: number;
+  peakSwellHeight: number | null;          // Peak offshore swell height (dominantSwellHeightFt)
   peakScore: number;
   avgScore: number;
   avgPeriod: number;
@@ -355,17 +358,24 @@ function createWindowFromPoints(
 
   // Calculate peak and average values
   let peakHeight = 0;
+  let peakSwellHeight: number | null = null;
   let peakScore = 0;
   let totalScore = 0;
   let totalPeriod = 0;
   let validPeriods = 0;
 
   const conditions = points.map(point => {
-    const breakingHeight = point.breakingWaveHeightFt ?? point.dominantSwellHeightFt ?? point.waveHeightFt ?? 0;
+    // Breaking wave height only - do NOT fall back to dominantSwellHeightFt (offshore swell != breaking height)
+    const breakingHeight = point.breakingWaveHeightFt ?? point.waveHeightFt ?? 0;
     const qualityScore = point.quality_score ?? point.probabilityScore ?? 0;
     const period = point.dominantSwellPeriodS ?? point.wavePeriodSec ?? 0;
 
     if (breakingHeight > peakHeight) peakHeight = breakingHeight;
+    // Track peak offshore swell height separately for the swell display line
+    const swellHeight = point.dominantSwellHeightFt;
+    if (swellHeight !== null && (peakSwellHeight === null || swellHeight > peakSwellHeight)) {
+      peakSwellHeight = swellHeight;
+    }
     if (qualityScore > peakScore) peakScore = qualityScore;
     totalScore += qualityScore;
     if (period > 0) {
@@ -414,6 +424,7 @@ function createWindowFromPoints(
     startTime: firstTime,
     endTime: lastTime,
     peakHeight,
+    peakSwellHeight,
     peakScore,
     avgScore,
     avgPeriod,
