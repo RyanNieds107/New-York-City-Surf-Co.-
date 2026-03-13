@@ -263,8 +263,7 @@ export default function Dashboard() {
   // Check if spot should show "Coming Soon"
   const isComingSoonSpot = (spotName: string) => {
     return spotName === "Gilgo Beach" ||
-           spotName === "Belmar" ||
-           spotName === "Montauk";
+           spotName === "Belmar";
   };
 
   // Get image path for a spot
@@ -290,7 +289,7 @@ export default function Dashboard() {
   };
 
   // Split spots into top 3 (photo cards) and bottom 3 (regular cards)
-  const topThreeSpotNames = ["Rockaway Beach", "Long Beach", "Lido Beach"];
+  const topThreeSpotNames = ["Rockaway Beach", "Long Beach", "Lido Beach", "Montauk"];
   const topThreeSpots = sortedSpots.filter((spot) => {
     return topThreeSpotNames.includes(spot.name);
   });

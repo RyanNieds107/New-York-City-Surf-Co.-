@@ -674,12 +674,13 @@ export async function applyBuoyOverrideToCurrentPoint(
   }
   
   // Import dependencies
-  const { fetchBuoy44065Cached } = await import("./buoy44065");
   const { calculateBuoyBreakingWaveHeight } = await import("../utils/waveHeight");
-  
+
   console.log(`[Timeline Buoy Override] Fetching buoy data...`);
-  // Fetch buoy data
-  const buoyData = await fetchBuoy44065Cached();
+  // Route to the correct buoy based on spot
+  const buoyData = spot.name === "Montauk"
+    ? await (await import("./buoyMontauk")).fetchMontaukBuoyCached()
+    : await (await import("./buoy44065")).fetchBuoy44065Cached();
   console.log(`[Timeline Buoy Override] Buoy data received:`, {
     hasData: !!buoyData,
     isStale: buoyData?.isStale,

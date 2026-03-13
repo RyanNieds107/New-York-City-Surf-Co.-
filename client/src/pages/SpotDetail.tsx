@@ -59,6 +59,7 @@ import { useLocation } from "wouter";
 import { LidoBeachTabs } from "@/components/spot-tabs/LidoBeachTabs";
 import { RockawayBeachTabs } from "@/components/spot-tabs/RockawayBeachTabs";
 import { LongBeachTabs } from "@/components/spot-tabs/LongBeachTabs";
+import { MontaukTabs } from "@/components/spot-tabs/MontaukTabs";
 import { SpotInfoCard } from "@/components/SpotInfoCard";
 
 // Ideal conditions data for each spot
@@ -85,6 +86,12 @@ const idealConditionsMap: Record<string, {
     waveHeight: "3-5ft at 8-10s swell period",
     windDirection: "N (offshore)",
     tide: "Incoming Low-Mid",
+  },
+  "Montauk": {
+    swellDirection: "E - S (90-180°), best SE (120-150°)",
+    waveHeight: "4-8ft+ at 8-14s swell period",
+    windDirection: "NW - W (offshore)",
+    tide: "Mid Incoming (avoid low — rocks exposed)",
   },
 };
 
@@ -1365,6 +1372,45 @@ export default function SpotDetail() {
                 </h1>
                 <p className="text-lg text-white/90" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                   40.5834° N • -73.8168° W
+                </p>
+              </div>
+            </div>
+          </div>
+        </header>
+      ) : spot.name === "Montauk" ? (
+        <header className="relative w-full h-64 overflow-hidden">
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: `url('/Montauk.jpg')` }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
+          <div className="relative h-full flex flex-col justify-end pb-8 px-8">
+            <div className="container max-w-5xl mx-auto">
+              <div className="flex items-center justify-between mb-4">
+                <Link href="/dashboard">
+                  <Button variant="ghost" size="icon" className="text-white hover:text-white hover:bg-white/20">
+                    <ArrowLeft className="h-5 w-5" />
+                  </Button>
+                </Link>
+                <div className="flex items-center gap-3">
+                  <Button
+                    onClick={() => refreshMutation.mutate({ spotId })}
+                    disabled={refreshMutation.isPending}
+                    variant="outline"
+                    size="sm"
+                    className="border-white text-white hover:bg-white/20"
+                  >
+                    <RefreshCw className={`h-3 w-3 mr-1.5 ${refreshMutation.isPending ? "animate-spin" : ""}`} />
+                    Refresh
+                  </Button>
+                </div>
+              </div>
+              <div>
+                <h1 className="text-5xl md:text-6xl font-black text-white mb-3 uppercase tracking-tight" style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
+                  MONTAUK
+                </h1>
+                <p className="text-lg text-white/90" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  41.0359° N • -71.9545° W
                 </p>
               </div>
             </div>
@@ -3056,7 +3102,7 @@ export default function SpotDetail() {
             )}
 
             {/* Tabbed Content Interface */}
-            {spot && (spot.name === "Lido Beach" || spot.name === "Rockaway Beach" || spot.name === "Long Beach") && (
+            {spot && (spot.name === "Lido Beach" || spot.name === "Rockaway Beach" || spot.name === "Long Beach" || spot.name === "Montauk") && (
               <div id="guide" className="mt-8 sm:mt-12">
 
                 {/* Unified nav: header + tab strip. border-b-0 so content below shares the border line */}
@@ -3125,6 +3171,7 @@ export default function SpotDetail() {
                     {spot.name === "Lido Beach" && <LidoBeachTabs activeTab={activeTab} />}
                     {spot.name === "Rockaway Beach" && <RockawayBeachTabs activeTab={activeTab} />}
                     {spot.name === "Long Beach" && <LongBeachTabs activeTab={activeTab} />}
+                    {spot.name === "Montauk" && <MontaukTabs activeTab={activeTab} />}
                   </div>
                 </GateOverlay>
 

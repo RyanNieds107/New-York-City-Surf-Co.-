@@ -37,4 +37,7 @@ export const SPOT_CONTEXT: Record<string, { headline: string; description?: stri
   "Rockaway Beach": {
     headline: "The Heart of the NYC Surf Scene",
   },
+  "Montauk": {
+    headline: "The East End's Most Exposed Break",
+  },
 };

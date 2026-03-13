@@ -38,6 +38,14 @@ export const SPOT_PROFILES: Record<string, SpotProfile> = {
     min_period_s: 5,
     multiplier: 1.1, // Fixed wave height multiplier
   },
+  'montauk': {
+    name: 'Montauk',
+    // Montauk faces SE–S; also picks up E and even NE swells around the point
+    swell_target_deg: 135, // SE — prime direction for Ditch Plains and Montauk Point
+    swell_tolerance_deg: 55, // Covers 80° (ENE) to 190° (SSW)
+    min_period_s: 6,
+    multiplier: 1.2, // Exposed headland; open-ocean fetch, good refraction
+  },
 };
 
 /**
@@ -47,6 +55,7 @@ const SPOT_NAME_TO_KEY: Record<string, string> = {
   'Lido Beach': 'lido',
   'Long Beach': 'long-beach',
   'Rockaway Beach': 'rockaway',
+  'Montauk': 'montauk',
 };
 
 /**
@@ -133,6 +142,12 @@ export function calculateSpotMultiplier(
     case 'ROCKAWAY':
       // Rockaway Beach: Deep in NY Bight shadow
       baseMultiplier = 1.1;
+      break;
+
+    case 'montauk':
+    case 'MONTAUK':
+      // Montauk: Exposed headland, full open-ocean fetch
+      baseMultiplier = 1.15;
       break;
 
     default:

@@ -14,6 +14,7 @@ export const SPOT_COORDINATES: Record<string, SpotCoordinates> = {
   "lido": { lat: 40.5892, lon: -73.6265 },
   "rockaway": { lat: 40.5830, lon: -73.8160 },
   "long-beach": { lat: 40.5880, lon: -73.6580 },
+  "montauk": { lat: 41.0359, lon: -71.9545 },
 };
 
 /**
@@ -23,6 +24,7 @@ export const SPOT_NAME_TO_KEY: Record<string, string> = {
   "Lido Beach": "lido",
   "Rockaway Beach": "rockaway",
   "Long Beach": "long-beach",
+  "Montauk": "montauk",
 };
 
 /**

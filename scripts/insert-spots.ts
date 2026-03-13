@@ -32,11 +32,19 @@ async function insertSpots() {
         buoyId: "44065",
         tideStationId: "8518750",
       },
+      {
+        name: "Montauk",
+        latitude: "41.0359",
+        longitude: "-71.9545",
+        buoyId: "44017",        // Montauk Point buoy (primary); 44097 Block Island is fallback
+        tideStationId: "8510560", // Montauk Harbor, NY
+      },
     ]);
-    console.log("✓ Successfully inserted 3 surf spots:");
+    console.log("✓ Successfully inserted 4 surf spots:");
     console.log("  - Lido Beach");
     console.log("  - Rockaway Beach");
     console.log("  - Long Beach");
+    console.log("  - Montauk");
   } catch (error) {
     console.error("✗ Error inserting spots:", error);
     process.exit(1);

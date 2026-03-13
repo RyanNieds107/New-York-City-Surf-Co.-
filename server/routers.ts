@@ -63,6 +63,7 @@ import { eq, desc, and, gt, lte, sql } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { getDb } from "./db";
 import { fetchBuoy44065Cached, clearBuoyCache } from "./layers/environmental/clients/buoy44065";
+import { fetchMontaukBuoyCached, clearMontaukBuoyCache } from "./services/buoyMontauk";
 import { addConfidenceToTimeline, getConfidenceSummary, getConfidenceBadgeText, getWaveHeightDiscrepancy, getWaveHeightDiscrepancyByDay, selectRecommendedModel, type ConfidenceLevel } from "./utils/forecastConfidence";
 import { adminProcedure } from "./_core/trpc";
 import { sendBatchEmails, sendEmail } from "./services/email";
@@ -467,13 +468,14 @@ export const appRouter = router({
         { name: "Lido Beach", latitude: "40.5892", longitude: "-73.6265", buoyId: "44065", tideStationId: "8518750" },
         { name: "Rockaway Beach", latitude: "40.5830", longitude: "-73.8160", buoyId: "44065", tideStationId: "8518750" },
         { name: "Long Beach", latitude: "40.5880", longitude: "-73.6580", buoyId: "44065", tideStationId: "8518750" },
+        { name: "Montauk", latitude: "41.0359", longitude: "-71.9545", buoyId: "44017", tideStationId: "8510560" },
       ];
 
       for (const spot of spots) {
         await createSpot(spot);
       }
 
-      return { success: true, message: "Seeded 3 spots", count: 3 };
+      return { success: true, message: "Seeded 4 spots", count: 4 };
     }),
   }),
 
@@ -973,8 +975,9 @@ export const appRouter = router({
         // Auto-select best forecast model by comparing buoy observation vs both models
         let recommendedModel: { model: 'euro' | 'om'; reason: string; buoyHeightFt: number; omDiffFt: number; euroDiffFt: number | null } | null = null;
         try {
-          const { fetchBuoy44065Cached } = await import("./services/buoy44065");
-          const buoyData = await fetchBuoy44065Cached();
+          const buoyData = spot.name === "Montauk"
+            ? await fetchMontaukBuoyCached()
+            : await fetchBuoy44065Cached();
 
           // Find the current (first) timeline point for OM wave height
           const now = Date.now();
@@ -1201,6 +1204,7 @@ export const appRouter = router({
           "Lido Beach": "40.5892,-73.6265",
           "Long Beach": "40.5883,-73.6579",
           "Rockaway Beach": "40.5833,-73.8167",
+          "Montauk": "41.0359,-71.9545",
         };
 
         // Round origin to 3 decimal places to improve cache hit rate
@@ -1309,29 +1313,45 @@ export const appRouter = router({
       return reading;
     }),
 
+    // Get real-time data for Montauk (44017 primary, 44097 Block Island fallback)
+    getMontauk: publicProcedure.query(async () => {
+      const reading = await fetchMontaukBuoyCached();
+      return reading;
+    }),
+
     // Clear buoy cache (for debugging/forcing refresh)
     clearCache: publicProcedure.mutation(async () => {
       clearBuoyCache();
+      clearMontaukBuoyCache();
       const freshReading = await fetchBuoy44065Cached();
       return { success: true, reading: freshReading };
     }),
 
     // Calculate breaking wave heights for all featured spots based on buoy data
     getBreakingHeightsForSpots: publicProcedure.query(async () => {
-      const reading = await fetchBuoy44065Cached();
-      console.log('[Buoy Breaking Heights] Raw buoy reading:', reading ? {
+      const [reading, montaukReading] = await Promise.all([
+        fetchBuoy44065Cached(),
+        fetchMontaukBuoyCached(),
+      ]);
+      console.log('[Buoy Breaking Heights] Raw buoy reading (44065):', reading ? {
         swellHeight: reading.swellHeight,
         swellPeriod: reading.swellPeriod,
         windWaveHeight: reading.windWaveHeight,
         windWavePeriod: reading.windWavePeriod,
         timestamp: reading.timestamp,
       } : 'NULL - buoy data unavailable');
+      console.log('[Buoy Breaking Heights] Montauk buoy reading:', montaukReading ? {
+        source: montaukReading.source,
+        swellHeight: montaukReading.swellHeight,
+        swellPeriod: montaukReading.swellPeriod,
+        timestamp: montaukReading.timestamp,
+      } : 'NULL - Montauk buoy data unavailable');
 
-      if (!reading) {
+      if (!reading && !montaukReading) {
         return null;
       }
 
-      const featuredSpotNames = ["Rockaway Beach", "Long Beach", "Lido Beach"];
+      const featuredSpotNames = ["Rockaway Beach", "Long Beach", "Lido Beach", "Montauk"];
       const results: Record<string, { height: number; period: number; direction: number | null }> = {};
 
       // Get all spots to access tide station IDs
@@ -1345,6 +1365,13 @@ export const appRouter = router({
         const spot = allSpots.find(s => s.name === spotName);
         if (!spot) {
           console.warn(`[Buoy Breaking Heights] Spot not found: ${spotName}`);
+          continue;
+        }
+
+        // Route buoy reading: Montauk uses its own buoy, all others use 44065
+        const spotReading = spotName === "Montauk" ? montaukReading : reading;
+        if (!spotReading) {
+          console.warn(`[Buoy Breaking Heights] No buoy data for ${spotName}`);
           continue;
         }
 
@@ -1364,12 +1391,12 @@ export const appRouter = router({
         // Calculate QUALITY-WEIGHTED energy for both components to determine which is dominant
         // SURF FORECASTER'S RULE: Period < 5s is wind chop, not surfable waves
         // We use the same calculateSwellEnergy function that applies period quality factors
-        const swellEnergy = reading.swellHeight !== null && reading.swellPeriod !== null
-          ? calculateSwellEnergy(reading.swellHeight, reading.swellPeriod)
+        const swellEnergy = spotReading.swellHeight !== null && spotReading.swellPeriod !== null
+          ? calculateSwellEnergy(spotReading.swellHeight, spotReading.swellPeriod)
           : 0;
-        
-        const windWaveEnergy = reading.windWaveHeight !== null && reading.windWavePeriod !== null
-          ? calculateSwellEnergy(reading.windWaveHeight, reading.windWavePeriod)
+
+        const windWaveEnergy = spotReading.windWaveHeight !== null && spotReading.windWavePeriod !== null
+          ? calculateSwellEnergy(spotReading.windWaveHeight, spotReading.windWavePeriod)
           : 0;
 
         // Use the height and period that correspond to the dominant SURFABLE energy component
@@ -1378,21 +1405,21 @@ export const appRouter = router({
         let waveDirection: number | null;
 
         // Wind waves only win if they have higher quality-weighted energy AND period >= 5s (surfable)
-        if (windWaveEnergy > swellEnergy && reading.windWaveHeight !== null && reading.windWavePeriod !== null && reading.windWavePeriod >= 5) {
+        if (windWaveEnergy > swellEnergy && spotReading.windWaveHeight !== null && spotReading.windWavePeriod !== null && spotReading.windWavePeriod >= 5) {
           // Wind waves are dominant AND surfable
-          waveHeight = reading.windWaveHeight;
-          dominantPeriod = reading.windWavePeriod;
-          waveDirection = reading.windWaveDirectionDeg;
+          waveHeight = spotReading.windWaveHeight;
+          dominantPeriod = spotReading.windWavePeriod;
+          waveDirection = spotReading.windWaveDirectionDeg;
           console.log(`[Buoy Breaking Heights] ${spotName}: Using wind waves (quality-weighted energy: ${windWaveEnergy.toFixed(1)}) - ${waveHeight.toFixed(1)}ft @ ${dominantPeriod}s`);
-        } else if (reading.swellHeight !== null && reading.swellPeriod !== null && reading.swellPeriod >= 5) {
+        } else if (spotReading.swellHeight !== null && spotReading.swellPeriod !== null && spotReading.swellPeriod >= 5) {
           // Swell is dominant (or wind waves are unsurfable chop)
-          waveHeight = reading.swellHeight;
-          dominantPeriod = reading.swellPeriod;
-          waveDirection = reading.swellDirectionDeg;
+          waveHeight = spotReading.swellHeight;
+          dominantPeriod = spotReading.swellPeriod;
+          waveDirection = spotReading.swellDirectionDeg;
           console.log(`[Buoy Breaking Heights] ${spotName}: Using swell (quality-weighted energy: ${swellEnergy.toFixed(1)}) - ${waveHeight.toFixed(1)}ft @ ${dominantPeriod}s`);
         } else {
           // Both components have period < 5s - no surfable waves
-          console.warn(`[Buoy Breaking Heights] ${spotName}: No surfable waves - swell period ${reading.swellPeriod}s, wind wave period ${reading.windWavePeriod}s (both < 5s)`);
+          console.warn(`[Buoy Breaking Heights] ${spotName}: No surfable waves - swell period ${spotReading.swellPeriod}s, wind wave period ${spotReading.windWavePeriod}s (both < 5s)`);
           results[spotName] = { height: 0, period: 0, direction: null };
           continue;
         }
@@ -2265,7 +2292,7 @@ export const appRouter = router({
       sendTestAlert: adminProcedure
         .input(
           z.object({
-            spotName: z.enum(["Long Beach", "Rockaway Beach", "Lido Beach"]).default("Long Beach"),
+            spotName: z.enum(["Long Beach", "Rockaway Beach", "Lido Beach", "Montauk"]).default("Long Beach"),
             waveHeightFt: z.number().min(1).max(15).default(5),
             periodSec: z.number().min(5).max(20).default(10),
             qualityScore: z.number().min(0).max(100).default(75),

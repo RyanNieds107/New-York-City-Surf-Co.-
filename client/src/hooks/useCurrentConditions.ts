@@ -45,6 +45,14 @@ export function useCurrentConditions(spotId: number, options?: { refetchInterval
     staleTime: 15 * 60 * 1000,
   });
 
+  // Fetch Montauk buoy data (44017 primary, 44097 fallback) — only when viewing Montauk
+  const isMontauk = spotQuery.data?.name === "Montauk";
+  const montaukBuoyQuery = trpc.buoy.getMontauk.useQuery(undefined, {
+    enabled: isMontauk,
+    refetchInterval,
+    staleTime: 15 * 60 * 1000,
+  });
+
   // Select current point from timeline (past only, within 1 hour)
   const currentPoint = useMemo(() => {
     return selectCurrentTimelinePoint(timelineQuery.data?.timeline) ?? null;
@@ -139,8 +147,9 @@ export function useCurrentConditions(spotId: number, options?: { refetchInterval
 
       // Priority 2: Buoy fallback (when no timeline data)
       if (buoySwellPeriod !== null && buoySwellPeriod !== undefined && buoySwellPeriod > 0) {
+        const activeBuoy = isMontauk ? montaukBuoyQuery.data : buoyQuery.data;
         return {
-          height: buoyQuery.data?.swellHeight ?? null,
+          height: activeBuoy?.swellHeight ?? null,
           period: buoySwellPeriod,
           direction: buoySwellDirection ?? null,
           type: 'buoy' as const,
@@ -199,8 +208,8 @@ export function useCurrentConditions(spotId: number, options?: { refetchInterval
       spotName: spotName ?? null,
       // Model confidence for forecast uncertainty display
       modelConfidence,
-      // Full point data for advanced usage
-      buoyData: buoyQuery.data ?? null,
+      // Full point data for advanced usage — use Montauk buoy for Montauk spot
+      buoyData: (spotName === "Montauk" ? montaukBuoyQuery.data : buoyQuery.data) ?? null,
     };
   }, [
     currentPoint,
@@ -208,6 +217,8 @@ export function useCurrentConditions(spotId: number, options?: { refetchInterval
     forecastQuery.data,
     buoyBreakingHeightsQuery.data,
     buoyQuery.data,
+    montaukBuoyQuery.data,
+    isMontauk,
     timelineQuery.data?.confidence,
   ]);
 
@@ -222,6 +233,7 @@ export function useCurrentConditions(spotId: number, options?: { refetchInterval
       forecast: forecastQuery,
       buoyBreakingHeights: buoyBreakingHeightsQuery,
       buoy: buoyQuery,
+      montaukBuoy: montaukBuoyQuery,
     },
   };
 }
