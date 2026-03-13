@@ -362,9 +362,9 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* Top 3 Spots - Photo Cards */}
+            {/* Active Spots - Photo Cards */}
             {topThreeSpots.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-3 sm:mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-3 sm:mb-4">
                 {topThreeSpots.map((spot) => {
                   const imagePath = getSpotImagePath(spot.name);
                   const region = getSpotRegion(spot.name);
