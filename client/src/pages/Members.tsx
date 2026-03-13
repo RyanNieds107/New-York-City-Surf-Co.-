@@ -60,8 +60,8 @@ export default function Members() {
   
   // Advanced filters state
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [minWaveHeight, setMinWaveHeight] = useState<number | null>(null);
-  const [minPeriod, setMinPeriod] = useState<number | null>(null);
+  const [minWaveHeight, setMinWaveHeight] = useState<number | null>(2);
+  const [minPeriod, setMinPeriod] = useState<number | null>(7);
   const [allowedDays, setAllowedDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]); // 0=Sun, 6=Sat
 
   // Crowd report state
@@ -1601,61 +1601,49 @@ export default function Members() {
                     <div className="mt-3 pt-3 border-t border-gray-200 space-y-3">
                       {/* Min Wave Height */}
                       <div>
-                        <div className="flex justify-between items-center mb-1.5">
-                          <label className="text-xs text-gray-700 font-semibold uppercase tracking-wide sm:tracking-widest" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                            Min Wave Height
-                          </label>
-                          <span className="text-xs text-black font-bold" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                            {minWaveHeight !== null ? `${minWaveHeight}ft` : 'Off'}
-                          </span>
-                        </div>
-                        <div className="relative">
-                          <input
-                            type="range"
-                            min="0"
-                            max="6"
-                            step="0.5"
-                            value={minWaveHeight ?? 0}
-                            onChange={(e) => {
-                              const val = parseFloat(e.target.value);
-                              setMinWaveHeight(val === 0 ? null : val);
-                            }}
-                            className="w-full h-2 bg-gray-200 rounded-sm appearance-none cursor-pointer accent-black"
-                          />
-                          <div className="flex justify-between text-[8px] text-gray-500 mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                            <span>Off</span>
-                            <span>6ft</span>
-                          </div>
+                        <label className="text-xs text-gray-700 font-semibold uppercase tracking-wide sm:tracking-widest mb-2 block" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                          Min Wave Height
+                        </label>
+                        <div className="flex gap-1.5 flex-wrap">
+                          {([null, 2, 3, 4, 5, 6] as (number | null)[]).map((val) => (
+                            <button
+                              key={val ?? 'any'}
+                              type="button"
+                              onClick={() => setMinWaveHeight(val)}
+                              className={`px-3 h-8 text-xs font-bold transition-all border-2 ${
+                                minWaveHeight === val
+                                  ? "bg-black text-white border-black"
+                                  : "bg-white text-black border-gray-300 hover:border-black"
+                              }`}
+                              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                            >
+                              {val === null ? 'Any' : val === 6 ? '6ft+' : `${val}ft`}
+                            </button>
+                          ))}
                         </div>
                       </div>
 
                       {/* Min Swell Period */}
                       <div>
-                        <div className="flex justify-between items-center mb-1.5">
-                          <label className="text-xs text-gray-700 font-semibold uppercase tracking-wide sm:tracking-widest" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                            Min Swell Period
-                          </label>
-                          <span className="text-xs text-black font-bold" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                            {minPeriod !== null ? `${minPeriod}s` : 'Off'}
-                          </span>
-                        </div>
-                        <div className="relative">
-                          <input
-                            type="range"
-                            min="0"
-                            max="16"
-                            step="1"
-                            value={minPeriod ?? 0}
-                            onChange={(e) => {
-                              const val = parseInt(e.target.value);
-                              setMinPeriod(val === 0 ? null : val < 6 ? 6 : val);
-                            }}
-                            className="w-full h-2 bg-gray-200 rounded-sm appearance-none cursor-pointer accent-black"
-                          />
-                          <div className="flex justify-between text-[8px] text-gray-500 mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                            <span>Off</span>
-                            <span>16s</span>
-                          </div>
+                        <label className="text-xs text-gray-700 font-semibold uppercase tracking-wide sm:tracking-widest mb-2 block" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                          Min Swell Period
+                        </label>
+                        <div className="flex gap-1.5 flex-wrap">
+                          {([null, 7, 8, 9, 10, 12] as (number | null)[]).map((val) => (
+                            <button
+                              key={val ?? 'any'}
+                              type="button"
+                              onClick={() => setMinPeriod(val)}
+                              className={`px-3 h-8 text-xs font-bold transition-all border-2 ${
+                                minPeriod === val
+                                  ? "bg-black text-white border-black"
+                                  : "bg-white text-black border-gray-300 hover:border-black"
+                              }`}
+                              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                            >
+                              {val === null ? 'Any' : val === 12 ? '12s+' : `${val}s`}
+                            </button>
+                          ))}
                         </div>
                       </div>
 

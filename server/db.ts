@@ -938,7 +938,7 @@ export async function logSwellAlertSent(alertLog: InsertSwellAlertLog): Promise<
     pushSent: alertLog.pushSent ?? 0,
   });
   
-  return result.insertId;
+  return result[0].insertId;
 }
 
 export async function updateSwellAlertLogEmailSent(
