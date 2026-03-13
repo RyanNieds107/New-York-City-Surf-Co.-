@@ -1179,7 +1179,7 @@ export async function trackForecastView(data: {
 /**
  * Get forecast views from 23-25 hours ago where prompt hasn't been sent yet.
  * Used by the sendReportPrompts job.
- * Filters to only include views with meaningful engagement (10+ seconds).
+ * Only includes views where the user responded "yes" to the surf plan popup.
  */
 export async function getPendingReportPrompts(): Promise<ForecastView[]> {
   const db = await getDb();
@@ -1190,7 +1190,7 @@ export async function getPendingReportPrompts(): Promise<ForecastView[]> {
   const startWindow = new Date(now.getTime() - 25 * 60 * 60 * 1000); // 25 hours ago
   const endWindow = new Date(now.getTime() - 23 * 60 * 60 * 1000); // 23 hours ago
 
-  // Get pending views with meaningful engagement OR users who said yes to surfing
+  // Only send prompts to users who explicitly said yes to the surf plan popup
   const views = await db
     .select()
     .from(forecastViews)
@@ -1199,10 +1199,7 @@ export async function getPendingReportPrompts(): Promise<ForecastView[]> {
         eq(forecastViews.promptSent, 0),
         gte(forecastViews.viewedAt, startWindow),
         lte(forecastViews.viewedAt, endWindow),
-        or(
-          gte(forecastViews.sessionDuration, 10), // Original: meaningful engagement
-          eq(forecastViews.surfPlanResponse, 'yes') // NEW: User clicked "Yes" to surf plan popup
-        )
+        eq(forecastViews.surfPlanResponse, 'yes')
       )
     )
     .orderBy(forecastViews.viewedAt);

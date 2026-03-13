@@ -448,7 +448,7 @@ export default function SpotDetail() {
   // Track forecast view for post-surf report prompts
   const trackViewMutation = trpc.reports.trackView.useMutation();
 
-  // Track view only after 10+ seconds of engagement
+  // Track view only after 15+ seconds of engagement
   useEffect(() => {
     if (!spotId || !user) return;
 
@@ -456,7 +456,7 @@ export default function SpotDetail() {
     const forecastTime = new Date();
     let tracked = false;
 
-    // Track after 10 seconds of engagement
+    // Track after 15 seconds of engagement
     const engagementTimer = setTimeout(() => {
       tracked = true;
       const duration = Math.floor((Date.now() - arrivalTime) / 1000);
@@ -466,13 +466,13 @@ export default function SpotDetail() {
         forecastTime: forecastTime.toISOString(),
         sessionDuration: duration,
       });
-    }, 10000); // 10 seconds
+    }, 15000); // 15 seconds
 
-    // Also track if user switches away after 10s
+    // Also track if user switches away after 15s
     const handleVisibilityChange = () => {
       if (document.hidden && !tracked) {
         const duration = Math.floor((Date.now() - arrivalTime) / 1000);
-        if (duration >= 10) {
+        if (duration >= 15) {
           tracked = true;
           trackViewMutation.mutate({
             spotId,

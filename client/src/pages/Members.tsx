@@ -1176,8 +1176,8 @@ export default function Members() {
                     { label: "Period", value: periodS ? `${periodS}s` : "—", desc: periodDesc },
                     { label: "Swell Dir", value: swellDirDeg != null ? `${swellDirDeg}° ${formatCardinal(swellDirDeg)}` : "—", desc: swellDirDesc },
                     { label: "Wind", value: `${homeBreakWindSpeed}mph ${windDirection}`, desc: windTypeDesc },
-                    { label: "Tide", value: homeBreakCurrent?.tidePhase ? homeBreakCurrent.tidePhase.toUpperCase() : "—", desc: tideDesc },
                     { label: "Wind Type", value: windTypeRaw ? windTypeRaw.replace("-", " ").toUpperCase() : "—", desc: "" },
+                    { label: "Tide", value: homeBreakCurrent?.tidePhase ? homeBreakCurrent.tidePhase.toUpperCase() : "—", desc: tideDesc },
                   ];
                   return (
                     <div className="bg-slate-700 px-4 py-4">
