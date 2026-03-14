@@ -55,6 +55,16 @@ export default function AdminForecastComparison() {
     }
   );
 
+  const triggerOpenMeteoMutation = trpc.admin.forecasts.triggerOpenMeteoFetch.useMutation({
+    onSuccess: (result) => {
+      toast.success(result.message);
+      comparisonQuery.refetch();
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to fetch Open-Meteo data");
+    },
+  });
+
   const triggerFetchMutation = trpc.admin.forecasts.triggerStormglassFetch.useMutation({
     onSuccess: (result) => {
       toast.success(result.message);
@@ -320,6 +330,20 @@ export default function AdminForecastComparison() {
             >
               <RefreshCw className={`h-3 w-3 ${comparisonQuery.isFetching ? "animate-spin" : ""}`} />
               Refresh
+            </button>
+
+            {/* Fetch Open-Meteo */}
+            <button
+              onClick={() => triggerOpenMeteoMutation.mutate()}
+              disabled={triggerOpenMeteoMutation.isPending}
+              className="flex items-center gap-1.5 border border-white/40 text-white text-xs px-3 py-2 hover:bg-white hover:text-black disabled:opacity-40 uppercase tracking-widest transition-colors"
+              style={monoStyle}
+            >
+              {triggerOpenMeteoMutation.isPending
+                ? <Loader2 className="h-3 w-3 animate-spin" />
+                : <Download className="h-3 w-3" />
+              }
+              Fetch Open-Meteo
             </button>
 
             {/* Fetch Stormglass */}

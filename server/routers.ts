@@ -2008,6 +2008,21 @@ export const appRouter = router({
 
   admin: router({
     forecasts: router({
+      // Manually trigger Open-Meteo Marine ingestion for all spots
+      triggerOpenMeteoFetch: adminProcedure
+        .mutation(async () => {
+          const { importOpenMeteoMarineForecasts } = await import("./jobs/importOpenMeteoMarine");
+          try {
+            await importOpenMeteoMarineForecasts();
+            return { success: true, message: "Open-Meteo forecast points refreshed for all spots" };
+          } catch (error: any) {
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: error.message || "Failed to fetch Open-Meteo data",
+            });
+          }
+        }),
+
       // Manually trigger Stormglass fetch for a spot
       triggerStormglassFetch: adminProcedure
         .input(z.object({

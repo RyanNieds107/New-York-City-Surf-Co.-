@@ -431,35 +431,6 @@ function setupStormglassVerification(): void {
   });
 }
 
-/**
- * Sets up automatic Open-Meteo Marine forecast ingestion.
- * Populates forecast_points table (used by timeline and comparison page).
- * Runs on startup and every 6 hours.
- */
-function setupOpenMeteoMarineIngestion(): void {
-  const INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
-
-  console.log(`[Open-Meteo Marine] Scheduled ingestion every 6 hours`);
-
-  import("../jobs/importOpenMeteoMarine").then(({ importOpenMeteoMarineForecasts }) => {
-    // Delay first run by 3 minutes to avoid competing with migrations + forecast refresh at startup
-    setTimeout(() => {
-      console.log("[Open-Meteo Marine] Running first ingestion (3-min startup delay)...");
-      importOpenMeteoMarineForecasts().catch((err) =>
-        console.error("[Open-Meteo Marine] Startup ingestion failed:", err)
-      );
-    }, 3 * 60 * 1000);
-
-    // Run every 6 hours after that
-    setInterval(() => {
-      importOpenMeteoMarineForecasts().catch((err) =>
-        console.error("[Open-Meteo Marine] Periodic ingestion failed:", err)
-      );
-    }, INTERVAL_MS);
-  }).catch((err) => {
-    console.error("[Open-Meteo Marine] Failed to load ingestion module:", err);
-  });
-}
 
 async function startServer() {
   const app = express();
@@ -561,9 +532,6 @@ async function startServer() {
 
     // Set up automatic forecast refresh
     setupAutomaticRefresh();
-
-    // Set up Open-Meteo Marine forecast point ingestion (feeds forecast timeline + comparison page)
-    setupOpenMeteoMarineIngestion();
 
     // Set up automatic swell alert checking
     setupSwellAlertChecking();
