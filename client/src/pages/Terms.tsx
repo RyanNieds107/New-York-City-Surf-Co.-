@@ -483,8 +483,10 @@ export default function Terms() {
             <div className="ml-4 space-y-1 text-gray-800">
               <p><strong>New York City Surf Co.</strong></p>
               <p>
-                <a 
-                  href="mailto:ryan@nycsurfco.com" 
+                <a
+                  href="https://mail.google.com/mail/?view=cm&fs=1&to=ryan@nycsurfco.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="text-blue-600 hover:underline"
                 >
                   ryan@nycsurfco.com

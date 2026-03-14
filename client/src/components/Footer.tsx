@@ -58,6 +58,17 @@ export function Footer() {
                      Our Mission
                   </Link>
                 </li>
+                <li>
+                  <a
+                    href="https://mail.google.com/mail/?view=cm&fs=1&to=ryan@nycsurfco.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs md:text-sm text-black hover:bg-black hover:text-white px-1 py-0.5 md:px-2 md:py-1 -ml-1 md:-ml-2 transition-colors inline-block font-medium"
+                    style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}
+                  >
+                    Contact
+                  </a>
+                </li>
                 {!isAuthenticated && (
                   <li>
                     <Link

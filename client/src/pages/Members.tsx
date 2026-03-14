@@ -2035,7 +2035,9 @@ export default function Members() {
                   Local business or expert? Get featured when we launch.
                 </p>
                 <a
-                  href="mailto:ryan@nycsurfco.com?subject=Services Directory Interest"
+                  href="https://mail.google.com/mail/?view=cm&fs=1&to=ryan@nycsurfco.com&su=Services+Directory+Interest"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="flex-shrink-0 px-4 py-1.5 bg-black text-white text-xs uppercase tracking-widest font-semibold hover:bg-gray-800 transition-all"
                   style={{ fontFamily: "'JetBrains Mono', monospace" }}
                 >
