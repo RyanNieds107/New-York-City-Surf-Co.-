@@ -1043,14 +1043,15 @@ export default function SpotDetail() {
   // Wetsuit recommendation logic
   const getWetsuitRecommendation = (waterTempF: number | null): { thickness: string; color: string } => {
     if (waterTempF === null) return { thickness: "N/A", color: "text-black" };
-    
-    if (waterTempF < 42) {
+    // Round to nearest integer to prevent threshold flickering from noisy API data
+    const w = Math.round(waterTempF);
+    if (w < 42) {
       return { thickness: "6/5MM HOODED", color: "text-red-600" };
-    } else if (waterTempF >= 42 && waterTempF <= 51) {
+    } else if (w <= 51) {
       return { thickness: "5/4MM HOODED", color: "text-orange-600" };
-    } else if (waterTempF >= 52 && waterTempF <= 57) {
+    } else if (w <= 57) {
       return { thickness: "4/3MM", color: "text-yellow-600" };
-    } else if (waterTempF >= 58 && waterTempF <= 64) {
+    } else if (w <= 64) {
       return { thickness: "4/3MM or 3/2MM", color: "text-yellow-500" };
     } else {
       return { thickness: "3/2MM or SPRING SUIT", color: "text-green-600" };
@@ -1060,19 +1061,20 @@ export default function SpotDetail() {
   // Accessories recommendation logic
   const getWetsuitAccessories = (waterTempF: number | null, airTempF: number | null): string => {
     if (waterTempF === null) return "";
-
-    const coldAir = airTempF !== null && airTempF < 45;
+    // Round to nearest integer to prevent threshold flickering from noisy API data
+    const w = Math.round(waterTempF);
+    const coldAir = airTempF !== null && Math.round(airTempF) < 45;
 
     // Water ≤ 51°F: always full accessories
-    if (waterTempF <= 51) {
+    if (w <= 51) {
       return "+ Boots · Gloves · Hood";
     }
     // Water 52–57°F: cold air bumps to full accessories, otherwise boots required
-    if (waterTempF <= 57) {
+    if (w <= 57) {
       return coldAir ? "+ Boots · Gloves · Hood" : "+ Boots";
     }
     // Water 58–64°F: cold air bumps to hood + boots, otherwise boots optional
-    if (waterTempF <= 64) {
+    if (w <= 64) {
       return coldAir ? "+ Boots · Hood" : "Boots optional";
     }
     // Water 65°F+: cold air still warrants boots
