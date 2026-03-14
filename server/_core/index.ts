@@ -442,12 +442,15 @@ function setupOpenMeteoMarineIngestion(): void {
   console.log(`[Open-Meteo Marine] Scheduled ingestion every 6 hours`);
 
   import("../jobs/importOpenMeteoMarine").then(({ importOpenMeteoMarineForecasts }) => {
-    // Run immediately on startup
-    importOpenMeteoMarineForecasts().catch((err) =>
-      console.error("[Open-Meteo Marine] Startup ingestion failed:", err)
-    );
+    // Delay first run by 3 minutes to avoid competing with migrations + forecast refresh at startup
+    setTimeout(() => {
+      console.log("[Open-Meteo Marine] Running first ingestion (3-min startup delay)...");
+      importOpenMeteoMarineForecasts().catch((err) =>
+        console.error("[Open-Meteo Marine] Startup ingestion failed:", err)
+      );
+    }, 3 * 60 * 1000);
 
-    // Run every 6 hours
+    // Run every 6 hours after that
     setInterval(() => {
       importOpenMeteoMarineForecasts().catch((err) =>
         console.error("[Open-Meteo Marine] Periodic ingestion failed:", err)
