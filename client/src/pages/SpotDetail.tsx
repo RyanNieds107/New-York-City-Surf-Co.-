@@ -1061,28 +1061,22 @@ export default function SpotDetail() {
   const getWetsuitAccessories = (waterTempF: number | null, airTempF: number | null): string => {
     if (waterTempF === null) return "";
 
-    // Extreme cold: water below 45°F AND air below 30°F
-    if (waterTempF < 45 && airTempF !== null && airTempF < 30) {
+    const coldAir = airTempF !== null && airTempF < 45;
+
+    // Water ≤ 51°F: always full accessories
+    if (waterTempF <= 51) {
       return "+ Boots · Gloves · Hood";
     }
-    // Very cold: water below 42°F (but not extreme air)
-    if (waterTempF < 42) {
-      return "+ Boots · Gloves · Hood";
+    // Water 52–57°F: cold air bumps to full accessories, otherwise boots required
+    if (waterTempF <= 57) {
+      return coldAir ? "+ Boots · Gloves · Hood" : "+ Boots";
     }
-    // Cold: 42-51°F water
-    if (waterTempF >= 42 && waterTempF <= 51) {
-      return "+ Boots · Gloves · Hood";
+    // Water 58–64°F: cold air bumps to hood + boots, otherwise boots optional
+    if (waterTempF <= 64) {
+      return coldAir ? "+ Boots · Hood" : "Boots optional";
     }
-    // Cool: 52-57°F water
-    if (waterTempF >= 52 && waterTempF <= 57) {
-      return "+ Boots optional";
-    }
-    // Moderate: 58-64°F water
-    if (waterTempF >= 58 && waterTempF <= 64) {
-      return "Boots optional";
-    }
-    // Warm: 65°F+ water
-    return "";
+    // Water 65°F+: cold air still warrants boots
+    return coldAir ? "Boots recommended" : "";
   };
 
   // Format relative time
