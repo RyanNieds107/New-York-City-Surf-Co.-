@@ -10,7 +10,9 @@
  * - LOW: Models disagree by more than 1.5ft
  */
 
+import { getStormglassVerification } from "../db";
 import type { ForecastTimelineResult } from "../services/forecast";
+import type { StormglassVerification } from "../../drizzle/schema";
 import { calculateQualityScoreWithProfile } from "./qualityRating";
 import { getSpotProfile } from "./spotProfiles";
 
