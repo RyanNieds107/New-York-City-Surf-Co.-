@@ -70,6 +70,7 @@ import { adminProcedure } from "./_core/trpc";
 import { sendBatchEmails, sendEmail } from "./services/email";
 import { sendSMS } from "./services/sms";
 import { formatSwellAlertNotification } from "./layers/retention/notificationFormatter";
+import { importOpenMeteoMarineForecasts } from "./jobs/importOpenMeteoMarine";
 
 // In-memory cache for distance results (keyed by rounded origin + mode)
 const distanceCache = new Map<string, {
@@ -1957,7 +1958,6 @@ export const appRouter = router({
       // Manually trigger Open-Meteo Marine ingestion for all spots
       triggerOpenMeteoFetch: adminProcedure
         .mutation(async () => {
-          const { importOpenMeteoMarineForecasts } = await import("./jobs/importOpenMeteoMarine");
           try {
             await importOpenMeteoMarineForecasts();
             return { success: true, message: "Open-Meteo forecast points refreshed for all spots" };
