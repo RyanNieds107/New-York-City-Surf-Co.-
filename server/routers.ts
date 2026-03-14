@@ -2067,15 +2067,17 @@ export const appRouter = router({
 
       // Get comparison data for Open-Meteo vs Stormglass (ECMWF)
       getComparison: adminProcedure
-        .input(z.object({ spotId: z.number() }))
+        .input(z.object({ spotId: z.number(), hoursAhead: z.number().min(24).max(168).optional() }))
         .query(async ({ input }) => {
           const spot = await getSpotById(input.spotId);
           if (!spot) {
             throw new TRPCError({ code: "NOT_FOUND", message: "Spot not found" });
           }
 
-          // Get Open-Meteo forecast timeline (7 days = 168 hours)
-          const forecastPoints = await getForecastTimeline(input.spotId, 168);
+          const hoursAhead = input.hoursAhead ?? 168;
+
+          // Get Open-Meteo forecast timeline for the requested window
+          const forecastPoints = await getForecastTimeline(input.spotId, hoursAhead);
           const avgCrowdLevel = await getAverageCrowdLevel(input.spotId);
 
           const { generateForecastTimeline } = await import("./services/forecast");
@@ -2086,9 +2088,9 @@ export const appRouter = router({
             avgCrowdLevel,
           });
 
-          // Get Stormglass verification data (7 days = 168 hours)
+          // Get Stormglass verification data for the same window
           const now = new Date();
-          const endTime = new Date(now.getTime() + 168 * 60 * 60 * 1000);
+          const endTime = new Date(now.getTime() + hoursAhead * 60 * 60 * 1000);
           const stormglassData = await getStormglassVerification(input.spotId, now, endTime);
           console.log('[Comparison] Stormglass data fetched:', {
             spotId: input.spotId,

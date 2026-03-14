@@ -4,7 +4,7 @@
  * Fetches ECMWF wave data from Stormglass API for forecast verification.
  * Runs twice daily (7 AM + 7 PM ET) to stay within free tier quota (10 requests/day).
  *
- * With 3 spots × 2 syncs = 6 requests per day, leaving 4 spare for manual fetches.
+ * With 4 spots × 2 syncs = 8 requests per day, leaving 2 spare for manual fetches.
  */
 
 import { getAllSpots, insertStormglassVerificationBatch, getLatestStormglassFetchTime } from "../../../db";

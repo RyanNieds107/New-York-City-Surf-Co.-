@@ -49,7 +49,7 @@ export default function AdminForecastComparison() {
   ) ?? [];
 
   const comparisonQuery = trpc.admin.forecasts.getComparison.useQuery(
-    { spotId: selectedSpotId! },
+    { spotId: selectedSpotId!, hoursAhead },
     {
       enabled: !!user && user.role === "admin" && selectedSpotId !== null,
     }
