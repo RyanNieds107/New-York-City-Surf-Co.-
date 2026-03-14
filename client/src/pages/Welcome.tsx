@@ -1,11 +1,28 @@
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/Logo";
 import { Footer } from "@/components/Footer";
 import { CheckCircle2, Bell, FileText, Waves, Users, ArrowRight } from "lucide-react";
+import { trpc } from "@/lib/trpc";
+
+const BEACH_OPTIONS = [
+  "Lido Beach",
+  "Long Beach",
+  "Rockaway Beach",
+  "Montauk",
+];
 
 export default function Welcome() {
   const [, setLocation] = useLocation();
+  const [selectedBeach, setSelectedBeach] = useState<string | null>(null);
+  const [alertCreated, setAlertCreated] = useState(false);
+  const [skipped, setSkipped] = useState(false);
+
+  const spotsQuery = trpc.spots.list.useQuery();
+  const createAlertMutation = trpc.alerts.create.useMutation({
+    onSuccess: () => setAlertCreated(true),
+  });
 
   const features = [
     {
@@ -29,6 +46,31 @@ export default function Welcome() {
       description: "Share clips, compare notes, and stay connected with a small crew of Long Island surfers who know what matters.",
     },
   ];
+
+  function handleBeachSelect(beach: string) {
+    setSelectedBeach(beach);
+  }
+
+  function handleSetAlert() {
+    if (!selectedBeach || !spotsQuery.data) return;
+
+    const spot = spotsQuery.data.find(
+      (s) => s.name.toLowerCase() === selectedBeach.toLowerCase()
+    );
+    if (!spot) return;
+
+    createAlertMutation.mutate({
+      spotId: spot.id,
+      minWaveHeightFt: 3,
+      minPeriodSec: 8,
+      emailEnabled: true,
+      smsEnabled: false,
+      hoursAdvanceNotice: 24,
+      notificationFrequency: "once",
+    });
+  }
+
+  const alertDone = alertCreated || skipped;
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -105,6 +147,103 @@ export default function Welcome() {
 
         {/* Divider */}
         <div className="border-t-2 border-black mb-10" />
+
+        {/* Home Break Onboarding */}
+        <div className="mb-12">
+          {!alertDone ? (
+            <>
+              <div className="mb-6">
+                <p
+                  className="text-xs text-gray-400 uppercase tracking-widest mb-1"
+                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                >
+                  One quick thing
+                </p>
+                <h2
+                  className="text-2xl sm:text-3xl font-black text-black uppercase tracking-tight"
+                  style={{ fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}
+                >
+                  Which beach do you surf most?
+                </h2>
+                <p
+                  className="text-sm text-gray-500 mt-1"
+                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                >
+                  We'll set up a swell alert so you know when it's firing.
+                </p>
+              </div>
+
+              {/* Beach Pill Buttons */}
+              <div className="flex flex-wrap gap-3 mb-6">
+                {BEACH_OPTIONS.map((beach) => (
+                  <button
+                    key={beach}
+                    onClick={() => handleBeachSelect(beach)}
+                    className={`px-5 py-2.5 border-2 text-sm font-bold uppercase tracking-wide transition-colors ${
+                      selectedBeach === beach
+                        ? "bg-black text-white border-black"
+                        : "bg-white text-black border-black hover:bg-gray-100"
+                    }`}
+                    style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                  >
+                    {beach}
+                  </button>
+                ))}
+              </div>
+
+              {/* Confirm or Skip */}
+              <div className="flex items-center gap-4">
+                <Button
+                  onClick={handleSetAlert}
+                  disabled={
+                    !selectedBeach ||
+                    createAlertMutation.isPending ||
+                    !spotsQuery.data
+                  }
+                  className="bg-black text-white hover:bg-gray-800 border-2 border-black rounded-none uppercase tracking-widest font-bold py-5 px-8 text-sm disabled:opacity-40"
+                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                >
+                  {createAlertMutation.isPending ? "Setting up..." : "Set My Alert"}
+                  {!createAlertMutation.isPending && <Bell className="ml-2 h-4 w-4" />}
+                </Button>
+                <button
+                  onClick={() => setSkipped(true)}
+                  className="text-xs text-gray-400 uppercase tracking-widest hover:text-gray-600 transition-colors"
+                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                >
+                  Skip for now
+                </button>
+              </div>
+
+              {createAlertMutation.isError && (
+                <p
+                  className="mt-3 text-xs text-red-500"
+                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                >
+                  Something went wrong. You can set up alerts from the Members Portal.
+                </p>
+              )}
+            </>
+          ) : alertCreated ? (
+            <div className="flex items-start gap-3 border-2 border-green-500 p-5">
+              <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />
+              <div>
+                <p
+                  className="text-sm font-bold text-black uppercase tracking-wide"
+                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                >
+                  Alert set for {selectedBeach}
+                </p>
+                <p
+                  className="text-xs text-gray-500 mt-0.5"
+                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                >
+                  You'll get an email when waves hit 3ft+ with 8s+ period. Adjust anytime in settings.
+                </p>
+              </div>
+            </div>
+          ) : null}
+        </div>
 
         {/* CTA */}
         <div className="text-center">
