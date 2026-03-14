@@ -64,6 +64,12 @@ const formatCardinal = (deg: number | null | undefined): string => {
 
 const BAR_SECTION_HEIGHT = 110;
 
+// Mirror SpotDetail's getEffectiveQualityScore: Euro uses euroQualityScore, fallback to probabilityScore
+function getScore(p: { quality_score?: number | null; probabilityScore?: number | null; euroQualityScore?: number | null }, isEuro: boolean): number {
+  if (isEuro && p.euroQualityScore != null) return p.euroQualityScore;
+  return p.quality_score ?? p.probabilityScore ?? 0;
+}
+
 export function WaveForecastChart({ spotId, model = 'om', lat, lng }: WaveForecastChartProps) {
   const [period, setPeriod] = useState<Period>("7D");
   const [selectedCol, setSelectedCol] = useState<number | null>(null);
@@ -100,7 +106,7 @@ export function WaveForecastChart({ spotId, model = 'om', lat, lng }: WaveForeca
         });
         if (!slice.length) continue;
         const best = slice.reduce((a, b) =>
-          (b.quality_score ?? 0) > (a.quality_score ?? 0) ? b : a
+          getScore(b, isEuro) > getScore(a, isEuro) ? b : a
         );
         const euroHeights = slice.map((p) => p.ecmwfWaveHeightFt != null ? Number(p.ecmwfWaveHeightFt) : null).filter((v): v is number => v != null);
         const avgEuroHeight = euroHeights.length > 0 ? euroHeights.reduce((a, b) => a + b, 0) / euroHeights.length : null;
@@ -117,7 +123,7 @@ export function WaveForecastChart({ spotId, model = 'om', lat, lng }: WaveForeca
           label: h === 0 ? "Now" : timeLabel,
           subLabel: h === 0 ? timeLabel : "",
           waveHeight: isEuro && avgEuroHeight != null ? avgEuroHeight : blendHeight,
-          qualityScore: best.quality_score ?? 0,
+          qualityScore: getScore(best, isEuro),
           dominantPeriodS: best.dominantSwellPeriodS ?? null,
           dominantHeightFt: best.dominantSwellHeightFt ?? null,
           dominantDirDeg: best.dominantSwellDirectionDeg ?? null,
@@ -152,7 +158,7 @@ export function WaveForecastChart({ spotId, model = 'om', lat, lng }: WaveForeca
     }
 
     return Array.from(dayMap.entries()).map(([dayKey, pts]) => {
-      const best = pts.reduce((a, b) => (b.quality_score ?? 0) > (a.quality_score ?? 0) ? b : a);
+      const best = pts.reduce((a, b) => getScore(b, isEuro) > getScore(a, isEuro) ? b : a);
       const euroHeights = pts.map((p) => p.ecmwfWaveHeightFt != null ? Number(p.ecmwfWaveHeightFt) : null).filter((v): v is number => v != null);
       const maxEuroHeight = euroHeights.length > 0 ? Math.max(...euroHeights) : null;
       const blendHeight = Math.max(...pts.map((p) => p.breakingWaveHeightFt ?? p.dominantSwellHeightFt ?? 0));
@@ -164,12 +170,12 @@ export function WaveForecastChart({ spotId, model = 'om', lat, lng }: WaveForeca
         subLabel: etDayMonthFmt.format(sampleDate),
         waveHeight: isEuro && maxEuroHeight != null ? maxEuroHeight : blendHeight,
         qualityScore: (() => {
-          const allScores = pts.map((p) => p.quality_score ?? 0);
+          const allScores = pts.map((p) => getScore(p, isEuro));
           const allAvg = Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length);
           if (lat == null || lng == null) return allAvg;
           const daylightScores = pts
             .filter((p) => !isNighttime(p.forecastTimestamp, lat, lng))
-            .map((p) => p.quality_score ?? 0);
+            .map((p) => getScore(p, isEuro));
           if (daylightScores.length < 2) return allAvg;
           const surfablePct = daylightScores.filter((s) => s >= 40).length / daylightScores.length;
           if (surfablePct >= 0.5) {
