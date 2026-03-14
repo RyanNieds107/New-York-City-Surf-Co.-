@@ -88,4 +88,5 @@ export {
   getUserReportCount,
   getRecentReports,
   getAdminAnalytics,
+  getHistoricBigSwellDays,
 } from '../db';

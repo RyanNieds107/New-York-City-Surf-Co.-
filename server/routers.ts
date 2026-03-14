@@ -51,6 +51,7 @@ import {
   markSurfPlanPopupShown,
   recordSurfPlanResponse,
   getAdminAnalytics,
+  getHistoricBigSwellDays,
 } from "./db";
 import { getCurrentTideInfo } from "./layers/environmental/clients/tides";
 import { getCurrentConditionsFromOpenMeteo } from "./layers/environmental/clients/openmeteo";
@@ -2156,6 +2157,9 @@ export const appRouter = router({
     analytics: router({
       getStats: adminProcedure.query(async () => {
         return getAdminAnalytics();
+      }),
+      getBigSwellDays: adminProcedure.query(async () => {
+        return getHistoricBigSwellDays();
       }),
     }),
 

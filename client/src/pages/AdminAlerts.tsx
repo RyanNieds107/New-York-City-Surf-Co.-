@@ -7,13 +7,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { Loader2, Send, Users, Eye, BarChart2, Bell, FileText, TrendingUp } from "lucide-react";
+import { Loader2, Send, Users, Eye, BarChart2, Bell, FileText, TrendingUp, Waves } from "lucide-react";
 
 const monoStyle = { fontFamily: "'JetBrains Mono', monospace" };
 const bebasStyle = { fontFamily: "'Bebas Neue', sans-serif" };
 const oswaldStyle = { fontFamily: "'Oswald', sans-serif" };
 
-type Tab = "users" | "overview" | "alerts" | "broadcast";
+type Tab = "users" | "overview" | "alerts" | "broadcast" | "swelllog";
 
 export default function AdminAlerts() {
   const [, setLocation] = useLocation();
@@ -28,6 +28,11 @@ export default function AdminAlerts() {
   const { data: analytics, isLoading: analyticsLoading } = trpc.admin.analytics.getStats.useQuery(
     undefined,
     { enabled: !!user && user.role === "admin" }
+  );
+
+  const { data: bigSwellDays, isLoading: swellLoading } = trpc.admin.analytics.getBigSwellDays.useQuery(
+    undefined,
+    { enabled: !!user && user.role === "admin" && activeTab === "swelllog" }
   );
 
   const [message, setMessage] = useState("");
@@ -101,6 +106,7 @@ export default function AdminAlerts() {
     { id: "overview", label: "OVERVIEW" },
     { id: "alerts", label: "ALERTS" },
     { id: "broadcast", label: "BROADCAST" },
+    { id: "swelllog", label: "SWELL LOG" },
   ];
 
   return (
@@ -300,6 +306,67 @@ export default function AdminAlerts() {
           </div>
         )}
 
+        {/* ── SWELL LOG TAB ── */}
+        {activeTab === "swelllog" && (
+          <div className="border border-white/20">
+            <div className="border-b border-white/20 px-4 py-3 flex items-center justify-between">
+              <span className="text-sm font-semibold uppercase tracking-widest" style={oswaldStyle}>Historic Big Swell Days</span>
+              {bigSwellDays && (
+                <span className="text-[10px] text-gray-500 uppercase tracking-widest" style={monoStyle}>
+                  {bigSwellDays.length} events · 5ft+ · 7s+ period · offshore wind
+                </span>
+              )}
+            </div>
+            {swellLoading ? (
+              <div className="p-4 space-y-2">
+                {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-10 w-full bg-white/10" />)}
+              </div>
+            ) : !bigSwellDays?.length ? (
+              <div className="py-12 text-center">
+                <Waves className="h-6 w-6 text-gray-700 mx-auto mb-3" />
+                <p className="text-gray-600 text-xs uppercase tracking-widest" style={monoStyle}>No firing days recorded yet</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs" style={monoStyle}>
+                  <thead>
+                    <tr className="border-b border-white/10 bg-white/5">
+                      <th className="text-left px-4 py-2 text-gray-500 uppercase tracking-widest text-[10px] font-normal">Date</th>
+                      <th className="text-left px-4 py-2 text-gray-500 uppercase tracking-widest text-[10px] font-normal">Buoy</th>
+                      <th className="text-right px-4 py-2 text-gray-500 uppercase tracking-widest text-[10px] font-normal">Peak Height</th>
+                      <th className="text-right px-4 py-2 text-gray-500 uppercase tracking-widest text-[10px] font-normal">Period</th>
+                      <th className="text-right px-4 py-2 text-gray-500 uppercase tracking-widest text-[10px] font-normal">Swell Dir</th>
+                      <th className="text-right px-4 py-2 text-gray-500 uppercase tracking-widest text-[10px] font-normal">Wind</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bigSwellDays.map((day, i) => (
+                      <tr key={`${day.date}-${day.buoyId}`} className="border-b border-white/5 hover:bg-white/5">
+                        <td className="px-4 py-2.5 text-gray-300">
+                          {new Date(day.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+                        </td>
+                        <td className="px-4 py-2.5 text-gray-400">{day.spotName}</td>
+                        <td className={`px-4 py-2.5 text-right font-bold ${day.peakHeightFt >= 6 ? "text-white" : "text-gray-300"}`}>
+                          {day.peakHeightFt}ft
+                        </td>
+                        <td className="px-4 py-2.5 text-right text-gray-400">
+                          {day.periodSec ? `${day.periodSec}s` : "—"}
+                        </td>
+                        <td className="px-4 py-2.5 text-right text-gray-400">
+                          {day.directionDeg != null ? `${day.directionDeg}° ${degreesToCardinal(day.directionDeg)}` : "—"}
+                        </td>
+                        <td className="px-4 py-2.5 text-right text-green-400">
+                          {day.windDirDeg != null ? `${degreesToCardinal(day.windDirDeg)} offshore` : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── BROADCAST TAB ── */}
         {activeTab === "broadcast" && (
           <div className="border border-white/20">
@@ -356,6 +423,11 @@ export default function AdminAlerts() {
       </div>
     </div>
   );
+}
+
+function degreesToCardinal(deg: number): string {
+  const dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+  return dirs[Math.round(deg / 22.5) % 16];
 }
 
 function StatCard({

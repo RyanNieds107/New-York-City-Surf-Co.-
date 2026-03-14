@@ -1734,3 +1734,56 @@ export async function getAdminAnalytics(): Promise<AdminAnalytics | null> {
     return null;
   }
 }
+
+export async function getHistoricBigSwellDays() {
+  if (!_pool) {
+    await getDb();
+  }
+  if (!_pool) return [];
+
+  try {
+    const [rows] = await _pool.execute(`
+      SELECT
+        DATE(br.timestamp) as date,
+        br.buoyId,
+        MAX(br.waveHeightCm) as peakHeightCm,
+        SUBSTRING_INDEX(
+          GROUP_CONCAT(br.dominantPeriodDs ORDER BY br.waveHeightCm DESC),
+          ',', 1
+        ) as peakPeriodDs,
+        SUBSTRING_INDEX(
+          GROUP_CONCAT(br.swellDirectionDeg ORDER BY br.waveHeightCm DESC),
+          ',', 1
+        ) as peakDirectionDeg,
+        SUBSTRING_INDEX(
+          GROUP_CONCAT(br.windDirectionDeg ORDER BY br.waveHeightCm DESC),
+          ',', 1
+        ) as peakWindDirDeg,
+        MIN(sp.name) as spotName
+      FROM buoy_readings br
+      LEFT JOIN surf_spots sp ON br.buoyId = sp.buoyId
+      WHERE br.waveHeightCm IS NOT NULL
+        AND br.waveHeightCm >= 152
+        AND br.dominantPeriodDs IS NOT NULL
+        AND br.dominantPeriodDs > 70
+        AND br.windDirectionDeg IS NOT NULL
+        AND (br.windDirectionDeg >= 315 OR br.windDirectionDeg <= 45)
+      GROUP BY DATE(br.timestamp), br.buoyId
+      ORDER BY peakHeightCm DESC
+      LIMIT 50
+    `);
+
+    return (rows as any[]).map(r => ({
+      date: r.date,
+      buoyId: r.buoyId,
+      spotName: r.spotName || (r.buoyId === '44065' ? 'Long Beach' : r.buoyId === '44017' ? 'Montauk' : r.buoyId),
+      peakHeightFt: Math.round((Number(r.peakHeightCm) / 30.48) * 10) / 10,
+      periodSec: r.peakPeriodDs ? Math.round(Number(r.peakPeriodDs) / 10 * 10) / 10 : null,
+      directionDeg: r.peakDirectionDeg ? Number(r.peakDirectionDeg) : null,
+      windDirDeg: r.peakWindDirDeg ? Number(r.peakWindDirDeg) : null,
+    }));
+  } catch (error) {
+    console.error('[Big Swell Days] Query error:', error);
+    return [];
+  }
+}
