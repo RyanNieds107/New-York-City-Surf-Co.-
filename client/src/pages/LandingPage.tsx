@@ -1441,6 +1441,7 @@ export default function LandingPage() {
   const rockawayId = featuredSpots.find((s) => s.name === "Rockaway Beach")?.id ?? 0;
   const longBeachId = featuredSpots.find((s) => s.name === "Long Beach")?.id ?? 0;
   const lidoId = featuredSpots.find((s) => s.name === "Lido Beach")?.id ?? 0;
+  const montaukId = spotsQuery.data?.find((s) => s.name === "Montauk")?.id ?? 0;
   const rockawayLive = useCurrentConditions(rockawayId);
   const longBeachLive = useCurrentConditions(longBeachId);
   const lidoLive = useCurrentConditions(lidoId);
@@ -1594,6 +1595,13 @@ export default function LandingPage() {
                   >
                     Lido Beach
                   </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setLocation(`/spot/${montaukId}`)}
+                    className="cursor-pointer px-4 py-3 text-sm font-bold text-gray-900 hover:bg-black hover:text-white focus:bg-black focus:text-white"
+                    style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                  >
+                    Montauk
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
 
@@ -1630,6 +1638,13 @@ export default function LandingPage() {
                     style={{ fontFamily: "'JetBrains Mono', monospace" }}
                   >
                     Lido Beach
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setLocation(`/spot/${montaukId}#guide`)}
+                    className="cursor-pointer px-4 py-3 text-sm font-bold text-gray-900 hover:bg-black hover:text-white focus:bg-black focus:text-white"
+                    style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                  >
+                    Montauk
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
