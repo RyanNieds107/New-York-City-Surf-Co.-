@@ -2127,7 +2127,12 @@ export default function SpotDetail() {
                 forecastView === "chart" ? (
                   <div className="relative">
                     <div style={!isAuthenticated ? { filter: "blur(4px)", userSelect: "none", pointerEvents: "none" } : undefined}>
-                      <WaveForecastChart spotId={spotId} />
+                      <WaveForecastChart
+                        spotId={spotId}
+                        model={dayCardModel}
+                        lat={spotQuery.data ? parseFloat(String(spotQuery.data.latitude)) : undefined}
+                        lng={spotQuery.data ? parseFloat(String(spotQuery.data.longitude)) : undefined}
+                      />
                     </div>
                     {!isAuthenticated && (
                       <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10">
