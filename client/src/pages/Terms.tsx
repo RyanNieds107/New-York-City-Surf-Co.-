@@ -484,10 +484,10 @@ export default function Terms() {
               <p><strong>New York City Surf Co.</strong></p>
               <p>
                 <a 
-                  href="mailto:rniederreither@gmail.com" 
+                  href="mailto:ryan@nycsurfco.com" 
                   className="text-blue-600 hover:underline"
                 >
-                  rniederreither@gmail.com
+                  ryan@nycsurfco.com
                 </a>
               </p>
               <p>303 E 5th St, New York, NY 10003</p>

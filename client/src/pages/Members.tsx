@@ -2035,7 +2035,7 @@ export default function Members() {
                   Local business or expert? Get featured when we launch.
                 </p>
                 <a
-                  href="mailto:rniederreither@gmail.com?subject=Services Directory Interest"
+                  href="mailto:ryan@nycsurfco.com?subject=Services Directory Interest"
                   className="flex-shrink-0 px-4 py-1.5 bg-black text-white text-xs uppercase tracking-widest font-semibold hover:bg-gray-800 transition-all"
                   style={{ fontFamily: "'JetBrains Mono', monospace" }}
                 >

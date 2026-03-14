@@ -351,7 +351,7 @@ export default function Privacy() {
               <div>
                 <p className="text-gray-800 font-semibold mb-2">8.5 Exercising Your Rights</p>
                 <p className="text-gray-800 leading-relaxed">
-                  To exercise any of these rights, contact us at <a href="mailto:rniederreither@gmail.com" className="text-blue-600 hover:underline">rniederreither@gmail.com</a>. We may need to verify your identity before processing requests.
+                  To exercise any of these rights, contact us at <a href="mailto:ryan@nycsurfco.com" className="text-blue-600 hover:underline">ryan@nycsurfco.com</a>. We may need to verify your identity before processing requests.
                 </p>
               </div>
             </div>
@@ -410,7 +410,7 @@ export default function Privacy() {
               <li>Right to non-discrimination for exercising your CCPA rights</li>
             </ul>
             <p className="text-gray-800 leading-relaxed mt-4">
-              To exercise your CCPA rights, contact us at <a href="mailto:rniederreither@gmail.com" className="text-blue-600 hover:underline">rniederreither@gmail.com</a> with "CCPA Request" in the subject line.
+              To exercise your CCPA rights, contact us at <a href="mailto:ryan@nycsurfco.com" className="text-blue-600 hover:underline">ryan@nycsurfco.com</a> with "CCPA Request" in the subject line.
             </p>
           </section>
 
@@ -479,10 +479,10 @@ export default function Privacy() {
               <p><strong>New York City Surf Co.</strong></p>
               <p>
                 <a 
-                  href="mailto:rniederreither@gmail.com" 
+                  href="mailto:ryan@nycsurfco.com" 
                   className="text-blue-600 hover:underline"
                 >
-                  rniederreither@gmail.com
+                  ryan@nycsurfco.com
                 </a>
               </p>
               <p>303 E 5th St, New York, NY 10003</p>
@@ -517,7 +517,7 @@ export default function Privacy() {
               className="text-center text-sm uppercase tracking-wider"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}
             >
-              Questions? Contact us at rniederreither@gmail.com
+              Questions? Contact us at ryan@nycsurfco.com
             </p>
           </section>
         </div>
