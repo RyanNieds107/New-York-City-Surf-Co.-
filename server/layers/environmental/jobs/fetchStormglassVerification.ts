@@ -26,9 +26,9 @@ const HOURS_AHEAD = 168;
 
 /**
  * Spots excluded from Stormglass fetch (Coming Soon / no active forecasts).
- * Must match admin comparison page so we stay within 10 calls/day (3 spots × 2 syncs = 6).
+ * Must match admin comparison page so we stay within 10 calls/day (4 spots × 2 syncs = 8).
  */
-const EXCLUDED_SPOT_NAMES = ["Belmar", "Gilgo Beach", "Montauk"];
+const EXCLUDED_SPOT_NAMES = ["Belmar", "Gilgo Beach"];
 
 /**
  * Main job function - fetches Stormglass ECMWF data for active spots only.

@@ -460,9 +460,7 @@ export const appRouter = router({
     // Seed initial spots (one-time setup endpoint)
     seed: publicProcedure.mutation(async () => {
       const existingSpots = await getAllSpots();
-      if (existingSpots.length > 0) {
-        return { success: true, message: "Spots already exist", count: existingSpots.length };
-      }
+      const existingNames = new Set(existingSpots.map((s) => s.name));
 
       const spots = [
         { name: "Lido Beach", latitude: "40.5892", longitude: "-73.6265", buoyId: "44065", tideStationId: "8518750" },
@@ -471,11 +469,16 @@ export const appRouter = router({
         { name: "Montauk", latitude: "41.0359", longitude: "-71.9545", buoyId: "44017", tideStationId: "8510560" },
       ];
 
+      let inserted = 0;
       for (const spot of spots) {
-        await createSpot(spot);
+        if (!existingNames.has(spot.name)) {
+          await createSpot(spot);
+          inserted++;
+        }
       }
 
-      return { success: true, message: "Seeded 4 spots", count: 4 };
+      const total = await getAllSpots();
+      return { success: true, message: `Seeded ${inserted} new spot(s)`, count: total.length };
     }),
   }),
 

@@ -1874,10 +1874,10 @@ export default function LandingPage() {
           </p>
           <div className="max-w-3xl mx-auto">
             <p className="text-sm sm:text-base text-gray-600 mb-2" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-              Get accurate surf forecasts for <strong>Rockaway Beach</strong>, <strong>Long Beach</strong>, and <strong>Lido Beach</strong>. NYC Surf Co provides hyper-local surf forecasting for New York City and Long Island beaches with real-time surf reports including wave height, swell direction, wind conditions, tide charts, and quality ratings updated every hour.
+              Get accurate surf forecasts for <strong>Rockaway Beach</strong>, <strong>Long Beach</strong>, <strong>Lido Beach</strong>, and <strong>Montauk</strong>. NYC Surf Co provides hyper-local surf forecasting for New York City and Long Island beaches with real-time surf reports including wave height, swell direction, wind conditions, tide charts, and quality ratings updated every hour.
             </p>
             <p className="text-xs sm:text-sm text-gray-500" style={{ fontFamily: "'Inter', 'Roboto', sans-serif" }}>
-              Whether you're surfing Rockaway Beach, Long Beach, or Lido Beach, NYC Surf Co gives you the most accurate surf forecast to plan your session — backed by a combined 40+ years of local knowledge.
+              Whether you're surfing Rockaway Beach, Long Beach, Lido Beach, or Montauk, NYC Surf Co gives you the most accurate surf forecast to plan your session — backed by a combined 40+ years of local knowledge.
             </p>
           </div>
         </div>
