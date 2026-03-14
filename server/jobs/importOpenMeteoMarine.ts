@@ -50,14 +50,13 @@ function toDecimalString(value: number | null | undefined): string | null {
  * Main ingestion function
  * Fetches and ingests marine forecast data for all spots
  */
-export async function importOpenMeteoMarineForecasts(): Promise<void> {
+export async function importOpenMeteoMarineForecasts(): Promise<{ success: number; failed: string[] }> {
   console.log("[Open-Meteo Marine] Starting ingestion...");
 
   const spots = await getAllSpots();
-  const modelRunTime = new Date(); // Current UTC time when model runs
-
-  console.log(`[Open-Meteo Marine] Processing ${spots.length} spots`);
-  console.log(`[Open-Meteo Marine] Model run time: ${modelRunTime.toISOString()}`);
+  const modelRunTime = new Date();
+  const failed: string[] = [];
+  let success = 0;
 
   for (const spot of spots) {
     try {
@@ -133,26 +132,23 @@ export async function importOpenMeteoMarineForecasts(): Promise<void> {
       );
       await deleteForecastPointsBySpotAndModelRun(spot.id, modelRunTime);
 
-      // Insert new forecasts
+      // Only insert if we got data — don't wipe existing data on empty response
       if (forecastPoints.length > 0) {
-        console.log(
-          `[Open-Meteo Marine] Inserting ${forecastPoints.length} forecast points for ${spot.name}`
-        );
         await insertForecastPoints(forecastPoints);
-        console.log(`[Open-Meteo Marine] ✓ Successfully ingested forecasts for ${spot.name}`);
+        console.log(`[Open-Meteo Marine] ✓ ${spot.name}: ${forecastPoints.length} points`);
+        success++;
       } else {
-        console.warn(`[Open-Meteo Marine] No forecast points to insert for ${spot.name}`);
+        console.warn(`[Open-Meteo Marine] No data returned for ${spot.name}, skipping`);
+        failed.push(`${spot.name}: empty response`);
       }
-    } catch (error) {
-      console.error(
-        `[Open-Meteo Marine] ✗ Failed to ingest forecasts for spot ${spot.id} (${spot.name}):`,
-        error
-      );
-      // Continue with other spots
+    } catch (error: any) {
+      console.error(`[Open-Meteo Marine] ✗ ${spot.name}:`, error.message);
+      failed.push(`${spot.name}: ${error.message}`);
     }
   }
 
-  console.log("[Open-Meteo Marine] Ingestion completed");
+  console.log(`[Open-Meteo Marine] Done: ${success} succeeded, ${failed.length} failed`);
+  return { success, failed };
 }
 
 /**

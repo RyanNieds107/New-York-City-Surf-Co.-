@@ -568,10 +568,13 @@ export const appRouter = router({
                 // IMPORTANT: Fetch 168 hours (7 days) to match getTimeline behavior
                 // Previously was fetching 3 hours, which would delete full forecast data
                 const fetchedPoints = await fetchOpenMeteoForecastForSpot(spot, { maxHoursOut: 168 });
-                const dbPoints = fetchedPoints.map((point) => convertToDbFormat(point, spot.id));
 
-                // Store in database (auto-cleanup happens inside insertForecastPoints)
-                await insertForecastPoints(dbPoints);
+                // Guard: only write to DB if we actually got data — insertForecastPoints
+                // deletes all existing data first, so an empty response would wipe the spot
+                if (fetchedPoints.length > 0) {
+                  const dbPoints = fetchedPoints.map((point) => convertToDbFormat(point, spot.id));
+                  await insertForecastPoints(dbPoints);
+                }
 
                 // Re-fetch from database after insert
                 forecastPoints = await getForecastTimeline(spot.id, 3);
@@ -1959,8 +1962,11 @@ export const appRouter = router({
       triggerOpenMeteoFetch: adminProcedure
         .mutation(async () => {
           try {
-            await importOpenMeteoMarineForecasts();
-            return { success: true, message: "Open-Meteo forecast points refreshed for all spots" };
+            const result = await importOpenMeteoMarineForecasts();
+            const msg = result.failed.length > 0
+              ? `${result.success} spots updated. Failed: ${result.failed.join(", ")}`
+              : `All ${result.success} spots updated`;
+            return { success: result.failed.length === 0, message: msg };
           } catch (error: any) {
             throw new TRPCError({
               code: "INTERNAL_SERVER_ERROR",
@@ -2053,11 +2059,6 @@ export const appRouter = router({
           const now = new Date();
           const endTime = new Date(now.getTime() + hoursAhead * 60 * 60 * 1000);
           const stormglassData = await getStormglassVerification(input.spotId, now, endTime);
-          console.log('[Comparison] Stormglass data fetched:', {
-            spotId: input.spotId,
-            count: stormglassData.length,
-            sampleData: stormglassData.slice(0, 2)
-          });
 
           // Get last fetch time
           const lastFetchTime = await getLatestStormglassFetchTime(input.spotId);
@@ -2103,36 +2104,11 @@ export const appRouter = router({
               swellDirectionDeg: sg.swellDirectionDeg ?? null,
             });
           }
-          console.log('[Comparison] Stormglass map:', {
-            mapSize: stormglassMap.size,
-            keys: Array.from(stormglassMap.keys()).slice(0, 5)
-          });
-
-          // Debug: Log sample keys to verify matching
-          if (stormglassData.length > 0 && timeline.length > 0) {
-            const sampleSgKeys = Array.from(stormglassMap.keys()).slice(0, 3);
-            const sampleOmKey = buildEasternHourKey(timeline[0].forecastTimestamp);
-            console.log('[Comparison Debug] Sample Stormglass keys (Eastern):', sampleSgKeys);
-            console.log('[Comparison Debug] First Open-Meteo key:', sampleOmKey);
-            console.log('[Comparison Debug] Key match?', stormglassMap.has(sampleOmKey));
-          }
-
           // Combine Open-Meteo and Stormglass data
-          let keyLogCount = 0;
           const comparison = timeline.map((point) => {
             const pointTime = new Date(point.forecastTimestamp);
             const key = buildEasternHourKey(pointTime);
             const sg = stormglassMap.get(key);
-
-            if (keyLogCount < 3) {
-              console.log('[Comparison] Key lookup:', {
-                key,
-                omTimestamp: pointTime.toISOString(),
-                sgFound: !!sg,
-                sgSample: sg
-              });
-              keyLogCount++;
-            }
 
             // Compare wave height to wave height (same metric used for user-facing discrepancy warning)
             const openMeteoHeight = point.waveHeightFt ?? null;
