@@ -407,37 +407,12 @@ export async function insertForecastPoints(forecastPointsArray: InsertForecastPo
   // Extract spotId from first point to clean up old data
   const spotId = forecastPointsArray[0].spotId;
   
-  // 🧹 MANDATORY CLEANUP: Always delete old forecast points before inserting new ones
-  // This prevents accumulation of stale data (914+ points) that breaks timeline grouping
-  console.log(`🧹 [Auto-Cleanup] Deleting ALL existing forecast points for spot ${spotId}...`);
-  const deleteResult = await db
-    .delete(forecastPoints)
-    .where(eq(forecastPoints.spotId, spotId));
-  
-  const deletedCount = deleteResult.rowsAffected || 0;
-  if (deletedCount > 0) {
-    console.log(`✅ [Auto-Cleanup] Removed ${deletedCount} old forecast points for spot ${spotId}`);
-  } else {
-    console.log(`ℹ️ [Auto-Cleanup] No existing forecast points found for spot ${spotId}`);
-  }
-  
-  // 💾 STEP 3: Inserting Fresh Data to Database
-  const firstPoint = forecastPointsArray[0];
-  console.log('💾 STEP 3: Inserting to Database');
-  console.log('Total points to insert:', forecastPointsArray.length);
-  console.log('ForecastPoint object sample:', JSON.stringify({
-    secondarySwellHeightFt: firstPoint.secondarySwellHeightFt,
-    secondarySwellPeriodS: firstPoint.secondarySwellPeriodS,
-    secondarySwellDirectionDeg: firstPoint.secondarySwellDirectionDeg,
-    windWaveHeightFt: firstPoint.windWaveHeightFt,
-    windWavePeriodS: firstPoint.windWavePeriodS,
-    windWaveDirectionDeg: firstPoint.windWaveDirectionDeg,
-  }, null, 2));
-  
+  // Delete old points before inserting fresh ones
+  await db.delete(forecastPoints).where(eq(forecastPoints.spotId, spotId));
+
   try {
     await db.insert(forecastPoints).values(forecastPointsArray);
-    console.log('✅ Successfully inserted', forecastPointsArray.length, 'forecast points');
-    console.log(`📊 Net result: ${deletedCount} deleted → ${forecastPointsArray.length} inserted (spot ${spotId})`);
+    console.log(`[insertForecastPoints] Inserted ${forecastPointsArray.length} points for spot ${spotId}`);
   } catch (error: any) {
     console.error(`[insertForecastPoints] Insert failed:`, error);
     throw error;
@@ -462,29 +437,6 @@ export async function getForecastTimeline(
         )
       )
       .orderBy(forecastPoints.forecastTimestamp);
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/db.ts:363',message:'getForecastTimeline query success',data:{spotId,maxHoursOut,resultCount:result.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-    
-    // 📖 STEP 4: Reading from Database
-    if (result.length > 0) {
-      const sample = result[0];
-      console.log('📖 STEP 4: Reading from Database');
-      console.log('Total points retrieved:', result.length);
-      console.log('Database has secondary swell?', !!sample.secondarySwellHeightFt);
-      console.log('Database has wind waves?', !!sample.windWaveHeightFt);
-      console.log('Database sample:', {
-        secondarySwellHeightFt: sample.secondarySwellHeightFt,
-        secondarySwellPeriodS: sample.secondarySwellPeriodS,
-        secondarySwellDirectionDeg: sample.secondarySwellDirectionDeg,
-        windWaveHeightFt: sample.windWaveHeightFt,
-        windWavePeriodS: sample.windWavePeriodS,
-        windWaveDirectionDeg: sample.windWaveDirectionDeg,
-      });
-    } else {
-      console.log('📖 STEP 4: Reading from Database - No data found');
-    }
     
     return result;
   } catch (error: any) {
@@ -536,10 +488,6 @@ export async function isForecastDataStale(
         )
       )
       .limit(1);
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/302a4464-f7cb-4796-9974-3ea0452e20e3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/db.ts:478',message:'isForecastDataStale query success',data:{spotId,maxAgeHours,resultCount:result.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
-    // #endregion
     
     return result.length === 0;
   } catch (error: any) {
