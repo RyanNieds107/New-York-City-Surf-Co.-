@@ -1634,3 +1634,147 @@ export async function getRecentReports(limit: number = 50): Promise<
     },
   }));
 }
+
+export interface AdminAnalytics {
+  totalUsers: number;
+  newLast7Days: number;
+  newLast30Days: number;
+  activeLast30Days: number;
+  smsOptIns: number;
+  totalViews: number;
+  viewsLast7Days: number;
+  avgSessionSec: number;
+  uniqueViewers: number;
+  topSpots: Array<{ name: string; viewCount: number }>;
+  totalReports: number;
+  avgRating: number;
+  activeAlerts: number;
+  alertUsers: number;
+  popupStats: Array<{ response: string; count: number }>;
+  allUsers: Array<{
+    id: number;
+    name: string | null;
+    email: string | null;
+    phone: string | null;
+    smsOptIn: number | null;
+    loginMethod: string | null;
+    role: string;
+    createdAt: Date;
+    lastSignedIn: Date;
+    viewCount: number;
+    reportCount: number;
+    alertCount: number;
+  }>;
+}
+
+export async function getAdminAnalytics(): Promise<AdminAnalytics | null> {
+  if (!_pool) {
+    await getDb();
+  }
+  if (!_pool) return null;
+
+  try {
+    const [userRows] = await _pool.execute(`
+      SELECT
+        COUNT(*) as totalUsers,
+        SUM(CASE WHEN createdAt >= DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 ELSE 0 END) as newLast7Days,
+        SUM(CASE WHEN createdAt >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) as newLast30Days,
+        SUM(CASE WHEN lastSignedIn >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) as activeLast30Days,
+        SUM(CASE WHEN smsOptIn = 1 AND phone IS NOT NULL THEN 1 ELSE 0 END) as smsOptIns
+      FROM users
+    `);
+
+    const [viewRows] = await _pool.execute(`
+      SELECT
+        COUNT(*) as totalViews,
+        SUM(CASE WHEN viewedAt >= DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 ELSE 0 END) as viewsLast7Days,
+        ROUND(AVG(CASE WHEN sessionDuration > 0 THEN sessionDuration END)) as avgSessionSec,
+        COUNT(DISTINCT userId) as uniqueViewers
+      FROM forecast_views
+      WHERE viewedAt >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+    `);
+
+    const [topSpotRows] = await _pool.execute(`
+      SELECT sp.name, COUNT(*) as viewCount
+      FROM forecast_views fv
+      JOIN surf_spots sp ON fv.spotId = sp.id
+      WHERE fv.viewedAt >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+      GROUP BY sp.id, sp.name
+      ORDER BY viewCount DESC
+      LIMIT 5
+    `);
+
+    const [reportRows] = await _pool.execute(`
+      SELECT COUNT(*) as totalReports, ROUND(AVG(starRating), 1) as avgRating
+      FROM surf_reports
+    `);
+
+    const [alertRows] = await _pool.execute(`
+      SELECT COUNT(*) as activeAlerts, COUNT(DISTINCT userId) as alertUsers
+      FROM swell_alerts WHERE isActive = 1
+    `);
+
+    const [popupRows] = await _pool.execute(`
+      SELECT
+        COALESCE(surfPlanResponse, 'pending') as response,
+        COUNT(*) as count
+      FROM forecast_views
+      WHERE surfPlanPopupShown = 1
+      GROUP BY surfPlanResponse
+    `);
+
+    const [allUserRows] = await _pool.execute(`
+      SELECT
+        u.id, u.name, u.email, u.phone, u.smsOptIn, u.loginMethod, u.role, u.createdAt, u.lastSignedIn,
+        COUNT(DISTINCT fv.id) as viewCount,
+        COUNT(DISTINCT sr.id) as reportCount,
+        COUNT(DISTINCT sa.id) as alertCount
+      FROM users u
+      LEFT JOIN forecast_views fv ON u.id = fv.userId
+      LEFT JOIN surf_reports sr ON u.id = sr.userId
+      LEFT JOIN swell_alerts sa ON u.id = sa.userId AND sa.isActive = 1
+      GROUP BY u.id, u.name, u.email, u.phone, u.smsOptIn, u.loginMethod, u.role, u.createdAt, u.lastSignedIn
+      ORDER BY u.lastSignedIn DESC
+    `);
+
+    const userStats = (userRows as any[])[0] || {};
+    const viewStats = (viewRows as any[])[0] || {};
+    const reportStats = (reportRows as any[])[0] || {};
+    const alertStats = (alertRows as any[])[0] || {};
+
+    return {
+      totalUsers: Number(userStats.totalUsers) || 0,
+      newLast7Days: Number(userStats.newLast7Days) || 0,
+      newLast30Days: Number(userStats.newLast30Days) || 0,
+      activeLast30Days: Number(userStats.activeLast30Days) || 0,
+      smsOptIns: Number(userStats.smsOptIns) || 0,
+      totalViews: Number(viewStats.totalViews) || 0,
+      viewsLast7Days: Number(viewStats.viewsLast7Days) || 0,
+      avgSessionSec: Number(viewStats.avgSessionSec) || 0,
+      uniqueViewers: Number(viewStats.uniqueViewers) || 0,
+      topSpots: (topSpotRows as any[]).map(r => ({ name: r.name, viewCount: Number(r.viewCount) })),
+      totalReports: Number(reportStats.totalReports) || 0,
+      avgRating: Number(reportStats.avgRating) || 0,
+      activeAlerts: Number(alertStats.activeAlerts) || 0,
+      alertUsers: Number(alertStats.alertUsers) || 0,
+      popupStats: (popupRows as any[]).map(r => ({ response: r.response, count: Number(r.count) })),
+      allUsers: (allUserRows as any[]).map(r => ({
+        id: r.id,
+        name: r.name,
+        email: r.email,
+        phone: r.phone,
+        smsOptIn: r.smsOptIn,
+        loginMethod: r.loginMethod,
+        role: r.role,
+        createdAt: r.createdAt,
+        lastSignedIn: r.lastSignedIn,
+        viewCount: Number(r.viewCount) || 0,
+        reportCount: Number(r.reportCount) || 0,
+        alertCount: Number(r.alertCount) || 0,
+      })),
+    };
+  } catch (error) {
+    console.error('[Admin Analytics] Query error:', error);
+    return null;
+  }
+}

@@ -50,6 +50,7 @@ import {
   shouldShowSurfPlanPopup,
   markSurfPlanPopupShown,
   recordSurfPlanResponse,
+  getAdminAnalytics,
 } from "./db";
 import { getCurrentTideInfo } from "./layers/environmental/clients/tides";
 import { getCurrentConditionsFromOpenMeteo } from "./layers/environmental/clients/openmeteo";
@@ -2208,6 +2209,12 @@ export const appRouter = router({
             openMeteoPointCount: timeline.length,
           };
         }),
+    }),
+
+    analytics: router({
+      getStats: adminProcedure.query(async () => {
+        return getAdminAnalytics();
+      }),
     }),
 
     alerts: router({

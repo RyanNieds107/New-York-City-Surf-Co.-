@@ -87,4 +87,5 @@ export {
   getReportsForUser,
   getUserReportCount,
   getRecentReports,
+  getAdminAnalytics,
 } from '../db';
