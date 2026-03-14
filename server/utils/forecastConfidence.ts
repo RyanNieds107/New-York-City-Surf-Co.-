@@ -10,9 +10,7 @@
  * - LOW: Models disagree by more than 1.5ft
  */
 
-import { getStormglassVerification } from "../db";
 import type { ForecastTimelineResult } from "../services/forecast";
-import type { StormglassVerification } from "../../drizzle/schema";
 import { calculateQualityScoreWithProfile } from "./qualityRating";
 import { getSpotProfile } from "./spotProfiles";
 
@@ -149,22 +147,19 @@ export async function addConfidenceToTimeline(
 
 /**
  * Get a simple confidence summary for a spot.
- * Useful for dashboard cards to show overall confidence.
+ * Pass the already-computed ForecastWithConfidence[] to avoid a redundant DB fetch.
  */
-export async function getConfidenceSummary(
-  spotId: number,
-  timeline: ForecastTimelineResult[]
-): Promise<{
+export function getConfidenceSummary(
+  precomputed: ForecastWithConfidence[]
+): {
   overallConfidence: ConfidenceLevel;
   highCount: number;
   medCount: number;
   lowCount: number;
   totalWithData: number;
-}> {
-  const timelineWithConfidence = await addConfidenceToTimeline(spotId, timeline);
-
-  // Only look at points with confidence data (next 24 hours)
-  const pointsWithConfidence = timelineWithConfidence.filter(
+} {
+  // Only look at points with confidence data
+  const pointsWithConfidence = precomputed.filter(
     (p) => p.modelConfidence !== null
   );
 
@@ -306,41 +301,27 @@ function buildEasternHourKey(timestamp: Date | string): string {
 }
 
 /**
- * Compare Open-Meteo wave height (from timeline) with Stormglass wave height.
- * Returns a summary suitable for a user-facing forecast warning when models disagree by >= 1.0 ft.
- * Both timestamps are normalized to Eastern hour for matching.
+ * Compare Open-Meteo wave height against ECMWF from the pre-computed timeline.
+ * Operates purely on already-fetched data — no DB call needed.
  */
-export async function getWaveHeightDiscrepancy(
-  spotId: number,
-  timeline: ForecastTimelineResult[]
-): Promise<{ hasLargeDiscrepancy: boolean; maxDiffFt: number | null }> {
-  if (timeline.length === 0) {
+export function getWaveHeightDiscrepancy(
+  precomputed: ForecastWithConfidence[]
+): { hasLargeDiscrepancy: boolean; maxDiffFt: number | null } {
+  if (precomputed.length === 0) {
     return { hasLargeDiscrepancy: false, maxDiffFt: null };
   }
 
   const now = new Date();
   const endTime = new Date(now.getTime() + WAVE_HEIGHT_DISCREPANCY_WINDOW_HOURS * 60 * 60 * 1000);
-  const verificationData = await getStormglassVerification(spotId, now, endTime);
-
-  const verificationMap = new Map<string, StormglassVerification>();
-  for (const v of verificationData) {
-    const key = buildEasternHourKey(v.forecastTimestamp);
-    verificationMap.set(key, v);
-  }
 
   let maxDiffFt: number | null = null;
 
-  for (const point of timeline) {
+  for (const point of precomputed) {
     const pointTime = new Date(point.forecastTimestamp);
     if (pointTime.getTime() < now.getTime()) continue;
     if (pointTime.getTime() > endTime.getTime()) break;
 
-    const key = buildEasternHourKey(pointTime);
-    const verification = verificationMap.get(key);
-    const stormglassFt =
-      verification?.waveHeightFt != null
-        ? parseFloat(String(verification.waveHeightFt))
-        : null;
+    const stormglassFt = point.ecmwfWaveHeightFt;
     const openMeteoFt = point.waveHeightFt != null ? point.waveHeightFt : null;
 
     if (openMeteoFt === null || stormglassFt === null) continue;
@@ -373,26 +354,17 @@ function toEasternDayKey(date: Date): string {
 
 /**
  * Same as getWaveHeightDiscrepancy but keyed by calendar day (Eastern).
- * Use this to show a warning on specific forecast day cards.
+ * Operates purely on already-fetched data — no DB call needed.
  */
-export async function getWaveHeightDiscrepancyByDay(
-  spotId: number,
-  timeline: ForecastTimelineResult[]
-): Promise<Record<string, { hasLargeDiscrepancy: boolean; maxDiffFt: number | null }>> {
+export function getWaveHeightDiscrepancyByDay(
+  precomputed: ForecastWithConfidence[]
+): Record<string, { hasLargeDiscrepancy: boolean; maxDiffFt: number | null }> {
   const byDay: Record<string, { hasLargeDiscrepancy: boolean; maxDiffFt: number | null }> = {};
-  if (timeline.length === 0) return byDay;
+  if (precomputed.length === 0) return byDay;
 
   const now = new Date();
-  const endTime = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
-  const verificationData = await getStormglassVerification(spotId, now, endTime);
 
-  const verificationMap = new Map<string, StormglassVerification>();
-  for (const v of verificationData) {
-    const key = buildEasternHourKey(v.forecastTimestamp);
-    verificationMap.set(key, v);
-  }
-
-  for (const point of timeline) {
+  for (const point of precomputed) {
     const pointTime = new Date(point.forecastTimestamp);
     if (pointTime.getTime() < now.getTime()) continue;
 
@@ -401,10 +373,7 @@ export async function getWaveHeightDiscrepancyByDay(
       byDay[dayKey] = { hasLargeDiscrepancy: false, maxDiffFt: null };
     }
 
-    const key = buildEasternHourKey(pointTime);
-    const verification = verificationMap.get(key);
-    const stormglassFt =
-      verification?.waveHeightFt != null ? parseFloat(String(verification.waveHeightFt)) : null;
+    const stormglassFt = point.ecmwfWaveHeightFt;
     const openMeteoFt = point.waveHeightFt != null ? point.waveHeightFt : null;
 
     if (openMeteoFt === null || stormglassFt === null) continue;

@@ -337,20 +337,28 @@ export async function getLatestForecastForSpot(spotId: number): Promise<Forecast
 export async function getAllLatestForecasts(): Promise<Forecast[]> {
   const db = await getDb();
   if (!db) return [];
-  // Get the latest forecast for each spot using a subquery
-  const result = await db
-    .select()
+
+  const subquery = db
+    .select({
+      spotId: forecasts.spotId,
+      maxCreatedAt: sql<Date>`MAX(${forecasts.createdAt})`.as("maxCreatedAt"),
+    })
     .from(forecasts)
-    .orderBy(desc(forecasts.createdAt));
-  
-  // Group by spotId and take the latest
-  const latestBySpot = new Map<number, Forecast>();
-  for (const forecast of result) {
-    if (!latestBySpot.has(forecast.spotId)) {
-      latestBySpot.set(forecast.spotId, forecast);
-    }
-  }
-  return Array.from(latestBySpot.values());
+    .groupBy(forecasts.spotId)
+    .as("latest");
+
+  const result = await db
+    .select({ forecast: forecasts })
+    .from(forecasts)
+    .innerJoin(
+      subquery,
+      and(
+        eq(forecasts.spotId, subquery.spotId),
+        eq(forecasts.createdAt, subquery.maxCreatedAt),
+      )
+    );
+
+  return result.map((r) => r.forecast);
 }
 
 export async function insertForecast(forecast: InsertForecast): Promise<void> {

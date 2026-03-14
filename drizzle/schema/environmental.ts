@@ -1,4 +1,4 @@
-import { decimal, int, mysqlEnum, mysqlTable, timestamp, unique, varchar } from "drizzle-orm/mysql-core";
+import { decimal, index, int, mysqlEnum, mysqlTable, timestamp, unique, varchar } from "drizzle-orm/mysql-core";
 
 // Surf Spots Table
 export const surfSpots = mysqlTable("surf_spots", {
@@ -61,7 +61,10 @@ export const forecastPoints = mysqlTable("forecast_points", {
   airTempF: decimal("airTempF", { precision: 4, scale: 1 }), // Fahrenheit
   source: mysqlEnum("source", ["ww3", "gfs", "hrrr", "openmeteo"]).default("ww3").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+}, (table) => ({
+  spotIdHoursIdx: index("idx_fp_spot_hours").on(table.spotId, table.hoursOut),
+  spotIdModelRunIdx: index("idx_fp_spot_modelrun").on(table.spotId, table.modelRunTime),
+}));
 
 export type ForecastPoint = typeof forecastPoints.$inferSelect;
 export type InsertForecastPoint = typeof forecastPoints.$inferInsert;

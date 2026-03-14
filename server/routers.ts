@@ -778,50 +778,51 @@ export const appRouter = router({
     // Refresh all spots
     refreshAll: publicProcedure.mutation(async () => {
       const spots = await getAllSpots();
-      const results = [];
 
-      for (const spot of spots) {
-        try {
-          // Fetch current conditions from Open-Meteo
-          const openMeteoPoint = await getCurrentConditionsFromOpenMeteo(spot);
+      const results = await Promise.all(
+        spots.map(async (spot) => {
+          try {
+            // Fetch current conditions from Open-Meteo
+            const openMeteoPoint = await getCurrentConditionsFromOpenMeteo(spot);
 
-          // Get tide info (NOAA Tides & Currents API)
-          const tideInfo = await getCurrentTideInfo(spot.tideStationId);
+            // Get tide info (NOAA Tides & Currents API)
+            const tideInfo = await getCurrentTideInfo(spot.tideStationId);
 
-          // Get average crowd level
-          const avgCrowdLevel = await getAverageCrowdLevel(spot.id);
+            // Get average crowd level
+            const avgCrowdLevel = await getAverageCrowdLevel(spot.id);
 
-          // Generate forecast
-          const forecastResult = generateForecast({
-            spot,
-            openMeteoPoint: openMeteoPoint || null,
-            tideInfo,
-            avgCrowdLevel,
-          });
+            // Generate forecast
+            const forecastResult = generateForecast({
+              spot,
+              openMeteoPoint: openMeteoPoint || null,
+              tideInfo,
+              avgCrowdLevel,
+            });
 
-          // Save forecast
-          await insertForecast({
-            spotId: spot.id,
-            forecastTime: new Date(),
-            probabilityScore: forecastResult.probabilityScore,
-            qualityScore: forecastResult.qualityScore,
-            waveHeightTenthsFt: forecastResult.waveHeightTenthsFt,
-            confidenceBand: forecastResult.confidenceBand,
-            usabilityIntermediate: forecastResult.usabilityIntermediate,
-            usabilityAdvanced: forecastResult.usabilityAdvanced,
-            windSpeedMph: forecastResult.windSpeedMph,
-            windDirectionDeg: forecastResult.windDirectionDeg,
-            windType: forecastResult.windType,
-            tideHeightFt: forecastResult.tideHeightFt,
-            tidePhase: forecastResult.tidePhase,
-          });
+            // Save forecast
+            await insertForecast({
+              spotId: spot.id,
+              forecastTime: new Date(),
+              probabilityScore: forecastResult.probabilityScore,
+              qualityScore: forecastResult.qualityScore,
+              waveHeightTenthsFt: forecastResult.waveHeightTenthsFt,
+              confidenceBand: forecastResult.confidenceBand,
+              usabilityIntermediate: forecastResult.usabilityIntermediate,
+              usabilityAdvanced: forecastResult.usabilityAdvanced,
+              windSpeedMph: forecastResult.windSpeedMph,
+              windDirectionDeg: forecastResult.windDirectionDeg,
+              windType: forecastResult.windType,
+              tideHeightFt: forecastResult.tideHeightFt,
+              tidePhase: forecastResult.tidePhase,
+            });
 
-          results.push({ spotId: spot.id, success: true });
-        } catch (error) {
-          console.error(`Failed to refresh forecast for spot ${spot.id}:`, error);
-          results.push({ spotId: spot.id, success: false });
-        }
-      }
+            return { spotId: spot.id, success: true };
+          } catch (error) {
+            console.error(`Failed to refresh forecast for spot ${spot.id}:`, error);
+            return { spotId: spot.id, success: false };
+          }
+        })
+      );
 
       return { results };
     }),
@@ -921,10 +922,12 @@ export const appRouter = router({
         }
 
         // Add ECMWF confidence data to timeline (compares Open-Meteo vs Stormglass)
+        // Stormglass verification is fetched ONCE inside addConfidenceToTimeline;
+        // the three derived computations reuse the already-enriched timeline.
         const timelineWithConfidence = await addConfidenceToTimeline(spot.id, timelineWithBuoyOverride, spot.name);
-        const confidenceSummary = await getConfidenceSummary(spot.id, timelineWithBuoyOverride);
-        const waveHeightDiscrepancy = await getWaveHeightDiscrepancy(spot.id, timelineWithBuoyOverride);
-        const waveHeightDiscrepancyByDay = await getWaveHeightDiscrepancyByDay(spot.id, timelineWithBuoyOverride);
+        const confidenceSummary = getConfidenceSummary(timelineWithConfidence);
+        const waveHeightDiscrepancy = getWaveHeightDiscrepancy(timelineWithConfidence);
+        const waveHeightDiscrepancyByDay = getWaveHeightDiscrepancyByDay(timelineWithConfidence);
 
         // Auto-select best forecast model by comparing buoy observation vs both models
         let recommendedModel: { model: 'euro' | 'om'; reason: string; buoyHeightFt: number; omDiffFt: number; euroDiffFt: number | null } | null = null;

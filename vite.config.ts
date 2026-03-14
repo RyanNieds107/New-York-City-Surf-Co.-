@@ -41,6 +41,14 @@ export default defineConfig({
         }
         return false;
       },
+      output: {
+        manualChunks: {
+          "vendor-react":  ["react", "react-dom", "wouter"],
+          "vendor-trpc":   ["@trpc/client", "@trpc/react-query", "@tanstack/react-query"],
+          "vendor-charts": ["recharts"],
+          "vendor-motion": ["framer-motion"],
+        },
+      },
     },
   },
   optimizeDeps: {

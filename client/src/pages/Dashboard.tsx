@@ -45,8 +45,7 @@ export default function Dashboard() {
   const refetchInterval = 30 * 60 * 1000;
 
   const spotsQuery = trpc.spots.list.useQuery(undefined, {
-    refetchOnMount: true,
-    staleTime: 0, // Always consider data stale to ensure fresh fetches
+    staleTime: 5 * 60 * 1000, // 5 minutes — spots never change mid-session
     refetchInterval,
   });
   const forecastsQuery = trpc.forecasts.getCurrentConditionsForAll.useQuery(undefined, {
