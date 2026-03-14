@@ -196,17 +196,3 @@ export async function smokeTestLido(): Promise<void> {
   }
 }
 
-// Allow running this file directly for testing
-// Check if this is the main module by checking if import.meta.url matches the script file
-const isMainModule = process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/'));
-if (isMainModule || process.argv[1]?.includes('importOpenMeteoMarine')) {
-  smokeTestLido()
-    .then(() => {
-      console.log("[Smoke Test] Completed successfully");
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error("[Smoke Test] Failed:", error);
-      process.exit(1);
-    });
-}
