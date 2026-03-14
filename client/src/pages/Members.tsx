@@ -1458,7 +1458,7 @@ export default function Members() {
                     <span className="hidden sm:inline text-[10px] text-gray-500 uppercase tracking-wide" style={{ fontFamily: "'JetBrains Mono', monospace" }}>— select multiple</span>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                    {spots?.filter(spot => !["Belmar", "Gilgo Beach", "Montauk"].includes(spot.name)).map((spot) => (
+                    {spots?.filter(spot => !["Belmar", "Gilgo Beach"].includes(spot.name)).map((spot) => (
                       <button
                         key={spot.id}
                         type="button"
@@ -1948,7 +1948,7 @@ export default function Members() {
                       style={{ fontFamily: "'JetBrains Mono', monospace" }}
                     >
                       <option value="">Select a spot...</option>
-                      {spots?.filter(s => !["Belmar", "Gilgo Beach", "Montauk"].includes(s.name)).map(spot => (
+                      {spots?.filter(s => !["Belmar", "Gilgo Beach"].includes(s.name)).map(spot => (
                         <option key={spot.id} value={spot.id}>
                           {spot.name}
                         </option>

@@ -70,7 +70,7 @@ export interface DetectedSwell {
 }
 
 // Spots that are "Coming Soon" and should be excluded from alerts
-const EXCLUDED_SPOT_NAMES = ["Belmar", "Gilgo Beach", "Montauk"];
+const EXCLUDED_SPOT_NAMES = ["Belmar", "Gilgo Beach"];
 
 /**
  * Detects upcoming swells that match a user's alert criteria.
