@@ -242,8 +242,8 @@ export default function Dashboard() {
     "Rockaway Beach",
     "Long Beach",
     "Lido Beach",
-    "Gilgo Beach",
     "Montauk",
+    "Gilgo Beach",
     "Belmar",
   ];
 
@@ -289,7 +289,7 @@ export default function Dashboard() {
   };
 
   // Split spots into top 3 (photo cards) and bottom 3 (regular cards)
-  const topThreeSpotNames = ["Rockaway Beach", "Long Beach", "Lido Beach", "Montauk"];
+  const topThreeSpotNames = ["Rockaway Beach", "Long Beach", "Lido Beach"];
   const topThreeSpots = sortedSpots.filter((spot) => {
     return topThreeSpotNames.includes(spot.name);
   });
@@ -362,9 +362,9 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* Active Spots - Photo Cards */}
+            {/* Top Spots - Photo Cards */}
             {topThreeSpots.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-3 sm:mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-3 sm:mb-4">
                 {topThreeSpots.map((spot) => {
                   const imagePath = getSpotImagePath(spot.name);
                   const region = getSpotRegion(spot.name);
